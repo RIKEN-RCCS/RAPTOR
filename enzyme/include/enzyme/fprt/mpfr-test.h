@@ -88,6 +88,24 @@ void __enzyme_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
   free(__enzyme_fprt_double_to_ptr(a));
 }
 
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
+                               int64_t mode, const char *loc) {
+  printf("DOUBLE\n");
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_32_23_count(int64_t exponent, int64_t significand,
+                               int64_t mode, const char *loc) {
+  printf("FLOAT\n");
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
+                               int64_t mode, const char *loc) {
+  printf("HALF\n");
+}
+
 #define __ENZYME_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
                              RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
                              ROUNDING_MODE)                                    \

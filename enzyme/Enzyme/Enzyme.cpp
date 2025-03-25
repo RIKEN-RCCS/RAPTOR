@@ -121,9 +121,9 @@ llvm::cl::opt<std::string> EnzymeTruncateAll(
         "Truncate all floating point operations. "
         "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
 
-llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count");
+llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count",
+                                        cl::init(true));
 
-#if LLVM_VERSION_MAJOR >= 14
 #define addAttribute addAttributeAtIndex
 #define getAttribute getAttributeAtIndex
 bool attributeKnownFunctions(llvm::Function &F) {
@@ -2181,8 +2181,8 @@ public:
   bool handleFlopCount(Function &F) {
     if (F.isDeclaration())
       return false;
-    // if (!EnzymeTruncateCount)
-    //   return false;
+    if (!EnzymeTruncateCount)
+      return false;
 
     if (F.getName().starts_with(EnzymeFPRTPrefix))
       return false;

@@ -1,14 +1,7 @@
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c
-// -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include
-// enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi RUN: if [ %llvmver -ge
-// 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2 -g %s -o
-// /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang
-// -verify -Rpass=enzyme; fi COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes"
-// ] ; then %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm
-// %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify
-// -Rpass=enzyme; fi COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then
-// %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %newLoadClangEnzyme
-// -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
+// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
+// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
 
 #include <math.h>
 #include <stdio.h>
@@ -17,13 +10,10 @@
 #define TO 32
 
 double bithack(double a) {
-  return *((int64_t *)&a) +
-         1; // expected-remark {{Will not follow FP through this cast.}},
-            // expected-remark {{Will not follow FP through this cast.}}
+  return *((int64_t *)&a) + 1; // expected-remark {{Will not follow FP through this cast.}}, expected-remark {{Will not follow FP through this cast.}}
 }
 __attribute__((noinline)) void print_d(double a) {
-  printf("%f\n", a); // expected-remark {{Will not follow FP through this
-                     // function call as the definition is not available.}}
+  printf("%f\n", a); // expected-remark {{Will not follow FP through this function call as the definition is not available.}}
 }
 __attribute__((noinline)) float truncf(double a) {
   return (float)a; // expected-remark {{Will not follow FP through this cast.}}

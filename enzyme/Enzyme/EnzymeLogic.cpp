@@ -5077,7 +5077,7 @@ public:
     if (truncation.getMode() == TruncCountMode) {
       SmallVector<Value *> EmptyArgs;
       return createFPRTGeneric(B, "count", EmptyArgs, B.getVoidTy(),
-                               getUniquedLocStr(I));
+                               getUniquedLocStr(&I));
     }
     std::string Name;
     if (auto BO = dyn_cast<BinaryOperator>(&I)) {
