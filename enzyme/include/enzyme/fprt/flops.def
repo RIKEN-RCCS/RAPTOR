@@ -70,6 +70,9 @@ __ENZYME_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(minnum, min);
 __ENZYME_MPFR_BIN_INT(intr, llvm_powi_f64_i32, pow_si, 64_52, double, d, double,
                       d, int32_t, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);
 
+__ENZYME_MPFR_BIN_INT(func, ldexp, mul_2ui, 64_52, double, d, double,
+                      d, int32_t, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);
+
 // Unary operations
 __ENZYME_MPFR_SINGOP_DOUBLE_FLOAT(sqrt, sqrt);
 
@@ -115,6 +118,18 @@ __ENZYME_MPFR_SINGOP_DOUBLE_FLOAT(nearbyint, rint);
 
 __ENZYME_MPFR_SINGOP(unaryop, fneg, neg, 64_52, double, d, double,
                      d, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE)
+
+__ENZYME_MPFR_SINGOP(unaryop, fneg, neg, 32_23, float, d, float,
+                     d, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE)
+
+// TODO This returns an int and is a rounding operation.
+// Making this behave correctly for mem mode could be interesting.
+// It currently rounds away twice: during truncation and during conversion.
+// It may make sense to just ignore this op overall.
+__ENZYME_MPFR_LROUND(intr, llvm_lround_i32_f64, 64_52, int32_t, double,
+                     d, MPFR_RNDA);
+__ENZYME_MPFR_LROUND(intr, llvm_lround_i32_f32, 32_23, int32_t, float,
+                     d, MPFR_RNDA);
 
 // Ternary operation
 __ENZYME_MPFR_FMULADD(llvm_fmuladd, 64_52, double, d, f64,

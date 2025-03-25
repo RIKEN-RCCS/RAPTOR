@@ -28,6 +28,9 @@ double __enzyme_expand_mem_value_d(double, int, int);
 float __enzyme_expand_mem_value_f(float, int, int);
 void __enzyme_fprt_delete_all();
 
+long long __enzyme_get_trunc_flop_count();
+long long f_enzyme_get_trunc_flop_count();
+
 // For internal use
 struct __enzyme_fp;
 __enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,

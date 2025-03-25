@@ -304,6 +304,7 @@ enum TruncateMode {
   TruncMemMode = 0b0001,
   TruncOpMode = 0b0010,
   TruncOpFullModuleMode = 0b0110,
+  TruncCountMode = 0b1000,
 };
 [[maybe_unused]] static const char *truncateModeStr(TruncateMode mode) {
   switch (mode) {
@@ -313,6 +314,8 @@ enum TruncateMode {
     return "op";
   case TruncOpFullModuleMode:
     return "op_full_module";
+  case TruncCountMode:
+    return "count";
   }
   llvm_unreachable("Invalid truncation mode");
 }
@@ -326,6 +329,7 @@ struct FloatRepresentation {
   unsigned exponentWidth;
   unsigned significandWidth;
 
+  FloatRepresentation() : exponentWidth(0), significandWidth(0) {}
   FloatRepresentation(unsigned e, unsigned s)
       : exponentWidth(e), significandWidth(s) {}
 
@@ -371,6 +375,11 @@ private:
   TruncateMode mode;
 
 public:
+  FloatTruncation(FloatRepresentation From, TruncateMode mode)
+      : from(From), mode(mode) {
+    if (mode != TruncCountMode)
+      llvm::report_fatal_error("Only count mode allowed in this constructor");
+  }
   FloatTruncation(FloatRepresentation From, FloatRepresentation To,
                   TruncateMode mode)
       : from(From), to(To), mode(mode) {
@@ -409,6 +418,8 @@ public:
     return getTuple() < other.getTuple();
   }
   std::string mangleTruncation() const {
+    if (mode == TruncCountMode)
+      return "count";
     return from.to_string() + "to" + to.to_string();
   }
   std::string mangleFrom() const { return from.to_string(); }

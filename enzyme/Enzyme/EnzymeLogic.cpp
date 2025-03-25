@@ -4946,7 +4946,7 @@ private:
         ArgTypes.push_back(Arg->getType());
       FunctionType *FnTy =
           FunctionType::get(RetTy, ArgTypes, /*is_vararg*/ false);
-      F = Function::Create(FnTy, Function::WeakODRLinkage, MangledName, M);
+      F = Function::Create(FnTy, Function::WeakAnyLinkage, MangledName, M);
     }
     if (F->isDeclaration()) {
       BasicBlock *Entry = BasicBlock::Create(F->getContext(), "entry", F);
@@ -5074,6 +5074,11 @@ public:
   CallInst *createFPRTOpCall(llvm::IRBuilderBase &B, llvm::Instruction &I,
                              llvm::Type *RetTy,
                              SmallVectorImpl<Value *> &ArgsIn) {
+    if (truncation.getMode() == TruncCountMode) {
+      SmallVector<Value *> EmptyArgs;
+      return createFPRTGeneric(B, "count", EmptyArgs, B.getVoidTy(),
+                               getUniquedLocStr(I));
+    }
     std::string Name;
     if (auto BO = dyn_cast<BinaryOperator>(&I)) {
       Name = "binop_" + std::string(BO->getOpcodeName());
@@ -5139,6 +5144,7 @@ public:
       break;
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       EmitWarning(
           "UnhandledTrunc", I,
           "Operation not handled - it will be executed in the original way.",
@@ -5170,6 +5176,8 @@ public:
     case TruncOpMode:
     case TruncOpFullModuleMode:
       return floatValTruncate(B, v, truncation);
+    case TruncCountMode:
+      return nullptr;
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -5181,6 +5189,8 @@ public:
     case TruncOpMode:
     case TruncOpFullModuleMode:
       return floatValExpand(B, v, truncation);
+    case TruncCountMode:
+      return nullptr;
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -5195,10 +5205,12 @@ public:
       IRBuilder<> B(newI);
       SmallVector<Value *, 2> Args = {newI->getOperand(0)};
       auto nres = createFPRTOpCall(B, I, newI->getType(), Args);
-      nres->takeName(newI);
-      nres->copyIRFlags(newI);
-      newI->replaceAllUsesWith(nres);
-      newI->eraseFromParent();
+      if (mode != TruncCountMode) {
+        nres->takeName(newI);
+        nres->copyIRFlags(newI);
+        newI->replaceAllUsesWith(nres);
+        newI->eraseFromParent();
+      }
       return;
     }
     default:
@@ -5231,14 +5243,17 @@ public:
       else
         nres =
             cast<FCmpInst>(B.CreateFCmp(CI.getPredicate(), truncLHS, truncRHS));
-      nres->takeName(newI);
-      nres->copyIRFlags(newI);
-      newI->replaceAllUsesWith(nres);
-      newI->eraseFromParent();
+      if (mode != TruncCountMode) {
+        nres->takeName(newI);
+        nres->copyIRFlags(newI);
+        newI->replaceAllUsesWith(nres);
+        newI->eraseFromParent();
+      }
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       return;
     }
   }
@@ -5272,16 +5287,19 @@ public:
         EmitWarning("FPNoFollow", CI, "Will not follow FP through this cast.",
                     CI);
         auto nres = createFPRTNewCall(B, newI);
-        nres->takeName(newI);
-        nres->copyIRFlags(newI);
-        newI->replaceUsesWithIf(nres,
-                                [&](Use &U) { return U.getUser() != nres; });
-        originalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
+        if (mode != TruncCountMode) {
+          nres->takeName(newI);
+          nres->copyIRFlags(newI);
+          newI->replaceUsesWithIf(nres,
+                                  [&](Use &U) { return U.getUser() != nres; });
+          originalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
+        }
       }
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       return;
     }
   }
@@ -5296,14 +5314,17 @@ public:
       auto newF = truncate(B, getNewFromOriginal(SI.getFalseValue()));
       auto nres = cast<SelectInst>(
           B.CreateSelect(getNewFromOriginal(SI.getCondition()), newT, newF));
-      nres->takeName(newI);
-      nres->copyIRFlags(newI);
-      newI->replaceAllUsesWith(expand(B, nres));
-      newI->eraseFromParent();
+      if (mode != TruncCountMode) {
+        nres->takeName(newI);
+        nres->copyIRFlags(newI);
+        newI->replaceAllUsesWith(expand(B, nres));
+        newI->eraseFromParent();
+      }
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       return;
     }
     llvm_unreachable("");
@@ -5352,10 +5373,12 @@ public:
     } else {
       nres = cast<Instruction>(B.CreateBinOp(BO.getOpcode(), newLHS, newRHS));
     }
-    nres->takeName(newI);
-    nres->copyIRFlags(newI);
-    newI->replaceAllUsesWith(expand(B, nres));
-    newI->eraseFromParent();
+    if (mode != TruncCountMode) {
+      nres->takeName(newI);
+      nres->copyIRFlags(newI);
+      newI->replaceAllUsesWith(expand(B, nres));
+      newI->eraseFromParent();
+    }
     return;
   }
   void visitMemSetInst(llvm::MemSetInst &MS) { visitMemSetCommon(MS); }
@@ -5377,11 +5400,11 @@ public:
   }
   void visitFenceInst(llvm::FenceInst &FI) { return; }
 
-  bool handleIntrinsic(llvm::CallInst &CI, Intrinsic::ID ID) {
+  bool handleIntrinsic(llvm::CallBase &CI, Intrinsic::ID ID) {
     if (isDbgInfoIntrinsic(ID))
       return true;
 
-    auto newI = cast<llvm::CallInst>(getNewFromOriginal(&CI));
+    auto newI = cast<llvm::CallBase>(getNewFromOriginal(&CI));
     IRBuilder<> B(newI);
 
     SmallVector<Value *, 2> orig_ops(CI.arg_size());
@@ -5418,9 +5441,11 @@ public:
     }
     if (newI->getType() == getFromType())
       nres = expand(B, nres);
-    intr->copyIRFlags(newI);
-    newI->replaceAllUsesWith(nres);
-    newI->eraseFromParent();
+    if (mode != TruncCountMode) {
+      intr->copyIRFlags(newI);
+      newI->replaceAllUsesWith(nres);
+      newI->eraseFromParent();
+    }
     return true;
   }
 
@@ -5443,6 +5468,7 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -5475,6 +5501,7 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -5534,9 +5561,9 @@ public:
     return cast<Instruction>(getNewFromOriginal((llvm::Value *)v));
   }
 
-  bool handleKnownCalls(llvm::CallInst &call, llvm::Function *called,
+  bool handleKnownCalls(llvm::CallBase &call, llvm::Function *called,
                         llvm::StringRef funcName,
-                        llvm::CallInst *const newCall) {
+                        llvm::CallBase *const newCall) {
     return false;
   }
 
@@ -5547,29 +5574,46 @@ public:
     llvm_unreachable("unknown get truncated func");
     return v;
   }
+  // void visitInvokeInst(llvm::InvokeInst &CI) {
+  //   // fprintf(stderr, "Won't handle invoke instruction.\n");
+  //   EmitWarning("FPNoInvoke", CI,
+  //               "Will not handle invoke instruction.", CI);    
+  // }
+  
   // Return
-  void visitCallInst(llvm::CallInst &CI) {
+  void visitCallBase(llvm::CallBase &CI) {
     Intrinsic::ID ID;
-    StringRef funcName = getFuncNameFromCall(const_cast<CallInst *>(&CI));
+    StringRef funcName = getFuncNameFromCall(const_cast<CallBase *>(&CI));
     if (isMemFreeLibMFunction(funcName, &ID))
       if (handleIntrinsic(CI, ID))
         return;
 
     using namespace llvm;
 
-    CallInst *const newCall = cast<CallInst>(getNewFromOriginal(&CI));
+    CallBase *const newCall = cast<CallBase>(getNewFromOriginal(&CI));
     IRBuilder<> BuilderZ(newCall);
 
     if (auto called = CI.getCalledFunction())
       if (handleKnownCalls(CI, called, getFuncNameFromCall(&CI), newCall))
         return;
 
-    if (mode != TruncOpFullModuleMode) {
+    if (mode == TruncOpMode || mode == TruncMemMode) {
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
       if (Func && !Func->empty()) {
         auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
         newCall->setCalledOperand(val);
+      } else if (!Func) {
+        switch (mode) {
+        case TruncMemMode:
+        case TruncOpMode:
+          // fprintf(stderr, "Won't follow indirect call.\n");
+          EmitWarning("FPNoFollow", CI,
+                      "Will not follow FP through this indirect call.", CI);
+          break;
+        default:
+          llvm_unreachable("Unknown trunc mode");
+        }        
       } else {
         switch (mode) {
         case TruncMemMode:
@@ -5579,7 +5623,6 @@ public:
                       CI);
           break;
         case TruncOpMode:
-        case TruncOpFullModuleMode:
           EmitWarning("FPNoFollow", CI,
                       "Will not truncate flops in this function call as the "
                       "definition is not available.",
@@ -5610,6 +5653,7 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
+    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -5665,7 +5709,7 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
   Function *NewF = Function::Create(FTy, totrunc->getLinkage(), truncName,
                                     totrunc->getParent());
 
-  if (mode != TruncOpFullModuleMode)
+  if (mode != TruncOpFullModuleMode && mode != TruncCountMode)
     NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
 
   TruncateCachedFunctions[tup] = NewF;

@@ -93,7 +93,8 @@ else()
         intrinsics_gen
         PLUGIN_TOOL
         opt
-    )
+      )
+target_compile_definitions(LLVMEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
 if (${Clang_FOUND})
     add_llvm_library( ClangEnzyme-${LLVM_VERSION_MAJOR}
         ${ENZYME_SRC} Clang/EnzymeClang.cpp

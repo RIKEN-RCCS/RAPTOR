@@ -262,6 +262,24 @@ __ENZYME_MPFR_ATTRIBUTES bool __enzyme_fprt_64_52_intr_llvm_is_fpclass_f64(
       __enzyme_fprt_64_52_get(a, exponent, significand, mode, loc), tests);
 }
 
+#define __ENZYME_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
+                             MPFR_SET_ARG1, ROUNDING_MODE)                     \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+      ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      mpfr_t ma;                                                               \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_set_##MPFR_SET_ARG1(ma, a, ROUNDING_MODE);                          \
+      RET c = mpfr_get_si(ma, ROUNDING_MODE);                                  \
+      mpfr_clear(ma);                                                          \
+      return c;                                                                \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
 #include "flops.def"
 
 #ifdef __cplusplus
