@@ -1,6 +1,7 @@
 #ifndef _ENZYME_FPRT_FPRT_H_
 #define _ENZYME_FPRT_FPRT_H_
 
+#include <atomic>
 #include <stdint.h>
 
 #define __ENZYME_MPFR_ATTRIBUTES                                               \
@@ -30,6 +31,13 @@ void __enzyme_fprt_delete_all();
 
 long long __enzyme_get_trunc_flop_count();
 long long f_enzyme_get_trunc_flop_count();
+
+// Global variable to count truncated flops
+// TODO only implemented for op mode at the moment
+std::atomic<long long> trunc_flop_counter = 0;
+std::atomic<long long> double_flop_counter = 0;
+std::atomic<long long> float_flop_counter = 0;
+std::atomic<long long> half_flop_counter = 0;
 
 // For internal use
 struct __enzyme_fp;
