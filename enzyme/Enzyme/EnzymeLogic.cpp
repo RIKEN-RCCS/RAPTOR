@@ -5597,6 +5597,12 @@ public:
       if (handleKnownCalls(CI, called, getFuncNameFromCall(&CI), newCall))
         return;
 
+    if (!newCall->getDebugLoc()) {
+      Function *ContainingF = newCall->getFunction();
+      newCall->setDebugLoc(DILocation::get(ContainingF->getContext(), 0, 0,
+                                           ContainingF->getSubprogram()));
+    }
+
     if (mode == TruncOpMode || mode == TruncMemMode) {
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
