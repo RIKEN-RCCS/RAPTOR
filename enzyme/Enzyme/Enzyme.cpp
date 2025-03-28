@@ -3010,6 +3010,15 @@ public:
   }
 
   bool run(Module &M) {
+    if (char *Name = getenv("ENZYME_DUMP_MODULE_PRE")) {
+      std::error_code EC;
+      raw_fd_stream Out(Name, EC);
+      if (!EC) {
+        Out << M;
+      } else {
+        llvm::errs() << "Could not open Enzyme dump file.";
+      }
+    }
     Logic.clear();
 
     for (Function &F : make_early_inc_range(M)) {
@@ -3280,6 +3289,15 @@ public:
     for (auto &F : M) {
       if (!F.empty())
         changed |= LowerSparsification(&F);
+    }
+    if (char *Name = getenv("ENZYME_DUMP_MODULE_POST")) {
+      std::error_code EC;
+      raw_fd_stream Out(Name, EC);
+      if (!EC) {
+        Out << M;
+      } else {
+        llvm::errs() << "Could not open Enzyme dump file.";
+      }
     }
     return changed;
   }
