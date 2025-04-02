@@ -5607,8 +5607,10 @@ public:
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
       if (Func && !Func->empty()) {
-        auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
-        newCall->setCalledOperand(val);
+        if (!Func->getName().contains("enzyme_trunc_ignore")) {
+          auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
+          newCall->setCalledOperand(val);
+        }
       } else if (!Func) {
         switch (mode) {
         case TruncMemMode:
