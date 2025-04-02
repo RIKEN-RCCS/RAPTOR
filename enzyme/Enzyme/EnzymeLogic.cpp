@@ -5607,7 +5607,13 @@ public:
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
       if (Func && !Func->empty()) {
-        if (!Func->getName().contains("enzyme_trunc_ignore")) {
+        bool truncOpIgnore = Func->getName().contains("enzyme_trunc_op_ignore");
+        bool truncMemIgnore =
+            Func->getName().contains("enzyme_trunc_mem_ignore");
+        bool truncIgnore = Func->getName().contains("enzyme_trunc_ignore");
+        truncIgnore |= truncOpIgnore && mode == TruncOpMode;
+        truncIgnore |= truncMemIgnore && mode == TruncMemMode;
+        if (!truncIgnore) {
           auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
           newCall->setCalledOperand(val);
         }
@@ -5621,7 +5627,7 @@ public:
           break;
         default:
           llvm_unreachable("Unknown trunc mode");
-        }        
+        }
       } else {
         switch (mode) {
         case TruncMemMode:
