@@ -39,6 +39,8 @@ std::atomic<long long> double_flop_counter = 0;
 std::atomic<long long> float_flop_counter = 0;
 std::atomic<long long> half_flop_counter = 0;
 
+std::atomic<long long> shadow_err_counter = 0;
+
 // For internal use
 struct __enzyme_fp;
 __enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,

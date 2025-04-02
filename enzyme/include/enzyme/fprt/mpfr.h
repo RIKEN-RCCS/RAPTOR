@@ -28,6 +28,10 @@
 #include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <map>
+#include <string.h>
+
+#include <mpi.h>
 
 #include "fprt.h"
 
@@ -69,6 +73,9 @@ extern "C" {
 
 typedef struct __enzyme_fp {
   mpfr_t result;
+#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+  double shadow;
+#endif
 } __enzyme_fp;
 
 #ifdef ENZYME_FPRT_ENABLE_DUMPING
@@ -89,6 +96,12 @@ typedef struct __enzyme_fp {
 #define ENZYME_DUMP_RESULT(X, OP_TYPE, LLVM_OP_NAME)                           \
   do {                                                                         \
   } while (0)
+#endif
+
+#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+double __enzyme_fprt_64_52_abs_err(double a, double b) {
+  return std::abs(a - b);
+}
 #endif
 
 #ifdef ENZYME_FPRT_ENABLE_GARBAGE_COLLECTION
@@ -226,6 +239,285 @@ __ENZYME_MPFR_ATTRIBUTES
 void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc);
 
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_reset_shadow_trace();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_reset_shadow_trace();
+
+typedef struct __enzyme_op {
+  const char *op;             // Operation name
+  double l1_err = 0;          // Running error.
+  long long count_thresh = 0; // Number of error violations
+  long long count = 0;        // Number of samples
+} __enzyme_op;
+
+__ENZYME_MPFR_ATTRIBUTES
+std::map<const char *, struct __enzyme_op> opdata;
+
+__ENZYME_MPFR_ATTRIBUTES
+void enzyme_fprt_op_dump_status(int num);
+
+__ENZYME_MPFR_ATTRIBUTES
+void enzyme_fprt_op_clear();
+
+#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+#define SHADOW_ERR_REL 2.5e-3   // 10% err
+#define SHADOW_ERR_ABS 2.5e-6   // If reference is 0.
+
+// TODO this is a bit sketchy if the user cast their float to int before calling
+// this. We need to detect these patterns
+#define __ENZYME_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME,                            \
+                             FROM_TYPE, RET, ARG1, MPFR_SET_ARG1,              \
+                             ROUNDING_MODE)                                    \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+      ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      mpfr_t ma;                                                               \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_set_##MPFR_SET_ARG1(ma, a, ROUNDING_MODE);                          \
+      RET c = mpfr_get_si(ma, ROUNDING_MODE);                                  \
+      mpfr_clear(ma);                                                          \
+      return c;                                                                \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
+#define __ENZYME_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
+                             RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
+                             ROUNDING_MODE)                                    \
+  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  RET __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a); \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+      ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
+      mpfr_t ma, mc;                                                           \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_init2(mc, significand);                                             \
+      mpfr_set_##MPFR_SET_ARG1(ma, a, ROUNDING_MODE);                          \
+      mpfr_##MPFR_FUNC_NAME(mc, ma, ROUNDING_MODE);                            \
+      RET c = mpfr_get_##MPFR_GET(mc, ROUNDING_MODE);                          \
+      mpfr_clear(ma);                                                          \
+      mpfr_clear(mc);                                                          \
+      return c;                                                                \
+    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+          a, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+          exponent, significand, mode, loc);                                   \
+      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);            \
+      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      mc->shadow =                                                             \
+        __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow); \
+      double trunc =                                                           \
+        mpfr_get_##MPFR_GET(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
+      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+      if (!opdata[loc].count) opdata[loc].op = #LLVM_OP_NAME;                  \
+      if (trunc != 0 && err/trunc > SHADOW_ERR_REL) {                          \
+        ++opdata[loc].count_thresh;                                            \
+      } else if (trunc == 0 && err > SHADOW_ERR_ABS) {                         \
+        ++opdata[loc].count_thresh;                                            \
+      }                                                                        \
+      opdata[loc].l1_err += err;                                               \
+      ++opdata[loc].count;                                                     \
+      return __enzyme_fprt_ptr_to_double(mc);                                  \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
+// TODO this is a bit sketchy if the user cast their float to int before calling
+// this. We need to detect these patterns
+#define __ENZYME_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
+                              FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,   \
+                              ARG2, ROUNDING_MODE)                             \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+      ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
+      mpfr_t ma, mc;                                                           \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_init2(mc, significand);                                             \
+      mpfr_set_##MPFR_SET_ARG1(ma, a, ROUNDING_MODE);                          \
+      mpfr_##MPFR_FUNC_NAME(mc, ma, b, ROUNDING_MODE);                         \
+      RET c = mpfr_get_##MPFR_GET(mc, ROUNDING_MODE);                          \
+      mpfr_clear(ma);                                                          \
+      mpfr_clear(mc);                                                          \
+      return c;                                                                \
+    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+          a, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+          exponent, significand, mode, loc);                                   \
+      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, b, ROUNDING_MODE);         \
+      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      return __enzyme_fprt_ptr_to_double(mc);                                  \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
+#define __ENZYME_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
+                          RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ARG2,            \
+                          MPFR_SET_ARG2, ROUNDING_MODE)                        \
+  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  RET __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a, ARG2 b); \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+      ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
+      mpfr_t ma, mb, mc;                                                       \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_init2(mb, significand);                                             \
+      mpfr_init2(mc, significand);                                             \
+      mpfr_set_##MPFR_SET_ARG1(ma, a, ROUNDING_MODE);                          \
+      mpfr_set_##MPFR_SET_ARG2(mb, b, ROUNDING_MODE);                          \
+      mpfr_##MPFR_FUNC_NAME(mc, ma, mb, ROUNDING_MODE);                        \
+      RET c = mpfr_get_##MPFR_GET(mc, ROUNDING_MODE);                          \
+      mpfr_clear(ma);                                                          \
+      mpfr_clear(mb);                                                          \
+      mpfr_clear(mc);                                                          \
+      return c;                                                                \
+    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+          a, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+          b, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+          exponent, significand, mode, loc);                                   \
+      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,                \
+                            ROUNDING_MODE);                                    \
+      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      mc->shadow =                                                             \
+        __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow, mb->shadow); \
+      double trunc =                                                           \
+        mpfr_get_##MPFR_GET(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
+      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+      if (!opdata[loc].count) opdata[loc].op = #LLVM_OP_NAME;                  \
+      if (trunc != 0 && err/trunc > SHADOW_ERR_REL) {                          \
+        ++opdata[loc].count_thresh;                                            \
+      } else if (trunc == 0 && err > SHADOW_ERR_ABS) {                         \
+        ++opdata[loc].count_thresh;                                            \
+      }                                                                        \
+      opdata[loc].l1_err += err;                                               \
+      ++opdata[loc].count;                                                     \
+      return __enzyme_fprt_ptr_to_double(mc);                                  \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
+#define __ENZYME_MPFR_FMULADD(LLVM_OP_NAME, FROM_TYPE, TYPE, MPFR_TYPE,        \
+                              LLVM_TYPE, ROUNDING_MODE)                        \
+  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  TYPE __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(TYPE a, TYPE b, TYPE c); \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  TYPE __enzyme_fprt_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(          \
+      TYPE a, TYPE b, TYPE c, int64_t exponent, int64_t significand,           \
+      int64_t mode, const char *loc) {                                         \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      trunc_flop_counter+=2;                                                   \
+      mpfr_t ma, mb, mc, mmul, madd;                                           \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_init2(mb, significand);                                             \
+      mpfr_init2(mc, significand);                                             \
+      mpfr_init2(mmul, significand);                                           \
+      mpfr_init2(madd, significand);                                           \
+      mpfr_set_##MPFR_TYPE(ma, a, ROUNDING_MODE);                              \
+      mpfr_set_##MPFR_TYPE(mb, b, ROUNDING_MODE);                              \
+      mpfr_set_##MPFR_TYPE(mc, c, ROUNDING_MODE);                              \
+      mpfr_mul(mmul, ma, mb, ROUNDING_MODE);                                   \
+      mpfr_add(madd, mmul, mc, ROUNDING_MODE);                                 \
+      TYPE res = mpfr_get_##MPFR_TYPE(madd, ROUNDING_MODE);                    \
+      mpfr_clear(ma);                                                          \
+      mpfr_clear(mb);                                                          \
+      mpfr_clear(mc);                                                          \
+      mpfr_clear(mmul);                                                        \
+      mpfr_clear(madd);                                                        \
+      return res;                                                              \
+    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+          a, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+          b, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mc = __enzyme_fprt_double_to_ptr_checked(                   \
+          c, exponent, significand, mode, loc);                                \
+      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      ENZYME_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
+      mpfr_t mmul;                                                             \
+      __enzyme_fp *madd =                                                      \
+        __enzyme_fprt_64_52_new_intermediate(exponent, significand, mode, loc); \
+      mpfr_init2(mmul, significand);                                           \
+      mpfr_mul(mmul, ma->result, mb->result, ROUNDING_MODE);                   \
+      mpfr_add(madd->result, mmul, mc->result, ROUNDING_MODE);                 \
+      mpfr_clear(mmul);                                                        \
+      ENZYME_DUMP_RESULT(__enzyme_fprt_double_to_ptr(madd), OP_TYPE,           \
+                         LLVM_OP_NAME);                                        \
+      mc->shadow =                                                             \
+        __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow, mb->shadow, \
+                                                                        mc->shadow); \
+      double trunc =                                                           \
+        mpfr_get_##MPFR_TYPE(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+      if (!opdata[loc].count) opdata[loc].op = #LLVM_OP_NAME;                  \
+      if (trunc != 0 && err/trunc > SHADOW_ERR_REL) {                          \
+        ++opdata[loc].count_thresh;                                            \
+      } else if (trunc == 0 && err > SHADOW_ERR_ABS) {                         \
+        ++opdata[loc].count_thresh;                                            \
+      }                                                                        \
+      opdata[loc].l1_err += err;                                               \
+      ++opdata[loc].count;                                                     \
+      return __enzyme_fprt_ptr_to_double(madd);                                \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+
+// TODO This does not currently make distinctions between ordered/unordered.
+#define __ENZYME_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
+                                ROUNDING_MODE)                                 \
+  __ENZYME_MPFR_ATTRIBUTES                                                     \
+  bool __enzyme_fprt_##FROM_TYPE##_fcmp_##NAME(                                \
+      TYPE a, TYPE b, int64_t exponent, int64_t significand, int64_t mode,     \
+      const char *loc) {                                                       \
+    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
+      mpfr_t ma, mb;                                                           \
+      mpfr_init2(ma, significand);                                             \
+      mpfr_init2(mb, significand);                                             \
+      mpfr_set_##MPFR_GET(ma, a, ROUNDING_MODE);                               \
+      mpfr_set_##MPFR_GET(mb, b, ROUNDING_MODE);                               \
+      int ret = mpfr_cmp(ma, mb);                                              \
+      mpfr_clear(ma);                                                          \
+      mpfr_clear(mb);                                                          \
+      return ret CMP;                                                          \
+    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+          a, exponent, significand, mode, loc);                                \
+      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+          b, exponent, significand, mode, loc);                                \
+      int ret = mpfr_cmp(ma->result, mb->result);                              \
+      return ret CMP;                                                          \
+    } else {                                                                   \
+      abort();                                                                 \
+    }                                                                          \
+  }
+#else
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
 #define __ENZYME_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME,                            \
@@ -431,6 +723,7 @@ void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
       abort();                                                                 \
     }                                                                          \
   }
+#endif  // ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
 
 __ENZYME_MPFR_ORIGINAL_ATTRIBUTES
 bool __enzyme_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a,

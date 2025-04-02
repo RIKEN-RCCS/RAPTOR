@@ -37,6 +37,7 @@
 #include <stdlib.h>
 
 #define ENZYME_FPRT_ENABLE_GARBAGE_COLLECTION
+#define ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
 
 #include <enzyme/fprt/fprt.h>
 #include <enzyme/fprt/mpfr.h>
@@ -65,6 +66,9 @@ double __enzyme_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
   __enzyme_fp *a = &__enzyme_mpfr_fps.all.back().fp;
   mpfr_init2(a->result, significand);
   mpfr_set_d(a->result, _a, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);
+#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+  a->shadow = _a;
+#endif
   return __enzyme_fprt_ptr_to_double(a);
 }
 

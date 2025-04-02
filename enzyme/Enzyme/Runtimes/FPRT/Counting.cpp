@@ -2,6 +2,11 @@
 #include <enzyme/fprt/fprt.h>
 #include <enzyme/fprt/mpfr.h>
 
+#include <vector>
+#include <algorithm>
+
+#include <mpi.h>
+
 __ENZYME_MPFR_ATTRIBUTES
 long long __enzyme_get_trunc_flop_count() {
   if (trunc_flop_counter < 0) {
@@ -78,4 +83,141 @@ __ENZYME_MPFR_ATTRIBUTES
 void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc) {
   half_flop_counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_reset_shadow_trace() {
+  long long ret = shadow_err_counter;
+  shadow_err_counter = 0;
+  return ret;
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_reset_shadow_trace() {
+  return __enzyme_reset_shadow_trace();
+}
+
+
+bool __op_dump_cmp(std::pair<const char *, __enzyme_op>& a,
+                   std::pair<const char *, __enzyme_op>& b) {
+  return a.second.count_thresh > b.second.count_thresh;
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void enzyme_fprt_op_dump_status(int num) {
+  int size, rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (opdata.size() < num) num = opdata.size();
+
+  if (rank == 0) {
+    std::cerr << "Information about top " << num
+              << " operations." << std::endl;
+  }
+  // std::vector<unsigned long long> key_recvcounts(size);
+  // std::vector<unsigned long long> key_displs(size);
+  // std::vector<unsigned long long> char_recvcounts(size);
+  // std::vector<unsigned long long> char_displs(size);
+  // std::vector<char> key_chars;
+  // std::vector<char> key_sizes;
+
+  std::vector<std::pair<const char *, struct __enzyme_op>> od_vec;
+  std::vector<double> l1_vec;
+  std::vector<long long> ct_vec, c_vec;
+
+  // // Synchronize keys between processes.
+  // // Build explicit char vector of keys.
+  // // Collect size of each individual key.
+  // for (auto& it : opdata) {
+  //   int sz = 0;
+  //   for (char* c = it.first, *c, ++c) {
+  //     key_chars.push_back(c);
+  //     ++sz;
+  //   }
+  //   key_sizes.push_back(sz);
+  // }
+  // assert(op_data.size() == key_sizes.size());
+
+  // key_recvcounts[rank] = op_data.size();
+  // char_counts[rank] = key_chars.size();
+
+  // MPI_Allgather(MPI_IN_PLACE, 0, NULL,
+  //               key_counts.data(), 1, MPI_UNSIGNED_LONG_LONG,
+  //               MPI_COMM_WORLD);
+  // MPI_Allgather(MPI_IN_PLACE, 0, NULL,
+  //               char_counts.data(), 1, MPI_UNSIGNED_LONG_LONG,
+  //               MPI_COMM_WORLD);
+
+  // unsigned long long key_recvcounts_sum = 0;
+  // unsigned long long char_recvcounts_sum = 0;
+  // for (unsigned long long i = 0; i < size; ++i) {
+  //   key_displs[i] = key_recvcounts_sum;
+  //   char_displs[i] = char_recvcounts_sum;
+  //   key_recvcounts_sum += key_recvcounts[i];
+  //   char_recvcounts_sum += char_recvcounts[i];
+  // }
+  // std::vector<unsigned long long> key_sizes_recv(key_recvcount_sum);
+  // std::vector<char> key_chars_recv(char_recvcounts_sum);
+
+  // MPI_Allgatherv(key_sizes.data(), key_sizes.size(), MPI_UNSIGNED_LONG_LONG,
+  //                key_sizes_recv.data(), key_recvcounts.data(), key_displs.data(),
+  //                MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+  // MPI_Allgatherv(key_chars.data(), key_chars.size(), MPI_CHAR,
+  //                key_chars_recv.data(), char_recvcounts.data(), char_displs.data(),
+  //                MPI_CHAR, MPI_COMM_WORLD);
+
+  // // Build strings
+  // std::vector<std::string> keys;
+  // unsigned long long char_idx = 0;
+  // for (unsigned long long i = 0; i < key_recvcount_sum; ++i) {
+  //   keys.push_back(std::string(key_chars[char_idx], key_sizes[i]));
+  //   char_idx += key_sizes[i];
+  // }
+
+  // // Make sure every key is represented in local opdata map
+  // for (auto& key : keys) {
+  //   opdata.insert(key, struct __enzyme_op{"FILL", 0, 0, 0});
+  // }
+
+  // The order of iteration over keys will be the same on all processes.
+  for (auto& it : opdata) {
+    od_vec.push_back(it);
+    l1_vec.push_back(it.second.l1_err);
+    ct_vec.push_back(it.second.count_thresh);
+    c_vec.push_back(it.second.count);
+  }
+
+  // Perform an allreduce over opdata elements stored in the vector.
+  if (rank == 0) {
+    MPI_Reduce(MPI_IN_PLACE, l1_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, ct_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE,  c_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(l1_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(ct_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce( c_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+
+  if (rank == 0) {
+    for (int i = 0; i < od_vec.size(); ++i) {
+      od_vec[i].second.l1_err = l1_vec[i];
+      od_vec[i].second.count_thresh = ct_vec[i];
+      od_vec[i].second.count = c_vec[i];
+    }
+
+    std::sort(od_vec.begin(), od_vec.end(), __op_dump_cmp);
+
+    for (auto it = od_vec.begin(); it != od_vec.begin() + (num-1); ++it) {
+      std::cout << it->first << ": " << it->second.count << "x" << it->second.op
+                << " L1 Error Norm: " << it->second.l1_err
+                << " Number of violations: " << it->second.count_thresh
+                << std::endl;
+    }
+  }
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void enzyme_fprt_op_clear() {
+  opdata.clear();
 }
