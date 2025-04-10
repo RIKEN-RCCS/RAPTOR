@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <map>
+#include <set>
 #include <string.h>
 
 #include <mpi.h>
@@ -250,6 +251,7 @@ typedef struct __enzyme_op {
   double l1_err = 0;          // Running error.
   long long count_thresh = 0; // Number of error violations
   long long count = 0;        // Number of samples
+  long long count_ignore = 0;
 } __enzyme_op;
 
 __ENZYME_MPFR_ATTRIBUTES
@@ -262,8 +264,156 @@ __ENZYME_MPFR_ATTRIBUTES
 void enzyme_fprt_op_clear();
 
 #ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
-#define SHADOW_ERR_REL 2.5e-3   // 10% err
-#define SHADOW_ERR_ABS 2.5e-6   // If reference is 0.
+#define SHADOW_ERR_REL 6.25e-1   //
+#define SHADOW_ERR_ABS 6.25e-1   // If reference is 0.
+// #define SHADOW_ERR_REL 2.5e-3   //
+// #define SHADOW_ERR_ABS 2.5e-3   // If reference is 0.
+// #define SHADOW_ERR_REL 6.0e-8   //
+// #define SHADOW_ERR_ABS 6.0e-8   // If reference is 0.
+
+const std::set<const char *> ignore_op_list = {
+  // "hy_recon.F90:114:3",
+  // "unknown:0:0",
+  // "hy_recon.F90:101:3",
+  // "hy_recon.F90:132:3",
+  // "hy_recon.F90:135:3",
+  // "hy_recon.F90:117:3",
+  // "hy_recon.F90:136:3",
+  // "hy_recon.F90:118:3",
+  // "hy_recon.F90:113:3",
+  // "unknown:0:0",
+  // "hy_recon.F90:114:3",
+  // "hy_recon.F90:101:3",
+  // "hy_recon.F90:136:3",
+  // "hy_recon.F90:118:3",
+  // "hy_recon.F90:132:3",
+  // "hy_recon.F90:135:3",
+  // "hy_recon.F90:117:3",
+  // "hy_recon.F90:113:3",
+  // "unknown:0:0",
+  // "hy_recon.F90:114:3",
+  // "hy_recon.F90:136:3",
+  // "hy_recon.F90:118:3",
+  // "hy_recon.F90:141:3",
+  // "hy_recon.F90:143:3",
+  // "hy_recon.F90:101:3",
+  // "hy_recon.F90:132:3",
+  // "hy_recon.F90:117:3",
+  // "hy_recon.F90:135:3",
+  // "hy_riemann.F90:142:3",
+  // "hy_recon.F90:123:3",
+  // "unknown:0:0",
+  // "hy_rk_getFaceFlux.F90:219:12",
+  // "hy_rk_getFaceFlux.F90:206:12",
+  // "hy_rk_getFaceFlux.F90:223:12",
+  // "hy_rk_getFaceFlux.F90:241:12",
+  // "hy_rk_getFaceFlux.F90:237:12",
+  // "hy_rk_getFaceFlux.F90:222:12",
+  // "hy_rk_getFaceFlux.F90:240:12",
+  // "hy_rk_getFaceFlux.F90:218:12",
+};
+// const std::set<const char *> ignore_op_list = {
+//   "unknown:0:0",
+//   "hy_rk_getFaceFlux.F90:219:12",
+//   "hy_rk_getFaceFlux.F90:241:12",
+//   "hy_rk_getFaceFlux.F90:223:12",
+//   "hy_rk_getFaceFlux.F90:237:12",
+//   "hy_rk_getFaceFlux.F90:206:12",
+//   "hy_rk_getFaceFlux.F90:202:12",
+//   "hy_rk_getFaceFlux.F90:246:12",
+//   "hy_rk_getFaceFlux.F90:228:12",
+//   "hy_rk_getFaceFlux.F90:222:12",
+//   "hy_rk_getFaceFlux.F90:240:12",
+//   "hy_rk_getFaceFlux.F90:204:12",
+//   "hy_rk_getFaceFlux.F90:588:9",
+//   "hy_rk_getFaceFlux.F90:218:12",
+//   "hy_rk_getFaceFlux.F90:563:9",
+//   "hy_rk_getFaceFlux.F90:306:9",
+//   "hy_rk_getFaceFlux.F90:352:9",
+//   "hy_rk_getFaceFlux.F90:307:9",
+//   "hy_rk_getFaceFlux.F90:558:9",
+//   "hy_rk_updateSoln.F90:255:12",
+//   "hy_rk_getFaceFlux.F90:387:9",
+//   "hy_rk_getFaceFlux.F90:584:9",
+//   "hy_rk_getFaceFlux.F90:405:9",
+//   "hy_rk_getFaceFlux.F90:569:9",
+//   "hy_rk_getFaceFlux.F90:342:9",
+//   "hy_rk_getFaceFlux.F90:341:9",
+//   "hy_rk_saveFluxBuf.F90:71:10",
+//   "hy_rk_saveFluxBuf.F90:82:10",
+//   "hy_rk_getFaceFlux.F90:573:9",
+//   "hy_rk_getFaceFlux.F90:703:9",
+//   "hy_rk_getFaceFlux.F90:712:9",
+//   "hy_rk_getFaceFlux.F90:663:9",
+//   "hy_rk_getFaceFlux.F90:707:9",
+//   "hy_rk_getFaceFlux.F90:155:6",
+//   "hy_rk_getFaceFlux.F90:519:9",
+//   "hy_rk_getFaceFlux.F90:525:9",
+//   "hy_rk_getFaceFlux.F90:461:9",
+//   "hy_rk_getFaceFlux.F90:455:9",
+//   "hy_rk_updateSoln.F90:121:12",
+//   "hy_rk_updateSoln.F90:279:12",
+//   "hy_rk_updateSoln.F90:276:12",
+//   "hy_rk_getFaceFlux.F90:452:9",
+//   "hy_rk_getFaceFlux.F90:459:9",
+//   "hy_rk_getFaceFlux.F90:516:9",
+//   "hy_rk_getFaceFlux.F90:523:9",
+//   "hy_rk_updateSoln.F90:125:12",
+// };
+// const std::set<const char *> ignore_op_list = {
+  // "hy_rk_updateSoln.F90:255:12",
+  // "hy_rk_getFaceFlux.F90:735:9",
+  // "unknown:0:0",
+  // "hy_rk_getFaceFlux.F90:784:9",
+  // "hy_rk_saveFluxBuf.F90:82:10",
+  // "hy_rk_saveFluxBuf.F90:71:10",
+  // "hy_rk_getFaceFlux.F90:660:9",
+  // "hy_rk_getFaceFlux.F90:656:9",
+  // "hy_rk_getFaceFlux.F90:630:9",
+  // "hy_rk_getFaceFlux.F90:446:9",
+  // "hy_rk_getFaceFlux.F90:464:9",
+  // "hy_rk_getFaceFlux.F90:645:9",
+  // "hy_rk_getFaceFlux.F90:635:9",
+  // "hy_rk_updateSoln.F90:275:12",
+  // "hy_rk_updateSoln.F90:278:12",
+  // "hy_rk_getFaceFlux.F90:459:9",
+  // "hy_rk_getFaceFlux.F90:477:9",
+  // "hy_rk_getFaceFlux.F90:699:9",
+  // "hy_rk_getFaceFlux.F90:681:9",
+  // "hy_rk_getFaceFlux.F90:641:9",
+  // "hy_rk_getFaceFlux.F90:695:9",
+  // "hy_rk_getFaceFlux.F90:677:9",
+  // "hy_rk_getFaceFlux.F90:652:9",
+  // "hy_rk_getFaceFlux.F90:424:9",
+  // "hy_rk_updateSoln.F90:279:12",
+  // "hy_rk_getFaceFlux.F90:682:9",
+  // "hy_rk_getFaceFlux.F90:698:9",
+  // "hy_rk_updateSoln.F90:276:12",
+  // "hy_rk_getFaceFlux.F90:651:9",
+  // "hy_rk_getFaceFlux.F90:379:9",
+  // "hy_rk_getFaceFlux.F90:527:9",
+  // "hy_rk_getFaceFlux.F90:533:9",
+  // "hy_rk_getFaceFlux.F90:591:9",
+  // "hy_rk_getFaceFlux.F90:524:9",
+  // "hy_rk_getFaceFlux.F90:531:9",
+  // "hy_rk_getFaceFlux.F90:378:9",
+  // "hy_rk_getFaceFlux.F90:597:9",
+  // "hy_rk_getFaceFlux.F90:694:9",
+  // "hy_rk_getFaceFlux.F90:678:9",
+  // "hy_rk_getFaceFlux.F90:414:9",
+  // "hy_rk_getFaceFlux.F90:588:9",
+  // "hy_rk_getFaceFlux.F90:595:9",
+  // "hy_rk_getFaceFlux.F90:589:9",
+  // "hy_rk_getFaceFlux.F90:476:9",
+  // "hy_rk_getFaceFlux.F90:413:9",
+  // "hy_rk_getFaceFlux.F90:458:9",
+  // "hy_rk_getFaceFlux.F90:594:9",
+  // "hy_rk_getFaceFlux.F90:775:9",
+  // "hy_rk_getFaceFlux.F90:530:9",
+  // "hy_rk_getFaceFlux.F90:525:9",
+  // "hy_rk_getFaceFlux.F90:779:9",
+  // "hy_rk_getFaceFlux.F90:737:9",
+  // };
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
@@ -307,15 +457,23 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
       ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
-      mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);            \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       mc->shadow =                                                             \
         __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow); \
+      if (ignore_op_list.count(loc)) {                                         \
+        ++opdata[loc].count_ignore;                                            \
+        double da = mpfr_get_##MPFR_GET(ma->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double dc = __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(da); \
+        mpfr_set_##MPFR_SET_ARG1(mc->result, dc, ROUNDING_MODE);               \
+      } else {                                                                 \
+        mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);          \
+      }                                                                        \
+      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       double trunc =                                                           \
         mpfr_get_##MPFR_GET(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
       double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
@@ -354,6 +512,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
@@ -391,6 +550,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
@@ -399,11 +559,19 @@ void enzyme_fprt_op_clear();
           exponent, significand, mode, loc);                                   \
       ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
-      mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,                \
-                            ROUNDING_MODE);                                    \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       mc->shadow =                                                             \
         __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow, mb->shadow); \
+      if (ignore_op_list.count(loc)) {                                         \
+        ++opdata[loc].count_ignore;                                            \
+        double da = mpfr_get_##MPFR_GET(ma->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double db = mpfr_get_##MPFR_GET(mb->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double dc = __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(da, db); \
+        mpfr_set_##MPFR_SET_ARG1(mc->result, dc, ROUNDING_MODE);               \
+      } else {                                                                 \
+        mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,              \
+                              ROUNDING_MODE);                                  \
+      }                                                                        \
+      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       double trunc =                                                           \
         mpfr_get_##MPFR_GET(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
       double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
@@ -459,21 +627,30 @@ void enzyme_fprt_op_clear();
       ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       ENZYME_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
-      mpfr_t mmul;                                                             \
       __enzyme_fp *madd =                                                      \
         __enzyme_fprt_64_52_new_intermediate(exponent, significand, mode, loc); \
-      mpfr_init2(mmul, significand);                                           \
-      mpfr_mul(mmul, ma->result, mb->result, ROUNDING_MODE);                   \
-      mpfr_add(madd->result, mmul, mc->result, ROUNDING_MODE);                 \
-      mpfr_clear(mmul);                                                        \
-      ENZYME_DUMP_RESULT(__enzyme_fprt_double_to_ptr(madd), OP_TYPE,           \
-                         LLVM_OP_NAME);                                        \
-      mc->shadow =                                                             \
+      madd->shadow =                                                           \
         __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->shadow, mb->shadow, \
                                                                         mc->shadow); \
+      if (ignore_op_list.count(loc)) {                                         \
+        ++opdata[loc].count_ignore;                                            \
+        double da = mpfr_get_##MPFR_TYPE(ma->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double db = mpfr_get_##MPFR_TYPE(mb->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double dc = mpfr_get_##MPFR_TYPE(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+        double dmadd = __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(da, db, dc); \
+        mpfr_set_##MPFR_TYPE(madd->result, dmadd, ROUNDING_MODE);              \
+      } else {                                                                 \
+        mpfr_t mmul;                                                           \
+        mpfr_init2(mmul, significand);                                         \
+        mpfr_mul(mmul, ma->result, mb->result, ROUNDING_MODE);                 \
+        mpfr_add(madd->result, mmul, mc->result, ROUNDING_MODE);               \
+        mpfr_clear(mmul);                                                      \
+      }                                                                        \
+      ENZYME_DUMP_RESULT(__enzyme_fprt_double_to_ptr(madd), OP_TYPE,           \
+                         LLVM_OP_NAME);                                        \
       double trunc =                                                           \
-        mpfr_get_##MPFR_TYPE(mc->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+        mpfr_get_##MPFR_TYPE(madd->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
+      double err = __enzyme_fprt_64_52_abs_err(trunc, madd->shadow);           \
       if (!opdata[loc].count) opdata[loc].op = #LLVM_OP_NAME;                  \
       if (trunc != 0 && err/trunc > SHADOW_ERR_REL) {                          \
         ++opdata[loc].count_thresh;                                            \
@@ -507,6 +684,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mb);                                                          \
       return ret CMP;                                                          \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
@@ -558,6 +736,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
@@ -592,6 +771,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
@@ -627,6 +807,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mc);                                                          \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
@@ -713,6 +894,7 @@ void enzyme_fprt_op_clear();
       mpfr_clear(mb);                                                          \
       return ret CMP;                                                          \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
+      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc);                                \
       __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \

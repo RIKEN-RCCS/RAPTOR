@@ -189,29 +189,30 @@ void enzyme_fprt_op_dump_status(int num) {
   }
 
   // Perform an allreduce over opdata elements stored in the vector.
-  if (rank == 0) {
-    MPI_Reduce(MPI_IN_PLACE, l1_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE, ct_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(MPI_IN_PLACE,  c_vec.data(), num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  } else {
-    MPI_Reduce(l1_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(ct_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce( c_vec.data(), NULL, num, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
+  // if (rank == 0) {
+  //   MPI_Reduce(MPI_IN_PLACE, l1_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(MPI_IN_PLACE, ct_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(MPI_IN_PLACE,  c_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  // } else {
+  //   MPI_Reduce(l1_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(ct_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce( c_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  // }
 
   if (rank == 0) {
-    for (int i = 0; i < od_vec.size(); ++i) {
-      od_vec[i].second.l1_err = l1_vec[i];
-      od_vec[i].second.count_thresh = ct_vec[i];
-      od_vec[i].second.count = c_vec[i];
-    }
+    // for (int i = 0; i < od_vec.size(); ++i) {
+    //   od_vec[i].second.l1_err = l1_vec[i];
+    //   od_vec[i].second.count_thresh = ct_vec[i];
+    //   od_vec[i].second.count = c_vec[i];
+    // }
 
     std::sort(od_vec.begin(), od_vec.end(), __op_dump_cmp);
 
-    for (auto it = od_vec.begin(); it != od_vec.begin() + (num-1); ++it) {
+    for (auto it = od_vec.begin(); it != od_vec.begin() + num; ++it) {
       std::cout << it->first << ": " << it->second.count << "x" << it->second.op
                 << " L1 Error Norm: " << it->second.l1_err
                 << " Number of violations: " << it->second.count_thresh
+                << " Ignored " << it->second.count_ignore << " times."
                 << std::endl;
     }
   }
