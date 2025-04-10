@@ -123,6 +123,8 @@ llvm::cl::opt<std::string> EnzymeTruncateAll(
 
 llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count", cl::init(false), cl::Hidden,
                                         cl::desc("Count all non-truncated floating point operations."));
+llvm::cl::opt<bool> EnzymeTruncateAccessCount("enzyme-truncate-access-count", cl::init(false), cl::Hidden,
+                                              cl::desc("Count all floating-point loads and stores."));
 
 #define addAttribute addAttributeAtIndex
 #define getAttribute getAttributeAtIndex
@@ -2215,6 +2217,52 @@ public:
     return status;
   }
 
+  bool handleFlopMemory(Function &F) {
+    if (F.isDeclaration())
+      return false;
+    if (!EnzymeTruncateAccessCount)
+      return false;
+
+    if (F.getName().starts_with(EnzymeFPRTPrefix))
+      return false;
+
+    auto M = F.getParent();
+    auto &DL = M->getDataLayout();
+    IRBuilder<> B(M->getContext());
+
+    auto fname = std::string(EnzymeFPRTPrefix) + "memory_access";
+    Function *AccessF = M->getFunction(fname);
+    if (!AccessF) {
+      FunctionType *FnTy =
+          FunctionType::get(Type::getVoidTy(M->getContext()),
+                            {Type::getInt64Ty(M->getContext()),
+                             Type::getInt64Ty(M->getContext())},
+                            /*is_vararg*/ false);
+      AccessF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
+    }
+
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        uint64_t isStore;
+        Type *ty;
+        if (auto load = dyn_cast<LoadInst>(&I)) {
+          isStore = false;
+          ty = load->getType();
+        } else if (auto store = dyn_cast<StoreInst>(&I)) {
+          isStore = true;
+          ty = store->getValueOperand()->getType();
+        } else {
+          continue;
+        }
+        uint64_t size = DL.getTypeStoreSize(ty);
+        CallInst::Create(AccessF, {B.getInt64(size), B.getInt64(isStore)}, "",
+                         &I);
+      }
+    }
+
+    return true;
+  }
+
   bool handleFlopCount(Function &F) {
     if (F.isDeclaration())
       return false;
@@ -3109,6 +3157,10 @@ public:
         if (!F.empty())
           PromotePass().run(F, Logic.PPC.FAM);
       changed = true;
+    }
+
+    for (Function &F : M) {
+      changed |= handleFlopMemory(F);
     }
 
     std::set<Function *> done;

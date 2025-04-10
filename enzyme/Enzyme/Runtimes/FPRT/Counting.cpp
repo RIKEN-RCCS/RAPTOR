@@ -10,10 +10,14 @@
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
 std::atomic<long long> trunc_flop_counter = 0;
-std::atomic<long long> trunc_excl_flop_counter = 0;
 std::atomic<long long> double_flop_counter = 0;
 std::atomic<long long> float_flop_counter = 0;
 std::atomic<long long> half_flop_counter = 0;
+
+std::atomic<long long> trunc_load_counter = 0;
+std::atomic<long long> trunc_store_counter = 0;
+std::atomic<long long> original_load_counter = 0;
+std::atomic<long long> original_store_counter = 0;
 
 // TODO this needs to be thread local
 std::atomic<bool> global_is_truncating = false;
@@ -232,6 +236,36 @@ void enzyme_fprt_op_dump_status(int num) {
                 << " Ignored " << it->second.count_ignore << " times."
                 << std::endl;
     }
+  }
+}
+
+long long __enzyme_get_memory_access_trunc_store() {
+  return trunc_store_counter;
+}
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_trunc_load() { return trunc_load_counter; }
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_original_store() {
+  return original_store_counter;
+}
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_original_load() {
+  return original_load_counter;
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_memory_access(int64_t size, int64_t is_store) {
+  if (global_is_truncating) {
+    if (is_store)
+      trunc_store_counter.fetch_add(size, std::memory_order_relaxed);
+    else
+      trunc_load_counter.fetch_add(size, std::memory_order_relaxed);
+  } else {
+    if (is_store)
+      original_store_counter.fetch_add(size, std::memory_order_relaxed);
+    else
+      original_load_counter.fetch_add(size, std::memory_order_relaxed);
   }
 }
 
