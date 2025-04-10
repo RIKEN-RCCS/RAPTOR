@@ -257,6 +257,37 @@ long long f_enzyme_get_float_flop_count();
 __ENZYME_MPFR_ATTRIBUTES
 long long f_enzyme_get_half_flop_count();
 
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_trunc_store();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_trunc_load();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_original_store();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long __enzyme_get_memory_access_original_load();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_trunc_store();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_trunc_load();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_original_store();
+
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_original_load();
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_memory_access(int64_t size, int64_t is_store);
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_trunc_change(int64_t is_truncating);
+
 __ENZYME_MPFR_ATTRIBUTES
 void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);

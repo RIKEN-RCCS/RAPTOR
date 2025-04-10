@@ -255,6 +255,23 @@ long long __enzyme_get_memory_access_original_load() {
 }
 
 __ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_trunc_store() {
+  return __enzyme_get_memory_access_trunc_store();
+}
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_trunc_load() {
+  return __enzyme_get_memory_access_trunc_load();
+}
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_original_store() {
+  return __enzyme_get_memory_access_original_store();
+}
+__ENZYME_MPFR_ATTRIBUTES
+long long f_enzyme_get_memory_access_original_load() {
+  return __enzyme_get_memory_access_original_load();
+}
+
+__ENZYME_MPFR_ATTRIBUTES
 void __enzyme_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
   if (global_is_truncating) {
     if (is_store)
