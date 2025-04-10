@@ -255,7 +255,7 @@ long long __enzyme_get_memory_access_original_load() {
 }
 
 __ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_memory_access(int64_t size, int64_t is_store) {
+void __enzyme_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
   if (global_is_truncating) {
     if (is_store)
       trunc_store_counter.fetch_add(size, std::memory_order_relaxed);

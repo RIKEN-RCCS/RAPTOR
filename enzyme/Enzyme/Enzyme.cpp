@@ -23,6 +23,7 @@
 // the function passed as the first argument.
 //
 //===----------------------------------------------------------------------===//
+#include "llvm/IR/DerivedTypes.h"
 #include <llvm/Config/llvm-config.h>
 #include <llvm/IR/GlobalValue.h>
 #include <memory>
@@ -2232,10 +2233,11 @@ public:
 
     auto fname = std::string(EnzymeFPRTPrefix) + "memory_access";
     Function *AccessF = M->getFunction(fname);
+    Type *PtrTy = PointerType::get(M->getContext(), 0);
     if (!AccessF) {
       FunctionType *FnTy =
           FunctionType::get(Type::getVoidTy(M->getContext()),
-                            {Type::getInt64Ty(M->getContext()),
+                            {PtrTy, Type::getInt64Ty(M->getContext()),
                              Type::getInt64Ty(M->getContext())},
                             /*is_vararg*/ false);
       AccessF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
@@ -2245,18 +2247,23 @@ public:
       for (auto &I : BB) {
         uint64_t isStore;
         Type *ty;
+        Value *ptr;
         if (auto load = dyn_cast<LoadInst>(&I)) {
           isStore = false;
           ty = load->getType();
+          ptr = load->getPointerOperand();
         } else if (auto store = dyn_cast<StoreInst>(&I)) {
           isStore = true;
           ty = store->getValueOperand()->getType();
+          ptr = store->getPointerOperand();
         } else {
           continue;
         }
         uint64_t size = DL.getTypeStoreSize(ty);
-        CallInst::Create(AccessF, {B.getInt64(size), B.getInt64(isStore)}, "",
-                         &I);
+        CallInst::Create(AccessF,
+                         {B.CreateAddrSpaceCast(ptr, PtrTy), B.getInt64(size),
+                          B.getInt64(isStore)},
+                         "", &I);
       }
     }
 
