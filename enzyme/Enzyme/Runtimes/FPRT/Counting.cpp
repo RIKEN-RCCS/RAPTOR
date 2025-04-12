@@ -7,6 +7,13 @@
 
 #include <mpi.h>
 
+// Global variable to count truncated flops
+// TODO only implemented for op mode at the moment
+std::atomic<long long> trunc_flop_counter = 0;
+std::atomic<long long> double_flop_counter = 0;
+std::atomic<long long> float_flop_counter = 0;
+std::atomic<long long> half_flop_counter = 0;
+
 // TODO this needs to be thread local
 std::atomic<bool> global_is_truncating = false;
 
