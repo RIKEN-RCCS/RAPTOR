@@ -5129,18 +5129,14 @@ private:
 public:
   TruncateGenerator(ValueToValueMapTy &originalToNewFn,
                     FloatTruncation truncation, Function *oldFunc,
-                    Function *newFunc, EnzymeLogic &Logic)
+                    Function *newFunc, EnzymeLogic &Logic, bool root)
       : TruncateUtils(truncation, newFunc->getParent(), Logic),
         originalToNewFn(originalToNewFn), truncation(truncation),
         mode(truncation.getMode()), Logic(Logic), ctx(newFunc->getContext()) {
-#if ENZYME_USE_ARG_SCRATCH
-    if (mode == TruncOpMode) {
-      scratch = newFunc->getArg(0);
-    } else if (mode == TruncOpFullModuleMode) {
-    }
-#error "not supported yet"
-#endif
-    if (mode == TruncOpMode || mode == TruncOpFullModuleMode) {
+
+    auto allocScratch = [&]() {
+      // TODO we should check at the end if we never used the scracth we should
+      // remove the runtime calls for allocation.
       auto getName = "get_scratch";
       auto freeName = "free_scratch";
       IRBuilder<> B(newFunc->getContext());
@@ -5155,6 +5151,14 @@ public:
                             getUniquedLocStr(nullptr));
         }
       }
+    };
+    if (mode == TruncOpMode) {
+      if (root)
+        allocScratch();
+      else
+        scratch = newFunc->getArg(0);
+    } else if (mode == TruncOpFullModuleMode) {
+      allocScratch();
     }
   }
 
@@ -5594,9 +5598,9 @@ public:
     return false;
   }
 
-  Value *GetShadow(RequestContext &ctx, Value *v) {
+  Value *GetShadow(RequestContext &ctx, Value *v, bool root) {
     if (auto F = dyn_cast<Function>(v))
-      return Logic.CreateTruncateFunc(ctx, F, truncation, mode);
+      return Logic.CreateTruncateFunc(ctx, F, truncation, mode, root);
     llvm::errs() << " unknown get truncated func: " << *v << "\n";
     llvm_unreachable("unknown get truncated func");
     return v;
@@ -5641,11 +5645,11 @@ public:
         truncIgnore |= truncOpIgnore && mode == TruncOpMode;
         truncIgnore |= truncMemIgnore && mode == TruncMemMode;
         if (!truncIgnore) {
-          auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
-#if ENZYME_USE_ARG_SCRATCH
-          if (scratch && mode == TruncOpMode) {
+          if (scratch && mode == TruncOpMode && isa<CallInst>(&CI)) {
+            auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()),
+                                 false);
             Function *F = cast<Function>(val);
-            IRBuilder<> B;
+            IRBuilder<> B(newCall);
             SmallVector<Value *> args = {scratch};
             args.insert(args.end(), newCall->arg_begin(), newCall->arg_end());
             CallInst *newNewCall = B.CreateCall(F, args);
@@ -5659,11 +5663,10 @@ public:
             newCall->eraseFromParent();
             // TODO not sure if we need to change the originalToNewFn mapping.
           } else {
-#endif
+            auto val =
+                GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()), true);
             newCall->setCalledOperand(val);
-#if ENZYME_USE_ARG_SCRATCH
           }
-#endif
         }
       } else if (!Func) {
         switch (mode) {
@@ -5749,8 +5752,8 @@ bool EnzymeLogic::CreateTruncateValue(RequestContext context, Value *v,
 llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
                                                 llvm::Function *totrunc,
                                                 FloatTruncation truncation,
-                                                TruncateMode mode) {
-  TruncateCacheKey tup(totrunc, truncation, mode);
+                                                TruncateMode mode, bool root) {
+  TruncateCacheKey tup(totrunc, truncation, mode, root);
   if (TruncateCachedFunctions.find(tup) != TruncateCachedFunctions.end()) {
     return TruncateCachedFunctions.find(tup)->second;
   }
@@ -5760,10 +5763,8 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
   FunctionType *orig_FTy = totrunc->getFunctionType();
   SmallVector<Type *, 4> params;
 
-#if ENZYME_USE_ARG_SCRATCH
-  if (mode == TruncOpMode)
+  if (mode == TruncOpMode && !root)
     params.push_back(B.getPtrTy());
-#endif
 
   for (unsigned i = 0; i < orig_FTy->getNumParams(); ++i) {
     params.push_back(orig_FTy->getParamType(i));
@@ -5812,11 +5813,11 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
 
   ValueToValueMapTy originalToNewFn;
 
-#if ENZYME_USE_ARG_SCRATCH
-  Argument *newFStartArg = std::next(NewF->arg_begin());
-#else
-  Argument *newFStartArg = NewF->arg_begin();
-#endif
+  Argument *newFStartArg;
+  if (mode == TruncOpMode && !root)
+    newFStartArg = std::next(NewF->arg_begin());
+  else
+    newFStartArg = NewF->arg_begin();
   for (auto i = totrunc->arg_begin(), j = newFStartArg;
        i != totrunc->arg_end();) {
     originalToNewFn[i] = j;
@@ -5832,7 +5833,8 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
 
   NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
 
-  TruncateGenerator handle(originalToNewFn, truncation, totrunc, NewF, *this);
+  TruncateGenerator handle(originalToNewFn, truncation, totrunc, NewF, *this,
+                           root);
   for (auto &BB : *totrunc)
     for (auto &I : BB)
       handle.visit(&I);

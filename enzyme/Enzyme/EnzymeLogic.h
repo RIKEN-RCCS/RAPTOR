@@ -691,12 +691,12 @@ public:
                               BATCH_TYPE ret_type);
 
   using TruncateCacheKey =
-      std::tuple<llvm::Function *, FloatTruncation, unsigned>;
+      std::tuple<llvm::Function *, FloatTruncation, unsigned, bool>;
   std::map<TruncateCacheKey, llvm::Function *> TruncateCachedFunctions;
   llvm::Function *CreateTruncateFunc(RequestContext context,
                                      llvm::Function *tobatch,
                                      FloatTruncation truncation,
-                                     TruncateMode mode);
+                                     TruncateMode mode, bool root = true);
   bool CreateTruncateValue(RequestContext context, llvm::Value *addr,
                            FloatRepresentation from, FloatRepresentation to,
                            bool isTruncate);
