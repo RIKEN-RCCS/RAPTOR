@@ -7,6 +7,9 @@
 
 #include <mpi.h>
 
+// TODO this needs to be thread local
+std::atomic<bool> global_is_truncating = false;
+
 __ENZYME_MPFR_ATTRIBUTES
 long long __enzyme_get_trunc_flop_count() {
   if (trunc_flop_counter < 0) {
@@ -221,4 +224,24 @@ void enzyme_fprt_op_dump_status(int num) {
 __ENZYME_MPFR_ATTRIBUTES
 void enzyme_fprt_op_clear() {
   opdata.clear();
+}
+
+__ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_trunc_change(int64_t is_truncating,
+                                int64_t to_e,
+                                int64_t to_m,
+                                int64_t mode) {
+  global_is_truncating.store(is_truncating);
+
+  // If we are starting to truncate, set the max and min exponents
+  // Can't do it for mem mode currently because we may have truncated variables
+  // with unsupported exponent lengths, and those would result in undefined
+  // behaviour.
+  if (is_truncating && __enzyme_fprt_is_op_mode(mode)) {
+    // TODO we need a stack if we want to support nested truncations
+    int64_t max_e = 1 << (to_e - 1);
+    int64_t min_e = -max_e - to_m;
+    mpfr_set_emax(max_e);
+    mpfr_set_emin(min_e);
+  }
 }
