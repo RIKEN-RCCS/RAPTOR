@@ -393,9 +393,9 @@ public:
         (mode == TruncOpMode || mode == TruncOpFullModuleMode))
       llvm::report_fatal_error("Float truncation `from` type must have "
                                "a wider significand than `to`.");
-    if (From == To)
-      llvm::report_fatal_error(
-          "Float truncation `from` and `to` type must not be the same.");
+    // if (From == To)
+    //   llvm::report_fatal_error(
+    //       "Float truncation `from` and `to` type must not be the same.");
   }
   TruncateMode getMode() { return mode; }
   FloatRepresentation getTo() { return to; }
