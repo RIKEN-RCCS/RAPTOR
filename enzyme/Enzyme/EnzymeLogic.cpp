@@ -5137,10 +5137,12 @@ public:
     if (mode == TruncOpMode) {
       scratch = newFunc->getArg(0);
     } else if (mode == TruncOpFullModuleMode) {
+    }
 #error "not supported yet"
 #endif
-      auto getName = std::string(EnzymeFPRTPrefix) + "get_scratch";
-      auto freeName = std::string(EnzymeFPRTPrefix) + "free_scratch";
+    if (mode == TruncOpMode || mode == TruncOpFullModuleMode) {
+      auto getName = "get_scratch";
+      auto freeName = "free_scratch";
       IRBuilder<> B(newFunc->getContext());
       B.SetInsertPointPastAllocas(newFunc);
       SmallVector<Value *> args;
@@ -5153,9 +5155,7 @@ public:
                             getUniquedLocStr(nullptr));
         }
       }
-#if ENZYME_USE_ARG_SCRATCH
     }
-#endif
   }
 
   void todo(llvm::Instruction &I) {

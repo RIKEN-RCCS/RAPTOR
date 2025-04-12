@@ -254,8 +254,8 @@ void __enzyme_fprt_trunc_change(int64_t is_truncating,
 }
 
 __ENZYME_MPFR_ATTRIBUTES
-void *__enzyme_fprt_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
-                                const char *loc, void *scratch) {
+void *__enzyme_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+                                      const char *loc, void *scratch) {
   mpfr_t *mem = (mpfr_t *)malloc(sizeof(mem[0]) * MAX_MPFR_OPERANDS);
   for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)
     mpfr_init2(mem[i], to_m);
@@ -263,8 +263,8 @@ void *__enzyme_fprt_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
 }
 
 __ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
-                                const char *loc, void *scratch) {
+void __enzyme_fprt_64_52_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+                                      const char *loc, void *scratch) {
   mpfr_t *mem = (mpfr_t *)scratch;
   for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)
     mpfr_clear(mem[i]);
