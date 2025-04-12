@@ -4923,6 +4923,7 @@ protected:
   LLVMContext &ctx;
   EnzymeLogic &Logic;
   Value *UnknownLoc;
+  Value *scratch = nullptr;
 
 private:
   std::string getOriginalFPRTName(std::string Name) {
@@ -4976,6 +4977,7 @@ private:
     return F;
   }
 
+public:
   CallInst *createFPRTGeneric(llvm::IRBuilderBase &B, std::string Name,
                               const SmallVectorImpl<Value *> &ArgsIn,
                               llvm::Type *RetTy, Value *LocStr) {
@@ -4988,6 +4990,7 @@ private:
 #else
     Args.push_back(LocStr);
 #endif
+    Args.push_back(scratch);
 
     auto FprtFunc = getFPRTFunc(Name, Args, RetTy);
     // Explicitly assign a dbg location if it didn't exist, as the FPRT
@@ -5003,7 +5006,6 @@ private:
     return CI;
   }
 
-public:
   TruncateUtils(FloatTruncation truncation, Module *M, EnzymeLogic &Logic)
       : truncation(truncation), M(M), ctx(M->getContext()), Logic(Logic) {
     fromType = truncation.getFromType(ctx);
@@ -5012,6 +5014,7 @@ public:
       assert(truncation.isToFPRT());
 
     UnknownLoc = getUniquedLocStr(nullptr);
+    scratch = ConstantPointerNull::get(PointerType::get(M->getContext(), 0));
   }
 
   Type *getFromType() { return fromType; }
@@ -5129,7 +5132,31 @@ public:
                     Function *newFunc, EnzymeLogic &Logic)
       : TruncateUtils(truncation, newFunc->getParent(), Logic),
         originalToNewFn(originalToNewFn), truncation(truncation),
-        mode(truncation.getMode()), Logic(Logic), ctx(newFunc->getContext()) {}
+        mode(truncation.getMode()), Logic(Logic), ctx(newFunc->getContext()) {
+#if ENZYME_USE_ARG_SCRATCH
+    if (mode == TruncOpMode) {
+      scratch = newFunc->getArg(0);
+    } else if (mode == TruncOpFullModuleMode) {
+#error "not supported yet"
+#endif
+      auto getName = std::string(EnzymeFPRTPrefix) + "get_scratch";
+      auto freeName = std::string(EnzymeFPRTPrefix) + "free_scratch";
+      IRBuilder<> B(newFunc->getContext());
+      B.SetInsertPointPastAllocas(newFunc);
+      SmallVector<Value *> args;
+      scratch = createFPRTGeneric(B, getName, args, B.getPtrTy(),
+                                  getUniquedLocStr(nullptr));
+      for (auto &BB : *newFunc) {
+        if (ReturnInst *ret = dyn_cast<ReturnInst>(BB.getTerminator())) {
+          B.SetInsertPoint(ret);
+          createFPRTGeneric(B, freeName, args, B.getPtrTy(),
+                            getUniquedLocStr(nullptr));
+        }
+      }
+#if ENZYME_USE_ARG_SCRATCH
+    }
+#endif
+  }
 
   void todo(llvm::Instruction &I) {
     if (all_of(I.operands(),
@@ -5615,7 +5642,28 @@ public:
         truncIgnore |= truncMemIgnore && mode == TruncMemMode;
         if (!truncIgnore) {
           auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()));
-          newCall->setCalledOperand(val);
+#if ENZYME_USE_ARG_SCRATCH
+          if (scratch && mode == TruncOpMode) {
+            Function *F = cast<Function>(val);
+            IRBuilder<> B;
+            SmallVector<Value *> args = {scratch};
+            args.insert(args.end(), newCall->arg_begin(), newCall->arg_end());
+            CallInst *newNewCall = B.CreateCall(F, args);
+            newNewCall->copyMetadata(*newCall);
+            newNewCall->copyIRFlags(newCall);
+            newNewCall->setAttributes(newCall->getAttributes());
+            newNewCall->setCallingConv(newCall->getCallingConv());
+            // newNewCall->setTailCallKind(newCall->getTailCallKind());
+            newNewCall->setDebugLoc(newCall->getDebugLoc());
+            newCall->replaceAllUsesWith(newNewCall);
+            newCall->eraseFromParent();
+            // TODO not sure if we need to change the originalToNewFn mapping.
+          } else {
+#endif
+            newCall->setCalledOperand(val);
+#if ENZYME_USE_ARG_SCRATCH
+          }
+#endif
         }
       } else if (!Func) {
         switch (mode) {
@@ -5707,8 +5755,15 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
     return TruncateCachedFunctions.find(tup)->second;
   }
 
+  IRBuilder<> B(totrunc->getContext());
+
   FunctionType *orig_FTy = totrunc->getFunctionType();
   SmallVector<Type *, 4> params;
+
+#if ENZYME_USE_ARG_SCRATCH
+  if (mode == TruncOpMode)
+    params.push_back(B.getPtrTy());
+#endif
 
   for (unsigned i = 0; i < orig_FTy->getNumParams(); ++i) {
     params.push_back(orig_FTy->getParamType(i));
@@ -5757,7 +5812,12 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
 
   ValueToValueMapTy originalToNewFn;
 
-  for (auto i = totrunc->arg_begin(), j = NewF->arg_begin();
+#if ENZYME_USE_ARG_SCRATCH
+  Argument *newFStartArg = std::next(NewF->arg_begin());
+#else
+  Argument *newFStartArg = NewF->arg_begin();
+#endif
+  for (auto i = totrunc->arg_begin(), j = newFStartArg;
        i != totrunc->arg_end();) {
     originalToNewFn[i] = j;
     j->setName(i->getName());
