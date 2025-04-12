@@ -241,6 +241,12 @@ void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc);
 
 __ENZYME_MPFR_ATTRIBUTES
+void __enzyme_fprt_trunc_change(int64_t is_truncating,
+                                int64_t to_e,
+                                int64_t to_m,
+                                int64_t mode);
+
+__ENZYME_MPFR_ATTRIBUTES
 long long __enzyme_reset_shadow_trace();
 
 __ENZYME_MPFR_ATTRIBUTES
