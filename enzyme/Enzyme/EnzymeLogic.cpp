@@ -5153,10 +5153,12 @@ public:
       }
     };
     if (mode == TruncOpMode) {
-      if (root)
+      if (root) {
         allocScratch();
-      else
-        scratch = newFunc->getArg(0);
+      } else {
+        scratch = newFunc->getArg(newFunc->getNumOperands() - 1);
+        assert(scratch->getType()->isPointerTy());
+      }
     } else if (mode == TruncOpFullModuleMode) {
       allocScratch();
     }
@@ -5650,8 +5652,8 @@ public:
                                  false);
             Function *F = cast<Function>(val);
             IRBuilder<> B(newCall);
-            SmallVector<Value *> args = {scratch};
-            args.insert(args.end(), newCall->arg_begin(), newCall->arg_end());
+            SmallVector<Value *> args(newCall->args());
+            args.push_back(scratch);
             CallInst *newNewCall = B.CreateCall(F, args);
             newNewCall->copyMetadata(*newCall);
             newNewCall->copyIRFlags(newCall);
@@ -5763,12 +5765,12 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
   FunctionType *orig_FTy = totrunc->getFunctionType();
   SmallVector<Type *, 4> params;
 
-  if (mode == TruncOpMode && !root)
-    params.push_back(B.getPtrTy());
-
   for (unsigned i = 0; i < orig_FTy->getNumParams(); ++i) {
     params.push_back(orig_FTy->getParamType(i));
   }
+
+  if (mode == TruncOpMode && !root)
+    params.push_back(B.getPtrTy());
 
   Type *NewTy = totrunc->getReturnType();
 
@@ -5813,12 +5815,7 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
 
   ValueToValueMapTy originalToNewFn;
 
-  Argument *newFStartArg;
-  if (mode == TruncOpMode && !root)
-    newFStartArg = std::next(NewF->arg_begin());
-  else
-    newFStartArg = NewF->arg_begin();
-  for (auto i = totrunc->arg_begin(), j = newFStartArg;
+  for (auto i = totrunc->arg_begin(), j = NewF->arg_begin();
        i != totrunc->arg_end();) {
     originalToNewFn[i] = j;
     j->setName(i->getName());
