@@ -5156,7 +5156,8 @@ public:
       if (root) {
         allocScratch();
       } else {
-        scratch = newFunc->getArg(newFunc->getNumOperands() - 1);
+        assert(newFunc->arg_size() == oldFunc->arg_size() + 1);
+        scratch = newFunc->getArg(newFunc->arg_size() - 1);
         assert(scratch->getType()->isPointerTy());
       }
     } else if (mode == TruncOpFullModuleMode) {
