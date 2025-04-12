@@ -246,8 +246,12 @@ void __enzyme_fprt_trunc_change(int64_t is_truncating,
   // behaviour.
   if (is_truncating && __enzyme_fprt_is_op_mode(mode)) {
     // TODO we need a stack if we want to support nested truncations
+    // int64_t max_e = 1 << (to_e - 1);
+    // int64_t min_e = -max_e - to_m;
+    // https://www.mpfr.org/mpfr-current/mpfr.html
+    // https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
     int64_t max_e = 1 << (to_e - 1);
-    int64_t min_e = -max_e - to_m;
+    int64_t min_e = -max_e + 2 - to_m + 2
     mpfr_set_emax(max_e);
     mpfr_set_emin(min_e);
   }
