@@ -251,7 +251,7 @@ void __enzyme_fprt_trunc_change(int64_t is_truncating,
     // https://www.mpfr.org/mpfr-current/mpfr.html
     // https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
     int64_t max_e = 1 << (to_e - 1);
-    int64_t min_e = -max_e + 2 - to_m + 2
+    int64_t min_e = -max_e + 2 - to_m + 2;
     mpfr_set_emax(max_e);
     mpfr_set_emin(min_e);
   }
