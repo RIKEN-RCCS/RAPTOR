@@ -5148,6 +5148,7 @@ public:
       SmallVector<Value *> args;
       scratch = createFPRTGeneric(B, getName, args, B.getPtrTy(),
                                   getUniquedLocStr(nullptr));
+      args.push_back(scratch);
       for (auto &BB : *newFunc) {
         if (ReturnInst *ret = dyn_cast<ReturnInst>(BB.getTerminator())) {
           B.SetInsertPoint(ret);
