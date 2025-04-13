@@ -45,6 +45,7 @@ extern std::atomic<long long> float_flop_counter;
 extern std::atomic<long long> half_flop_counter;
 
 std::atomic<long long> shadow_err_counter = 0;
+bool excl_trunc = false;
 
 // For internal use
 // struct __enzyme_fp;

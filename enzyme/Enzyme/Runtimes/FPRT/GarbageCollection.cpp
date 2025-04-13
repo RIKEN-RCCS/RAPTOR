@@ -128,3 +128,11 @@ void enzyme_fprt_gc_doit() {
   }
   enzyme_fprt_gc_clear_seen();
 }
+
+void enzyme_fprt_excl_trunc_start() {
+  excl_trunc = true;
+}
+
+void enzyme_fprt_excl_trunc_end() {
+  excl_trunc = false;
+}
