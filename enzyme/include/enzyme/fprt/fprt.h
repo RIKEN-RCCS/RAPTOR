@@ -47,7 +47,15 @@ extern std::atomic<long long> half_flop_counter;
 std::atomic<long long> shadow_err_counter = 0;
 
 // For internal use
-struct __enzyme_fp;
+// struct __enzyme_fp;
+typedef struct __enzyme_fp {
+  mpfr_t result;
+//#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+  double excl_result;
+  double shadow;
+//#endif
+} __enzyme_fp;
+
 __enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,
                                                   int64_t significand,
                                                   int64_t mode,
