@@ -122,7 +122,7 @@ llvm::cl::opt<std::string> EnzymeTruncateAll(
         "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
 
 llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count",
-                                        cl::init(false));
+                                        cl::init(true));
 
 #define addAttribute addAttributeAtIndex
 #define getAttribute getAttributeAtIndex
