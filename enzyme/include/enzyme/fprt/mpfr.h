@@ -74,9 +74,12 @@ extern "C" {
 // TODO we need to provide f32 versions, and also instrument the
 // truncation/expansion between f32/f64/etc
 
+bool excl_trunc = false;
+
 typedef struct __enzyme_fp {
   mpfr_t result;
 #ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+  double excl_result;
   double shadow;
 #endif
 } __enzyme_fp;
@@ -292,149 +295,6 @@ void enzyme_fprt_op_clear();
 // #define SHADOW_ERR_REL 6.0e-8   //
 // #define SHADOW_ERR_ABS 6.0e-8   // If reference is 0.
 
-const std::set<const char *> ignore_op_list = {
-  // "hy_recon.F90:114:3",
-  // "unknown:0:0",
-  // "hy_recon.F90:101:3",
-  // "hy_recon.F90:132:3",
-  // "hy_recon.F90:135:3",
-  // "hy_recon.F90:117:3",
-  // "hy_recon.F90:136:3",
-  // "hy_recon.F90:118:3",
-  // "hy_recon.F90:113:3",
-  // "unknown:0:0",
-  // "hy_recon.F90:114:3",
-  // "hy_recon.F90:101:3",
-  // "hy_recon.F90:136:3",
-  // "hy_recon.F90:118:3",
-  // "hy_recon.F90:132:3",
-  // "hy_recon.F90:135:3",
-  // "hy_recon.F90:117:3",
-  // "hy_recon.F90:113:3",
-  // "unknown:0:0",
-  // "hy_recon.F90:114:3",
-  // "hy_recon.F90:136:3",
-  // "hy_recon.F90:118:3",
-  // "hy_recon.F90:141:3",
-  // "hy_recon.F90:143:3",
-  // "hy_recon.F90:101:3",
-  // "hy_recon.F90:132:3",
-  // "hy_recon.F90:117:3",
-  // "hy_recon.F90:135:3",
-  // "hy_riemann.F90:142:3",
-  // "hy_recon.F90:123:3",
-  // "unknown:0:0",
-  // "hy_rk_getFaceFlux.F90:219:12",
-  // "hy_rk_getFaceFlux.F90:206:12",
-  // "hy_rk_getFaceFlux.F90:223:12",
-  // "hy_rk_getFaceFlux.F90:241:12",
-  // "hy_rk_getFaceFlux.F90:237:12",
-  // "hy_rk_getFaceFlux.F90:222:12",
-  // "hy_rk_getFaceFlux.F90:240:12",
-  // "hy_rk_getFaceFlux.F90:218:12",
-};
-// const std::set<const char *> ignore_op_list = {
-//   "unknown:0:0",
-//   "hy_rk_getFaceFlux.F90:219:12",
-//   "hy_rk_getFaceFlux.F90:241:12",
-//   "hy_rk_getFaceFlux.F90:223:12",
-//   "hy_rk_getFaceFlux.F90:237:12",
-//   "hy_rk_getFaceFlux.F90:206:12",
-//   "hy_rk_getFaceFlux.F90:202:12",
-//   "hy_rk_getFaceFlux.F90:246:12",
-//   "hy_rk_getFaceFlux.F90:228:12",
-//   "hy_rk_getFaceFlux.F90:222:12",
-//   "hy_rk_getFaceFlux.F90:240:12",
-//   "hy_rk_getFaceFlux.F90:204:12",
-//   "hy_rk_getFaceFlux.F90:588:9",
-//   "hy_rk_getFaceFlux.F90:218:12",
-//   "hy_rk_getFaceFlux.F90:563:9",
-//   "hy_rk_getFaceFlux.F90:306:9",
-//   "hy_rk_getFaceFlux.F90:352:9",
-//   "hy_rk_getFaceFlux.F90:307:9",
-//   "hy_rk_getFaceFlux.F90:558:9",
-//   "hy_rk_updateSoln.F90:255:12",
-//   "hy_rk_getFaceFlux.F90:387:9",
-//   "hy_rk_getFaceFlux.F90:584:9",
-//   "hy_rk_getFaceFlux.F90:405:9",
-//   "hy_rk_getFaceFlux.F90:569:9",
-//   "hy_rk_getFaceFlux.F90:342:9",
-//   "hy_rk_getFaceFlux.F90:341:9",
-//   "hy_rk_saveFluxBuf.F90:71:10",
-//   "hy_rk_saveFluxBuf.F90:82:10",
-//   "hy_rk_getFaceFlux.F90:573:9",
-//   "hy_rk_getFaceFlux.F90:703:9",
-//   "hy_rk_getFaceFlux.F90:712:9",
-//   "hy_rk_getFaceFlux.F90:663:9",
-//   "hy_rk_getFaceFlux.F90:707:9",
-//   "hy_rk_getFaceFlux.F90:155:6",
-//   "hy_rk_getFaceFlux.F90:519:9",
-//   "hy_rk_getFaceFlux.F90:525:9",
-//   "hy_rk_getFaceFlux.F90:461:9",
-//   "hy_rk_getFaceFlux.F90:455:9",
-//   "hy_rk_updateSoln.F90:121:12",
-//   "hy_rk_updateSoln.F90:279:12",
-//   "hy_rk_updateSoln.F90:276:12",
-//   "hy_rk_getFaceFlux.F90:452:9",
-//   "hy_rk_getFaceFlux.F90:459:9",
-//   "hy_rk_getFaceFlux.F90:516:9",
-//   "hy_rk_getFaceFlux.F90:523:9",
-//   "hy_rk_updateSoln.F90:125:12",
-// };
-// const std::set<const char *> ignore_op_list = {
-  // "hy_rk_updateSoln.F90:255:12",
-  // "hy_rk_getFaceFlux.F90:735:9",
-  // "unknown:0:0",
-  // "hy_rk_getFaceFlux.F90:784:9",
-  // "hy_rk_saveFluxBuf.F90:82:10",
-  // "hy_rk_saveFluxBuf.F90:71:10",
-  // "hy_rk_getFaceFlux.F90:660:9",
-  // "hy_rk_getFaceFlux.F90:656:9",
-  // "hy_rk_getFaceFlux.F90:630:9",
-  // "hy_rk_getFaceFlux.F90:446:9",
-  // "hy_rk_getFaceFlux.F90:464:9",
-  // "hy_rk_getFaceFlux.F90:645:9",
-  // "hy_rk_getFaceFlux.F90:635:9",
-  // "hy_rk_updateSoln.F90:275:12",
-  // "hy_rk_updateSoln.F90:278:12",
-  // "hy_rk_getFaceFlux.F90:459:9",
-  // "hy_rk_getFaceFlux.F90:477:9",
-  // "hy_rk_getFaceFlux.F90:699:9",
-  // "hy_rk_getFaceFlux.F90:681:9",
-  // "hy_rk_getFaceFlux.F90:641:9",
-  // "hy_rk_getFaceFlux.F90:695:9",
-  // "hy_rk_getFaceFlux.F90:677:9",
-  // "hy_rk_getFaceFlux.F90:652:9",
-  // "hy_rk_getFaceFlux.F90:424:9",
-  // "hy_rk_updateSoln.F90:279:12",
-  // "hy_rk_getFaceFlux.F90:682:9",
-  // "hy_rk_getFaceFlux.F90:698:9",
-  // "hy_rk_updateSoln.F90:276:12",
-  // "hy_rk_getFaceFlux.F90:651:9",
-  // "hy_rk_getFaceFlux.F90:379:9",
-  // "hy_rk_getFaceFlux.F90:527:9",
-  // "hy_rk_getFaceFlux.F90:533:9",
-  // "hy_rk_getFaceFlux.F90:591:9",
-  // "hy_rk_getFaceFlux.F90:524:9",
-  // "hy_rk_getFaceFlux.F90:531:9",
-  // "hy_rk_getFaceFlux.F90:378:9",
-  // "hy_rk_getFaceFlux.F90:597:9",
-  // "hy_rk_getFaceFlux.F90:694:9",
-  // "hy_rk_getFaceFlux.F90:678:9",
-  // "hy_rk_getFaceFlux.F90:414:9",
-  // "hy_rk_getFaceFlux.F90:588:9",
-  // "hy_rk_getFaceFlux.F90:595:9",
-  // "hy_rk_getFaceFlux.F90:589:9",
-  // "hy_rk_getFaceFlux.F90:476:9",
-  // "hy_rk_getFaceFlux.F90:413:9",
-  // "hy_rk_getFaceFlux.F90:458:9",
-  // "hy_rk_getFaceFlux.F90:594:9",
-  // "hy_rk_getFaceFlux.F90:775:9",
-  // "hy_rk_getFaceFlux.F90:530:9",
-  // "hy_rk_getFaceFlux.F90:525:9",
-  // "hy_rk_getFaceFlux.F90:779:9",
-  // "hy_rk_getFaceFlux.F90:737:9",
-  // };
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
@@ -478,14 +338,15 @@ const std::set<const char *> ignore_op_list = {
       mc->shadow =                                                             \
           __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow);                                                     \
-      if (ignore_op_list.count(loc)) {                                         \
-        ++opdata[loc].count_ignore;                                            \
-        double da = mpfr_get_##MPFR_GET(ma->result,                            \
-                                        __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
-        double dc =                                                            \
-            __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
-                da);                                                           \
-        mpfr_set_##MPFR_SET_ARG1(mc->result, dc, ROUNDING_MODE);               \
+      if (false) {                                                             \
+      if (excl_trunc) {                                                        \
+        mc->excl_result =                                                      \
+          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->excl_result); \
+        mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
+      } else {                                                                 \
+        mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);          \
+        mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
+      }                                                                        \
       } else {                                                                 \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);          \
       }                                                                        \
@@ -569,16 +430,17 @@ const std::set<const char *> ignore_op_list = {
       mc->shadow =                                                             \
           __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow, mb->shadow);                                         \
-      if (ignore_op_list.count(loc)) {                                         \
-        ++opdata[loc].count_ignore;                                            \
-        double da = mpfr_get_##MPFR_GET(ma->result,                            \
-                                        __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
-        double db = mpfr_get_##MPFR_GET(mb->result,                            \
-                                        __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);  \
-        double dc =                                                            \
-            __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
-                da, db);                                                       \
-        mpfr_set_##MPFR_SET_ARG1(mc->result, dc, ROUNDING_MODE);               \
+      if (false) {                                                             \
+      if (excl_trunc) {                                                        \
+        mc->excl_result =                                                      \
+          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+              ma->excl_result, mb->excl_result);                               \
+        mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
+      } else {                                                                 \
+        mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,              \
+                              ROUNDING_MODE);                                  \
+        mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
+      }                                                                        \
       } else {                                                                 \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,              \
                               ROUNDING_MODE);                                  \
@@ -635,18 +497,17 @@ const std::set<const char *> ignore_op_list = {
       madd->shadow =                                                           \
           __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow, mb->shadow, mc->shadow);                             \
-      if (ignore_op_list.count(loc)) {                                         \
-        ++opdata[loc].count_ignore;                                            \
-        double da = mpfr_get_##MPFR_TYPE(ma->result,                           \
-                                         __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-        double db = mpfr_get_##MPFR_TYPE(mb->result,                           \
-                                         __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-        double dc = mpfr_get_##MPFR_TYPE(mc->result,                           \
-                                         __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-        double dmadd =                                                         \
+      if (false) {                                                             \
+      if (excl_trunc) {                                                        \
+        madd->shadow =                                                         \
             __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
-                da, db, dc);                                                   \
-        mpfr_set_##MPFR_TYPE(madd->result, dmadd, ROUNDING_MODE);              \
+                ma->shadow, mb->shadow, mc->shadow);                           \
+        mpfr_set_##MPFR_TYPE(madd->result, madd->excl_result, ROUNDING_MODE);  \
+      } else {                                                                 \
+        mpfr_mul(madd->result, ma->result, mb->result, ROUNDING_MODE);         \
+        mpfr_add(madd->result, madd->result, mc->result, ROUNDING_MODE);       \
+        madd->excl_result = mpfr_get_##MPFR_TYPE(madd->result, ROUNDING_MODE); \
+      }                                                                        \
       } else {                                                                 \
         mpfr_mul(madd->result, ma->result, mb->result, ROUNDING_MODE);         \
         mpfr_add(madd->result, madd->result, mc->result, ROUNDING_MODE);       \
