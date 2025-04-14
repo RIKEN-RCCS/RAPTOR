@@ -329,7 +329,6 @@ void enzyme_fprt_op_clear();
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
       __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
@@ -340,10 +339,12 @@ void enzyme_fprt_op_clear();
               ma->shadow);                                                     \
       if (false) {                                                             \
       if (excl_trunc) {                                                        \
+        trunc_excl_flop_counter.fetch_add(1, std::memory_order_relaxed);       \
         mc->excl_result =                                                      \
           __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->excl_result); \
         mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
+        trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);            \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);          \
         mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
       }                                                                        \
@@ -418,7 +419,6 @@ void enzyme_fprt_op_clear();
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
     } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);              \
       __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
       __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
@@ -432,11 +432,13 @@ void enzyme_fprt_op_clear();
               ma->shadow, mb->shadow);                                         \
       if (false) {                                                             \
       if (excl_trunc) {                                                        \
+        trunc_excl_flop_counter.fetch_add(1, std::memory_order_relaxed);       \
         mc->excl_result =                                                      \
           __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->excl_result, mb->excl_result);                               \
         mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
+        trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);            \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,              \
                               ROUNDING_MODE);                                  \
         mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
@@ -474,7 +476,7 @@ void enzyme_fprt_op_clear();
       TYPE a, TYPE b, TYPE c, int64_t exponent, int64_t significand,           \
       int64_t mode, const char *loc, mpfr_t *scratch) {                        \
     if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      trunc_flop_counter += 2;                                                 \
+      trunc_flop_counter.fetch_add(2, std::memory_order_relaxed);              \
       mpfr_set_##MPFR_TYPE(scratch[0], a, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[1], b, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[2], c, ROUNDING_MODE);                      \
@@ -499,11 +501,13 @@ void enzyme_fprt_op_clear();
               ma->shadow, mb->shadow, mc->shadow);                             \
       if (false) {                                                             \
       if (excl_trunc) {                                                        \
+        trunc_excl_flop_counter.fetch_add(2, std::memory_order_relaxed);       \
         madd->shadow =                                                         \
             __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
                 ma->shadow, mb->shadow, mc->shadow);                           \
         mpfr_set_##MPFR_TYPE(madd->result, madd->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
+        trunc_flop_counter.fetch_add(2, std::memory_order_relaxed);            \
         mpfr_mul(madd->result, ma->result, mb->result, ROUNDING_MODE);         \
         mpfr_add(madd->result, madd->result, mc->result, ROUNDING_MODE);       \
         madd->excl_result = mpfr_get_##MPFR_TYPE(madd->result, ROUNDING_MODE); \
