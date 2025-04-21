@@ -38,11 +38,11 @@ long long f_enzyme_get_trunc_flop_count();
 
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
-extern std::atomic<long long> trunc_flop_counter;
-extern std::atomic<long long> trunc_excl_flop_counter;
-extern std::atomic<long long> double_flop_counter;
-extern std::atomic<long long> float_flop_counter;
-extern std::atomic<long long> half_flop_counter;
+// extern std::atomic<long long> trunc_flop_counter;
+// extern std::atomic<long long> trunc_excl_flop_counter;
+// extern std::atomic<long long> double_flop_counter;
+// extern std::atomic<long long> float_flop_counter;
+// extern std::atomic<long long> half_flop_counter;
 
 std::atomic<long long> shadow_err_counter = 0;
 bool excl_trunc = false;
