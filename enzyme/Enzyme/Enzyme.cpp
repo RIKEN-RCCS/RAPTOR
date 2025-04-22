@@ -121,8 +121,8 @@ llvm::cl::opt<std::string> EnzymeTruncateAll(
         "Truncate all floating point operations. "
         "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
 
-llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count",
-                                        cl::init(true));
+llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count", cl::init(false), cl::Hidden,
+                                        cl::desc("Count all non-truncated floating point operations."));
 
 #define addAttribute addAttributeAtIndex
 #define getAttribute getAttributeAtIndex
