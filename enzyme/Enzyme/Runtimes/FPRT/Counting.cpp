@@ -39,7 +39,7 @@ long long __enzyme_get_double_flop_count() {
     exit(0);
   }
 
-  return double_flop_counter + trunc_excl_flop_counter;
+  return double_flop_counter;
 }
 
 __ENZYME_MPFR_ATTRIBUTES
