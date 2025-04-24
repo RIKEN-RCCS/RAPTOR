@@ -32,7 +32,7 @@
 #include <set>
 #include <string.h>
 
-#include <mpi.h>
+// #include <mpi.h>
 
 #include "fprt.h"
 
