@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 
-#include <mpi.h>
+// #include <mpi.h>
 
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
@@ -126,16 +126,16 @@ bool __op_dump_cmp(std::pair<const char *, __enzyme_op>& a,
 
 __ENZYME_MPFR_ATTRIBUTES
 void enzyme_fprt_op_dump_status(int num) {
-  int size, rank;
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  // int size, rank;
+  // MPI_Comm_size(MPI_COMM_WORLD, &size);
+  // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   if (opdata.size() < num) num = opdata.size();
 
-  if (rank == 0) {
+  // if (rank == 0) {
     std::cerr << "Information about top " << num
               << " operations." << std::endl;
-  }
+  // }
   // std::vector<unsigned long long> key_recvcounts(size);
   // std::vector<unsigned long long> key_displs(size);
   // std::vector<unsigned long long> char_recvcounts(size);
@@ -220,7 +220,7 @@ void enzyme_fprt_op_dump_status(int num) {
   //   MPI_Reduce( c_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   // }
 
-  if (rank == 0) {
+  // if (rank == 0) {
     // for (int i = 0; i < od_vec.size(); ++i) {
     //   od_vec[i].second.l1_err = l1_vec[i];
     //   od_vec[i].second.count_thresh = ct_vec[i];
@@ -236,7 +236,7 @@ void enzyme_fprt_op_dump_status(int num) {
                 << " Ignored " << it->second.count_ignore << " times."
                 << std::endl;
     }
-  }
+  // }
 }
 
 long long __enzyme_get_memory_access_trunc_store() {
