@@ -10,3 +10,8 @@ add_library( Enzyme-FPRT-Count-${LLVM_VERSION_MAJOR}
 target_include_directories(Enzyme-FPRT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
 
 target_include_directories(Enzyme-FPRT-Count-${LLVM_VERSION_MAJOR} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../../include)
+
+option(DISABLE_TRUNC_FLOP_COUNT "Disable counters for truncated flops." OFF)
+if(DISABLE_TRUNC_FLOP_COUNT)
+  add_definitions(-DENZYME_FPRT_DISABLE_TRUNC_FLOP_COUNT)
+endif(DISABLE_TRUNC_FLOP_COUNT)
