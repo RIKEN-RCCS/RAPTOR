@@ -39,6 +39,42 @@ module truncate
      end function
   end interface
 
+  interface
+     function f_enzyme_get_memory_access_trunc_store() result(count) bind(C)
+       use, intrinsic :: iso_c_binding, only: c_long_long
+       implicit none
+
+       integer(c_long_long) :: count
+     end function
+  end interface
+
+  interface
+     function f_enzyme_get_memory_access_trunc_load() result(count) bind(C)
+       use, intrinsic :: iso_c_binding, only: c_long_long
+       implicit none
+
+       integer(c_long_long) :: count
+     end function
+  end interface
+
+  interface
+     function f_enzyme_get_memory_access_original_store() result(count) bind(C)
+       use, intrinsic :: iso_c_binding, only: c_long_long
+       implicit none
+
+       integer(c_long_long) :: count
+     end function
+  end interface
+
+  interface
+     function f_enzyme_get_memory_access_original_load() result(count) bind(C)
+       use, intrinsic :: iso_c_binding, only: c_long_long
+       implicit none
+
+       integer(c_long_long) :: count
+     end function
+  end interface
+
   public :: simple_sum
   public :: f__enzyme_truncate_op_func_simple_sum
 contains
@@ -99,6 +135,11 @@ program trunc_f90
   write(*,*) "Number of double flops: ", f_enzyme_get_double_flop_count()
   write(*,*) "Number of float flops: ", f_enzyme_get_float_flop_count()
   write(*,*) "Number of half flops: ", f_enzyme_get_half_flop_count()
+
+  write(*,*) "Number of truncated stores: ", f_enzyme_get_memory_access_trunc_store()
+  write(*,*) "Number of truncated loads: ", f_enzyme_get_memory_access_trunc_load()
+  write(*,*) "Number of original stores: ", f_enzyme_get_memory_access_original_store()
+  write(*,*) "Number of original loads: ", f_enzyme_get_memory_access_original_load()
 
 ! contains
 !   function f__enzyme_truncate_op_func_simple_sum(from, to_e, to_m, a, b) result(c)

@@ -3,11 +3,11 @@
 set -x
 set -e
 
-ENZYME_BUILD_DIR="/scratch/fhrold/riken/Enzyme/enzyme/build"
+ENZYME_BUILD_DIR="/scratch/fhrold/reproducibility/Enzyme/enzyme/build"
 
-cp /scratch/fhrold/riken/Enzyme/enzyme/include/enzyme/fprt/mpfr.h "./mpfr.cpp"
+cp /scratch/fhrold/reproducibility/Enzyme/enzyme/include/enzyme/fprt/mpfr.h "./mpfr.cpp"
 clang++ -c "./mpfr.cpp" $(pkg-config --cflags mpfr gmp) \
-    -I/scratch/fhrold/riken/Enzyme/enzyme/include/enzyme/fprt/ \
+    -I/scratch/fhrold/reproducibility/Enzyme/enzyme/include/enzyme/fprt/ \
     -DENZYME_FPRT_ENABLE_GARBAGE_COLLECTION \
     -DENZYME_FPRT_ENABLE_SHADOW_RESIDUALS \
     -o "./mpfr.o"
@@ -35,6 +35,7 @@ mpif90 -O2 mpfr.o simple_math.o main_patch.o -o ./main-flang \
     -Wl,--load-pass-plugin=${ENZYME_BUILD_DIR}/Enzyme/LLDEnzyme-20.so \
     -Wl,-mllvm -Wl,-load=${ENZYME_BUILD_DIR}/Enzyme/LLDEnzyme-20.so \
     -Wl,-mllvm -Wl,-enzyme-truncate-count=1 \
+    -Wl,-mllvm -Wl,-enzyme-truncate-access-count=1 \
     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/mpfr-4.2.1-2aivvsalcuno6mvp2lyuta3glkp3o6v2/lib -lmpfr \
     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/gmp-6.3.0-kyy5q7hr34p4dr2aftntqw2z6pmkc7ja/lib -lgmp -flto \
     -lstdc++ \
@@ -61,15 +62,15 @@ mpif90 -O2 mpfr.o simple_math.o main_patch.o -o ./main-flang \
 #     -lEnzyme-FPRT-Count-20 \
 #     -Wl,--allow-multiple-definition
 
-# flang-new -O2 mpfr.o simple_math.o ./main_patch.o -o ./main-flang -fpass-plugin=/scratch/fhrold/riken/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
-#     -Xflang -load -Xflang /scratch/fhrold/riken/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
+# flang-new -O2 mpfr.o simple_math.o ./main_patch.o -o ./main-flang -fpass-plugin=/scratch/fhrold/reproducibility/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
+#     -Xflang -load -Xflang /scratch/fhrold/reproducibility/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
 #     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/mpfr-4.2.1-2aivvsalcuno6mvp2lyuta3glkp3o6v2/lib -lmpfr \
 #     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/gmp-6.3.0-kyy5q7hr34p4dr2aftntqw2z6pmkc7ja/lib -lgmp \
 #     -Rpass=enzyme
 
 
-# flang-new -O2 -fpass-plugin=/scratch/fhrold/riken/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
-#     -Xflang -load -Xflang /scratch/fhrold/riken/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
+# flang-new -O2 -fpass-plugin=/scratch/fhrold/reproducibility/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
+#     -Xflang -load -Xflang /scratch/fhrold/reproducibility/Enzyme/enzyme/build/Enzyme/LLVMEnzyme-20.so \
 #     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/mpfr-4.2.1-2aivvsalcuno6mvp2lyuta3glkp3o6v2/lib -lmpfr \
 #     -L/scratch/fhrold/spack/opt/spack/linux-rocky9-zen2/gcc-11.4.1/gmp-6.3.0-kyy5q7hr34p4dr2aftntqw2z6pmkc7ja/lib -lgmp \
 #     -Rpass=enzyme  mpfr.o simple_math.o ./src/main_patch.f90 -o ./main-flang
