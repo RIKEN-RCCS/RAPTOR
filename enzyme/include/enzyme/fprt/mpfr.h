@@ -283,7 +283,7 @@ __ENZYME_MPFR_ATTRIBUTES
 long long f_enzyme_get_memory_access_original_load();
 
 __ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_memory_access(int64_t size, int64_t is_store);
+void __enzyme_fprt_memory_access(void *, int64_t size, int64_t is_store);
 
 __ENZYME_MPFR_ATTRIBUTES
 void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
