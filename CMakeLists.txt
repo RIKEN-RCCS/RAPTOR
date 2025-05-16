@@ -195,23 +195,6 @@ else()
 endif()
 message("found Clang ${Clang_FOUND}")
 
-if (DEFINED MLIR_DIR)
-    find_package(MLIR REQUIRED CONFIG PATHS ${MLIR_DIR} NO_DEFAULT_PATH)
-    if (${MLIR_FOUND})
-        include_directories(${MLIR_INCLUDE_DIRS})
-        message("MLIR inc dir ${MLIR_INCLUDE_DIRS}")
-        add_definitions(${MLIR_DEFINITIONS})
-        add_definitions(-DRAPTOR_MLIR=1)
-        list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
-        include(TableGen)
-        include(AddMLIR)
-    endif()
-else()
-    set(MLIR_FOUND 0) 
-endif()
-message("found MLIR ${MLIR_FOUND}")
-# include(AddClang)
-
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 message("LLVM_INSTALL_PREFIX: ${LLVM_INSTALL_PREFIX}")
@@ -244,33 +227,15 @@ set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
   "Installation directory for CMake files")
 
 
-list(GET LLVM_INCLUDE_DIRS 0 LLVM_IDIR)
-message("first llvm include directory" ${LLVM_IDIR})
-
-file(READ ${LLVM_IDIR}/llvm/Analysis/ScalarEvolution.h INPUT_TEXT)
-string(REPLACE private public INPUT_TEXT "${INPUT_TEXT}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/SCEV/ScalarEvolution.h" "${INPUT_TEXT}")
-
-
-file(READ ${LLVM_IDIR}/llvm/Analysis/TargetLibraryInfo.h INPUT_TEXT)
-string(REPLACE "class TargetLibraryInfo {" "class TargetLibraryInfo {public:" INPUT_TEXT "${INPUT_TEXT}")
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/SCEV/TargetLibraryInfo.h" "${INPUT_TEXT}")
-
-file(READ ${LLVM_IDIR}/llvm/Transforms/Utils/ScalarEvolutionExpander.h INPUT_TEXT)
-
 find_library(MPFR_LIB_PATH mpfr)
 CHECK_INCLUDE_FILE("mpfr.h" HAS_MPFR_H)
 message("MPFR lib: " ${MPFR_LIB_PATH})
 message("MPFR header: " ${HAS_MPFR_H})
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/SCEV/ScalarEvolutionExpander.h" "${INPUT_TEXT}")
-
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
-add_subdirectory(tools)
-add_subdirectory(Raptor)
-add_subdirectory(BCLoad)
-add_subdirectory(test)
+add_subdirectory(pass)
+#add_subdirectory(runtime)
 
 # The benchmarks data are not in git-exported source archives to minimize size.
 # Only add the benchmarks if the directory exists.

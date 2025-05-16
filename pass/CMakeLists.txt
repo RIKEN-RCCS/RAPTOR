@@ -2,40 +2,12 @@
 #  set(LLVM_LINK_COMPONENTS Core Support)
 #endif()
 
-if ("${Raptor_TABLEGEN_EXE}" STREQUAL "")
-  set(Raptor_TABLEGEN_EXE raptor-tblgen)
-endif()
-
 get_target_property(TBL_LINKED_LIBS LLVMSupport INTERFACE_LINK_LIBRARIES)
 if (NOT TBL_LINKED_LIBS)
 else()
 list(REMOVE_ITEM TBL_LINKED_LIBS "ZLIB::ZLIB")
 set_property(TARGET LLVMSupport PROPERTY INTERFACE_LINK_LIBRARIES ${TBL_LINKED_LIBS})
 endif()
-
-function(raptor_tablegen ofn)
-  tablegen(Raptor ${ARGV})
-  set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
-      PARENT_SCOPE)
-endfunction()
-
-set(LLVM_TARGET_DEFINITIONS InstructionDerivatives.td)
-raptor_tablegen(BinopDerivatives.inc -gen-binop-derivatives)
-raptor_tablegen(IntrinsicDerivatives.inc -gen-intr-derivatives)
-raptor_tablegen(CallDerivatives.inc -gen-call-derivatives)
-raptor_tablegen(InstructionDerivatives.inc -gen-inst-derivatives)
-raptor_tablegen(BlasDerivatives.inc -gen-blas-derivatives)
-raptor_tablegen(BlasAttributor.inc -update-blas-declarations)
-raptor_tablegen(BlasTA.inc -gen-blas-typeanalysis)
-raptor_tablegen(BlasDiffUse.inc -gen-blas-diffuseanalysis)
-add_public_tablegen_target(BinopDerivativesIncGen)
-add_public_tablegen_target(IntrinsicDerivativesIncGen)
-add_public_tablegen_target(CallDerivativesIncGen)
-add_public_tablegen_target(InstructionDerivativesIncGen)
-add_public_tablegen_target(BlasDerivativesIncGen)
-add_public_tablegen_target(BlasDeclarationsIncGen)
-add_public_tablegen_target(BlasTAIncGen)
-add_public_tablegen_target(BlasDiffUseIncGen)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
@@ -47,8 +19,6 @@ file(GLOB RAPTOR_SRC CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
 list(REMOVE_ITEM RAPTOR_SRC "eopt.cpp")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-list(APPEND RAPTOR_SRC TypeAnalysis/TypeTree.cpp TypeAnalysis/TypeAnalysis.cpp TypeAnalysis/TypeAnalysisPrinter.cpp TypeAnalysis/RustDebugInfo.cpp)
 
 # on windows `PLUGIN_TOOL` doesn't link against LLVM.dll
 if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)
@@ -223,8 +193,3 @@ install(TARGETS LLDRaptor-${LLVM_VERSION_MAJOR}
     PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
     COMPONENT dev)
 
-if (RAPTOR_MLIR)
-    add_subdirectory(MLIR)
-endif()
-
-add_subdirectory(Runtimes/FPRT)
