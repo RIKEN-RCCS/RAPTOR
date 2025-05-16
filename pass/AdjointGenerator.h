@@ -42,7 +42,6 @@
 #include "GradientUtils.h"
 #include "LibraryFuncs.h"
 #include "TraceUtils.h"
-#include "TypeAnalysis/TBAA.h"
 
 #define DEBUG_TYPE "raptor"
 

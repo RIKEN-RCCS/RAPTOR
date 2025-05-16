@@ -66,7 +66,6 @@
 
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 
-#include "TypeAnalysis/ConcreteType.h"
 
 class TypeResults;
 

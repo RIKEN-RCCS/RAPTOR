@@ -48,7 +48,6 @@
 #include "ActivityAnalysis.h"
 #include "FunctionUtils.h"
 #include "TraceUtils.h"
-#include "TypeAnalysis/TypeAnalysis.h"
 #include "Utils.h"
 
 extern "C" {

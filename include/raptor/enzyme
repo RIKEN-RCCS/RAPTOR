@@ -1,5 +1,0 @@
-#ifdef __cplusplus
-#include "raptor/utils"
-#else
-#warning "Raptor wrapper templates only available in C++"
-#endif

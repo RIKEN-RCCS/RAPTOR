@@ -59,7 +59,6 @@
 
 #include "FunctionUtils.h"
 #include "LibraryFuncs.h"
-#include "TypeAnalysis/TBAA.h"
 
 #include "llvm/Analysis/ValueTracking.h"
 

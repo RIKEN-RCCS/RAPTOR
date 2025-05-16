@@ -91,8 +91,6 @@
 #include "llvm/Transforms/IPO/OpenMPOpt.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
 
-#include "BlasAttributor.inc"
-
 #include "CApi.h"
 using namespace llvm;
 #ifdef DEBUG_TYPE
@@ -3461,7 +3459,6 @@ AnalysisKey RaptorNewPM::Key;
 #include "ActivityAnalysisPrinter.h"
 #include "JLInstSimplify.h"
 #include "PreserveNVVM.h"
-#include "TypeAnalysis/TypeAnalysisPrinter.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"

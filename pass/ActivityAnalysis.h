@@ -46,7 +46,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/InstVisitor.h"
 
-#include "TypeAnalysis/TypeAnalysis.h"
 #include "Utils.h"
 
 extern "C" {

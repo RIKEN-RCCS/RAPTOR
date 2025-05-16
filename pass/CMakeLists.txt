@@ -13,8 +13,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(LLVM_LINK_COMPONENTS Demangle)
 
-file(GLOB RAPTOR_SRC CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    "*.cpp"
+set(RAPTOR_SRC
+    RaptorLogic.cpp
+    Raptor.cpp
 )
 list(REMOVE_ITEM RAPTOR_SRC "eopt.cpp")
 set(CMAKE_CXX_STANDARD 17)

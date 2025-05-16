@@ -24,7 +24,6 @@
 //===----------------------------------------------------------------------===//
 #include "Utils.h"
 #include "GradientUtils.h"
-#include "TypeAnalysis/TypeAnalysis.h"
 
 #if LLVM_VERSION_MAJOR >= 16
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -34,7 +33,6 @@
 #include "SCEV/ScalarEvolutionExpander.h"
 #endif
 
-#include "TypeAnalysis/TBAA.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"

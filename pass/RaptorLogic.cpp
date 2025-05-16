@@ -28,10 +28,6 @@
 //
 //===----------------------------------------------------------------------===//
 #include "RaptorLogic.h"
-#include "ActivityAnalysis.h"
-#include "AdjointGenerator.h"
-#include "RaptorLogic.h"
-#include "TypeAnalysis/TypeAnalysis.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalValue.h"

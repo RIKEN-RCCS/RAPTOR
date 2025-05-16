@@ -36,7 +36,6 @@
 
 #include "DifferentialUseAnalysis.h"
 #include "LibraryFuncs.h"
-#include "TypeAnalysis/TBAA.h"
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DebugInfoMetadata.h"
