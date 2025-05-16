@@ -261,7 +261,12 @@ export(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
 export(TARGETS ClangRaptorFlags
     APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
-file(GLOB_RECURSE RAPTOR_INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
+set(RAPTOR_INCLUDES
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/flops.def"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/fprt.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/mpfr.h"
+)
+
 set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")
 list(APPEND RAPTOR_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
 add_custom_command(OUTPUT ${bundled_includes}
@@ -331,5 +336,5 @@ install(FILES
      DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
    
 install(EXPORT RaptorTargets
-  DESTINATION "${INSTALL_CMAKE_DIR}" 
+  DESTINATION "${INSTALL_CMAKE_DIR}"
   COMPONENT   dev)
