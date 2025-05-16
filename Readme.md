@@ -7,10 +7,10 @@ This is achieved using an LLVM pass and an accompanying runtime.
 ## Building
 
 ``` shell
-cd enzyme
+cd raptor
 cmake --fresh \
   -DLLVM_DIR="path/to/llvm-install/lib/cmake/llvm" \
-  -DCMAKE_INSTALL_PREFIX="path/to/enzyme-install/" \
+  -DCMAKE_INSTALL_PREFIX="path/to/raptor-install/" \
   -DLLVM_EXTERNAL_LIT="path/to/llvm-project/llvm/utils/lit/lit.py" \
   -B build -G Ninja
 ninja -C ./build install
@@ -39,26 +39,26 @@ Thus, we recommend using LTO in these cases, to enable RAPTOR to have a complete
 
 The following can be used to enable RAPTOR's compilation remarks:
 ``` shell
--Rpass=enzyme
+-Rpass=raptor
 ```
 
 
 ### Usage in LTO
 
 ``` shell
--Wl,-mllvm -Wl,-load=$ENZYME_BUILD_DIR/Enzyme/LLDEnzyme-$LLVM_VER.so -L$ENZYME_BUILD_DIR/Enzyme/Runtimes/FPRT/ -lEnzyme-FPRT-Count-$LLVM_VER
+-Wl,-mllvm -Wl,-load=$RAPTOR_BUILD_DIR/Raptor/LLDRaptor-$LLVM_VER.so -L$RAPTOR_BUILD_DIR/Raptor/Runtimes/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
 ```
 
 ### Usage in single-file compilation
 
 When compiling:
 ``` shell
--fplugin=/path/to/Enzyme/enzyme/build/Enzyme/ClangEnzyme-$LLVM_VER.so
+-fplugin=/path/to/Raptor/raptor/build/Raptor/ClangRaptor-$LLVM_VER.so
 ```
 
 When linking:
 ``` shell
--L$ENZYME_BUILD_DIR/Enzyme/Runtimes/FPRT/ -lEnzyme-FPRT-Count-$LLVM_VER
+-L$RAPTOR_BUILD_DIR/Raptor/Runtimes/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
 ```
 
 
@@ -82,7 +82,7 @@ void foo(float *a, float b) {
 To use RAPTOR to truncate floating-pint operations in the call to `foo`, one can replace the call to `foo` with the following:
 ``` c++
   ...
-  auto f = __enzyme_truncate_op_func(
+  auto f = __raptor_truncate_op_func(
     /* function */    foo,
     /* from_type */   32,
     /* to_exponent */ 5,
@@ -91,4 +91,4 @@ To use RAPTOR to truncate floating-pint operations in the call to `foo`, one can
   ...
 ```
 
-At compile time, RAPTOR will replace the call to `__enzyme_truncate_op_func` with a version of `foo` with floating-point operations truncated to the specified precision.
+At compile time, RAPTOR will replace the call to `__raptor_truncate_op_func` with a version of `foo` with floating-point operations truncated to the specified precision.

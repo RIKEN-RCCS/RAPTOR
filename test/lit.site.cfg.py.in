@@ -1,0 +1,112 @@
+@LIT_SITE_CFG_IN_HEADER@
+
+import os
+
+#config.llvm_src_root = "@LLVM_SOURCE_DIR@"
+config.llvm_ver = "@LLVM_VERSION_MAJOR@"
+config.llvm_obj_root = "@LLVM_BINARY_DIR@"
+config.llvm_tools_dir = "@LLVM_TOOLS_BINARY_DIR@"
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  config.llvm_tools_dir = os.getcwd() + "/" + config.llvm_tools_dir
+config.llvm_libs_dir = "@LLVM_LIBS_DIR@"
+config.raptor_obj_root = "@RAPTOR_BINARY_DIR@"
+config.target_triple = "@TARGET_TRIPLE@"
+
+config.llvm_shlib_ext = "@LLVM_SHLIBEXT@"
+
+config.targets_to_build = "@TARGETS_TO_BUILD@"
+
+has_mpfr_h = "@HAS_MPFR_H@"
+mpfr_lib_path = "@MPFR_LIB_PATH@"
+has_mpfr = "yes" if mpfr_lib_path != "MPFR_LIB_PATH-NOTFOUND" and has_mpfr_h == "1" else "no"
+
+## Check the current platform with regex
+import re
+EAT_ERR_ON_X86 = ' '
+if (re.match(r'^x86_64*', '@TARGET_TRIPLE@') == None) :
+  EAT_ERR_ON_X86 = '|| echo \"error is eaten\"'
+
+for arch in config.targets_to_build.split():
+    config.available_features.add(arch.lower() + '-registered-target')
+
+# Support substitution of the tools and libs dirs with user parameters. This is
+# used when we can't determine the tool dir at configuration time.
+try:
+    config.llvm_tools_dir = config.llvm_tools_dir % lit_config.params
+    config.llvm_libs_dir = config.llvm_libs_dir % lit_config.params
+except KeyError:
+    e = sys.exc_info()[1]
+    key, = e.args
+    lit_config.fatal("unable to find %r parameter, use '--param=%s=VALUE'" % (key,key))
+
+# excludes: A list of directories to exclude from the testsuite. The 'Inputs'
+# subdirectories contain auxiliary inputs for various tests in their parent
+# directories.
+config.excludes = ['Inputs']
+
+config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
+config.substitutions.append(('%lli', config.llvm_tools_dir + "/lli" + (" --jit-kind=mcjit" if int(config.llvm_ver) >= 13 else "")
+))
+
+opt = config.llvm_tools_dir + "/opt"
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  opt = os.path.dirname(os.path.abspath(__file__)) + "/../raptor-opt"
+
+config.substitutions.append(('%opt', opt))
+
+emopt = config.raptor_obj_root + "/Raptor/MLIR/raptormlir-opt"
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  emopt = os.path.dirname(os.path.abspath(__file__)) + "/../raptormlir-opt"
+
+eclang = config.llvm_tools_dir + "/clang"
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  eclang = os.path.dirname(os.path.abspath(__file__)) + "/../raptor-clang"
+  resource = config.llvm_tools_dir + "/../clang/staging"
+  eclang += " -resource-dir " + resource + " "
+  eclang += "-I " + os.path.dirname(os.path.abspath(__file__)) + "/Integration"
+
+config.substitutions.append(('%eopt', emopt))
+config.substitutions.append(('%llvmver', config.llvm_ver))
+config.substitutions.append(('%FileCheck', config.llvm_tools_dir + "/FileCheck"))
+config.substitutions.append(('%clang', eclang))
+config.substitutions.append(('%O0TBAA', "-O1 -Xclang -disable-llvm-passes"))
+
+newPM = ((" --enable-new-pm=1" if int(config.llvm_ver) in (12,13) else "")
+                                 + ' -load-pass-plugin=@RAPTOR_BINARY_DIR@/Raptor/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext
+                                 + ' -load=@RAPTOR_BINARY_DIR@/Raptor/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext
+                                 + (" --raptor-attributor=0" if int(config.llvm_ver) >= 13 else ""))
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  newPM = ((" --enable-new-pm=1" if int(config.llvm_ver) in (12,13) else "")
+                                 + (" --raptor-attributor=0" if int(config.llvm_ver) >= 13 else ""))
+
+newPMOP = newPM
+assert int(config.llvm_ver) >= 20
+config.substitutions.append(('%loadRaptor', newPM))
+config.substitutions.append(('%newLoadRaptor', newPM))
+config.substitutions.append(('%OPloadRaptor', newPMOP))
+config.substitutions.append(('%OPnewLoadRaptor', newPMOP))
+config.substitutions.append(('%llvm-raptor', '-passes="raptor"'))
+config.substitutions.append(('%simplifycfg', "simplifycfg"))
+config.substitutions.append(('%loopmssa', "loop-mssa"))
+
+config.substitutions.append(('%loadBC', ''
+                                 + ' @RAPTOR_BINARY_DIR@/BCLoad/BCPass-' + config.llvm_ver + config.llvm_shlib_ext
+                                 ))
+config.substitutions.append(('%BClibdir', '@RAPTOR_SOURCE_DIR@/bclib/'))
+
+newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext
+          + ' -Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+
+if len("@RAPTOR_BINARY_DIR@") == 0:
+  newPM = ""
+
+config.substitutions.append(('%clang-raptor', newPM))
+config.substitutions.append(('%link-raptor', newPM))
+
+config.substitutions.append(('%hasMPFR', has_mpfr))
+
+# Let the main config do the real work.
+cfgfile = "@RAPTOR_SOURCE_DIR@/test/lit.cfg.py"
+if len("@RAPTOR_SOURCE_DIR@") == 0:
+  cfgfile = os.path.dirname(os.path.abspath(__file__)) + "/lit.cfg.py"
+lit_config.load_config(config, cfgfile)
