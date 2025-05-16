@@ -46,7 +46,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/InstVisitor.h"
 
-#include "Utils.h"
 
 extern "C" {
 extern llvm::cl::opt<bool> RaptorPrintActivity;

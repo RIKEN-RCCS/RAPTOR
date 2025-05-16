@@ -40,7 +40,6 @@
 #include "SCEV/ScalarEvolutionExpander.h"
 #endif
 
-#include "Utils.h"
 
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"

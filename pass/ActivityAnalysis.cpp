@@ -53,7 +53,6 @@
 #include "llvm/IR/InlineAsm.h"
 
 #include "ActivityAnalysis.h"
-#include "Utils.h"
 
 #include "llvm/Demangle/Demangle.h"
 

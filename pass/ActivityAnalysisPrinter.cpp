@@ -51,7 +51,6 @@
 #include "ActivityAnalysis.h"
 #include "ActivityAnalysisPrinter.h"
 #include "FunctionUtils.h"
-#include "Utils.h"
 
 using namespace llvm;
 #ifdef DEBUG_TYPE

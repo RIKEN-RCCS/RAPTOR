@@ -68,7 +68,6 @@
 #include "ActivityAnalysis.h"
 #include "CacheUtility.h"
 #include "RaptorLogic.h"
-#include "Utils.h"
 
 #include "llvm-c/Core.h"
 

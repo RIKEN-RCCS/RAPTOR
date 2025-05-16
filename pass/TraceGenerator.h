@@ -31,7 +31,6 @@
 
 #include "RaptorLogic.h"
 #include "TraceUtils.h"
-#include "Utils.h"
 
 class TraceGenerator final : public llvm::InstVisitor<TraceGenerator> {
 private:

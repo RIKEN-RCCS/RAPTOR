@@ -46,7 +46,6 @@
 #include <map>
 
 #include "PreserveNVVM.h"
-#include "Utils.h"
 
 using namespace llvm;
 #ifdef DEBUG_TYPE

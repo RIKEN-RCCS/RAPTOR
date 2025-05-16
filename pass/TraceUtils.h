@@ -38,7 +38,6 @@
 #include "llvm/IR/ValueMap.h"
 
 #include "TraceInterface.h"
-#include "Utils.h"
 
 class TraceUtils {
 

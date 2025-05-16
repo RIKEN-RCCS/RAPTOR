@@ -49,7 +49,6 @@
 #include "llvm-c/Types.h"
 
 #include "JLInstSimplify.h"
-#include "Utils.h"
 
 using namespace llvm;
 #ifdef DEBUG_TYPE
