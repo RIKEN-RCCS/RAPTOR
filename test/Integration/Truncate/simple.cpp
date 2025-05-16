@@ -1,12 +1,12 @@
 // clang-format off
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O0                %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                           -O1 -g             %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O0                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                           -O1 -g             %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
 
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangEnzyme -include enzyme/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
 
 #include <math.h>
 
@@ -56,10 +56,10 @@ typedef double (*fty)(double *, double *, double *, int);
 
 typedef double (*fty2)(double, double);
 
-template <typename fty> fty *__enzyme_truncate_mem_func(fty *, int, int);
-template <typename fty> fty *__enzyme_truncate_op_func(fty *, int, int);
-extern double __enzyme_truncate_mem_value(...);
-extern double __enzyme_expand_mem_value(...);
+template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int);
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int);
+extern double __raptor_truncate_mem_value(...);
+extern double __raptor_expand_mem_value(...);
 
 #define FROM 64
 #define TO 32
@@ -73,8 +73,8 @@ int main() {
     {
         double a = 1;
         APPROX_EQ(
-            __enzyme_expand_mem_value(
-                __enzyme_truncate_mem_value(a, FROM, TO) , FROM, TO),
+            __raptor_expand_mem_value(
+                __raptor_truncate_mem_value(a, FROM, TO) , FROM, TO),
             a, 1e-10);
     }
 
@@ -82,57 +82,57 @@ int main() {
         double a = 2;
         double b = 3;
         double truth = simple_cmp(a, b);
-        a = __enzyme_truncate_mem_value(a, FROM, TO);
-        b = __enzyme_truncate_mem_value(b, FROM, TO);
-        double trunc = __enzyme_expand_mem_value(__enzyme_truncate_mem_func(simple_cmp, FROM, TO)(a, b), FROM, TO);
+        a = __raptor_truncate_mem_value(a, FROM, TO);
+        b = __raptor_truncate_mem_value(b, FROM, TO);
+        double trunc = __raptor_expand_mem_value(__raptor_truncate_mem_func(simple_cmp, FROM, TO)(a, b), FROM, TO);
         APPROX_EQ(trunc, truth, 1e-5);
     }
     {
         double a = 2;
         double b = 3;
         double truth = simple_add(a, b);
-        a = __enzyme_truncate_mem_value(a, FROM, TO);
-        b = __enzyme_truncate_mem_value(b, FROM, TO);
-        double trunc = __enzyme_expand_mem_value(__enzyme_truncate_mem_func(simple_add, FROM, TO)(a, b), FROM, TO);
+        a = __raptor_truncate_mem_value(a, FROM, TO);
+        b = __raptor_truncate_mem_value(b, FROM, TO);
+        double trunc = __raptor_expand_mem_value(__raptor_truncate_mem_func(simple_add, FROM, TO)(a, b), FROM, TO);
         APPROX_EQ(trunc, truth, 1e-5);
     }
     {
         double a = 2;
         double b = 3;
         double truth = intrinsics(a, b);
-        a = __enzyme_truncate_mem_value(a, FROM, TO);
-        b = __enzyme_truncate_mem_value(b, FROM, TO);
-        double trunc = __enzyme_expand_mem_value(__enzyme_truncate_mem_func(intrinsics, FROM, TO)(a, b), FROM, TO);
+        a = __raptor_truncate_mem_value(a, FROM, TO);
+        b = __raptor_truncate_mem_value(b, FROM, TO);
+        double trunc = __raptor_expand_mem_value(__raptor_truncate_mem_func(intrinsics, FROM, TO)(a, b), FROM, TO);
         APPROX_EQ(trunc, truth, 1e-5);
     }
     {
         double a = 2;
         double b = 3;
         double truth = constt(a, b);
-        a = __enzyme_truncate_mem_value(a, FROM, TO);
-        b = __enzyme_truncate_mem_value(b, FROM, TO);
-        double trunc = __enzyme_expand_mem_value(__enzyme_truncate_mem_func(constt, FROM, TO)(a, b), FROM, TO);
+        a = __raptor_truncate_mem_value(a, FROM, TO);
+        b = __raptor_truncate_mem_value(b, FROM, TO);
+        double trunc = __raptor_expand_mem_value(__raptor_truncate_mem_func(constt, FROM, TO)(a, b), FROM, TO);
         APPROX_EQ(trunc, truth, 1e-5);
     }
     {
         double a = 2;
         double b = 3;
         double truth = phinode(a, b, 10);
-        a = __enzyme_truncate_mem_value(a, FROM, TO);
-        b = __enzyme_truncate_mem_value(b, FROM, TO);
-        double trunc = __enzyme_expand_mem_value(__enzyme_truncate_mem_func(phinode, FROM, TO)(a, b, 10), FROM, TO);
+        a = __raptor_truncate_mem_value(a, FROM, TO);
+        b = __raptor_truncate_mem_value(b, FROM, TO);
+        double trunc = __raptor_expand_mem_value(__raptor_truncate_mem_func(phinode, FROM, TO)(a, b, 10), FROM, TO);
         APPROX_EQ(trunc, truth, 20.0);
     }
     {
         double truth = 0;
         const_store(&truth);
         double a = 0;
-        __enzyme_truncate_mem_func(const_store, FROM, TO)(&a);
-        a = __enzyme_expand_mem_value(a, FROM, TO);
+        __raptor_truncate_mem_func(const_store, FROM, TO)(&a);
+        a = __raptor_expand_mem_value(a, FROM, TO);
         APPROX_EQ(a, truth, 1e-5);
     }
     {
-        __enzyme_truncate_mem_func(intcast, FROM, TO)(64);
+        __raptor_truncate_mem_func(intcast, FROM, TO)(64);
     }
     #endif
 
@@ -152,14 +152,14 @@ int main() {
         compute(A, B, D, N);
 
         // for (int i = 0; i < N; i++) {
-        //     A[i] = __enzyme_truncate_mem_value(A[i], 64, 32);
-        //     B[i] = __enzyme_truncate_mem_value(B[i], 64, 32);
+        //     A[i] = __raptor_truncate_mem_value(A[i], 64, 32);
+        //     B[i] = __raptor_truncate_mem_value(B[i], 64, 32);
         // }
 
-        __enzyme_truncate_op_func(compute, 64, 32)(A, B, C, N);
+        __raptor_truncate_op_func(compute, 64, 32)(A, B, C, N);
 
         // for (int i = 0; i < N; i++) {
-        //     C[i] = __enzyme_expand_mem_value(C[i], 64, 32);
+        //     C[i] = __raptor_expand_mem_value(C[i], 64, 32);
         // }
 
         for (int i = 0; i < N; i++) {

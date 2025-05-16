@@ -1,13 +1,13 @@
 //===- DifferentialUseAnalysis.h - Determine values needed in reverse pass-===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -24,8 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ENZYME_DIFFERENTIALUSEANALYSIS_H_
-#define ENZYME_DIFFERENTIALUSEANALYSIS_H_
+#ifndef RAPTOR_DIFFERENTIALUSEANALYSIS_H_
+#define RAPTOR_DIFFERENTIALUSEANALYSIS_H_
 
 #include <map>
 #include <set>
@@ -45,7 +45,7 @@
 #include "LibraryFuncs.h"
 
 extern "C" {
-extern llvm::cl::opt<bool> EnzymePrintDiffUse;
+extern llvm::cl::opt<bool> RaptorPrintDiffUse;
 }
 
 extern llvm::StringMap<
@@ -116,7 +116,7 @@ inline bool is_value_needed_in_reverse(
       if (op->getOpcode() == Instruction::FDiv) {
         if (!gutils->isConstantValue(const_cast<Value *>(inst)) &&
             !gutils->isConstantValue(op->getOperand(1))) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                          << " in reverse as is active div\n";
           return seen[idx] = true;
@@ -125,7 +125,7 @@ inline bool is_value_needed_in_reverse(
     }
     if (gutils->mode == DerivativeMode::ForwardModeError &&
         !gutils->isConstantValue(const_cast<Value *>(inst))) {
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs()
             << " Need: " << to_string(VT) << " of " << *inst
             << " in reverse as forward mode error always needs result\n";
@@ -172,7 +172,7 @@ inline bool is_value_needed_in_reverse(
           val = is_value_needed_in_reverse<QueryType::ShadowByConstPrimal>(
               gutils, user, mode, seen, oldUnreachable);
         if (val) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                          << " in reverse as shadow sub-need " << *user << "\n";
           return seen[idx] = true;
@@ -221,7 +221,7 @@ inline bool is_value_needed_in_reverse(
                 }
                 if (partial) {
 
-                  if (EnzymePrintDiffUse)
+                  if (RaptorPrintDiffUse)
                     llvm::errs()
                         << " Need (partial) direct " << to_string(VT) << " of "
                         << *inst << " in reverse from insertelem " << *user
@@ -242,7 +242,7 @@ inline bool is_value_needed_in_reverse(
     // If a sub user needs, we need
     if (!OneLevel && is_value_needed_in_reverse<VT>(gutils, user, mode, seen,
                                                     oldUnreachable)) {
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                      << " in reverse as sub-need " << *user << "\n";
       return seen[idx] = true;
@@ -291,7 +291,7 @@ inline bool is_value_needed_in_reverse(
             for (LoadInst *L : pair.second.loads)
               if (is_value_needed_in_reverse<VT>(gutils, L, mode, seen,
                                                  oldUnreachable)) {
-                if (EnzymePrintDiffUse)
+                if (RaptorPrintDiffUse)
                   llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                                << " in reverse as rematload " << *L << "\n";
                 return seen[idx] = true;
@@ -302,7 +302,7 @@ inline bool is_value_needed_in_reverse(
                       QueryType::Primal) ||
                   is_value_needed_in_reverse<VT>(gutils, pair.loadCall, mode,
                                                  seen, oldUnreachable)) {
-                if (EnzymePrintDiffUse)
+                if (RaptorPrintDiffUse)
                   llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                                << " in reverse as rematloadcall "
                                << *pair.loadCall << "\n";
@@ -337,7 +337,7 @@ inline bool is_value_needed_in_reverse(
         }
         if (num <= 1)
           continue;
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                        << " in reverse as control-flow " << *user << "\n";
         return seen[idx] = true;
@@ -349,7 +349,7 @@ inline bool is_value_needed_in_reverse(
               F->getName() == "__kmpc_for_static_init_4u" ||
               F->getName() == "__kmpc_for_static_init_8" ||
               F->getName() == "__kmpc_for_static_init_8u") {
-            if (EnzymePrintDiffUse)
+            if (RaptorPrintDiffUse)
               llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                            << " in reverse as omp init " << *user << "\n";
             return seen[idx] = true;
@@ -370,7 +370,7 @@ inline bool is_value_needed_in_reverse(
       if (funcName == "julia.pointer_from_objref") {
         primalUsedInShadowPointer = false;
       }
-      if (funcName.contains("__enzyme_todense")) {
+      if (funcName.contains("__raptor_todense")) {
         primalUsedInShadowPointer = false;
       }
     }
@@ -405,7 +405,7 @@ inline bool is_value_needed_in_reverse(
           TR.anyPointer(const_cast<Instruction *>(user))) {
         if (is_value_needed_in_reverse<QueryType::Shadow>(
                 gutils, user, mode, seen, oldUnreachable)) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: " << to_string(VT) << " of " << *inst
                          << " in reverse as used to compute shadow ptr "
                          << *user << "\n";

@@ -1,0 +1,50 @@
+# - Config file for the Raptor package
+
+get_property(languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+
+if("C" IN_LIST languages)
+    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+        message("project languages: ${languages}")
+        message(WARNING "C compiler ID equals ${CMAKE_C_COMPILER_ID}\n"
+        "C compiler: ${CMAKE_C_COMPILER}\n"
+        "Using Raptor without an LLVM based C compiler.")
+    endif()
+endif()
+
+if("CXX" IN_LIST languages)
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        message("project languages: ${languages}")
+        message(WARNING "C++ compiler equals ${CMAKE_CXX_COMPILER_ID}\n"
+        "C++ compiler: ${CMAKE_CXX_COMPILER}\n"
+        "Using Raptor without an LLVM based C++ compiler.")
+    endif()
+endif()
+
+# Compute paths
+get_filename_component(Raptor_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+set(Raptor_LLVM_VERSION_MAJOR "@CONF_LLVM_VERSION_MAJOR@")
+set(Raptor_LLVM_VERSION_MINOR "@CONF_LLVM_VERSION_MINOR@")
+set(Raptor_LLVM_VERSION_PATCH "@CONF_LLVM_VERSION_PATCH@")
+set(Raptor_LLVM_DIR "@CONF_LLVM_DIR@")
+set(Raptor_LLVM_BINARY_DIR "@CONF_LLVM_BINARY_DIR@")
+set(Raptor_CLANG_EXE "@CONF_CLANG_EXE@")
+set(Raptor_TABLEGEN_EXE "@Raptor_CONFIG_TABLEGEN_EXE@")
+
+# Our library dependencies (contains definitions for IMPORTED targets)
+if(NOT TARGET ClangRaptorFlags AND NOT TARGET LLDRaptorFlags 
+    AND NOT TARGET LLDRaptorAssumeUnknownNoFree
+    AND NOT TARGET LLDRaptorLooseTypeFlags
+    AND NOT TARGET LLDRaptorPrintTypeFlags
+    AND NOT TARGET LLDRaptorPrintFlags
+    AND NOT TARGET LLDRaptorNoStrictAliasingFlags
+        AND NOT TARGET LLVMRaptor-${Raptor_LLVM_VERSION_MAJOR} AND NOT TARGET ClangRaptor-${Raptor_LLVM_VERSION_MAJOR} AND NOT TARGET LLDRaptor-${Raptor_LLVM_VERSION_MAJOR} AND NOT Raptor_BINARY_DIR)
+    include("${Raptor_CMAKE_DIR}/RaptorTargets.cmake")
+    # These are IMPORTED targets created by RaptorTargets.cmake
+    set(Raptor_LIBRARIES ClangRaptorFlags LLDRaptorFlags
+        LLDRaptorAssumeUnknownNoFree
+        LLDRaptorLooseTypeFlags
+        LLDRaptorPrintTypeFlags
+        LLDRaptorPrintFlags
+        LLDRaptorNoStrictAliasingFlags
+        LLVMRaptor-${Raptor_LLVM_VERSION_MAJOR} ClangRaptor-${Raptor_LLVM_VERSION_MAJOR} LLDRaptor-${LLD_LLVM_VERSION_MAJOR})
+endif()

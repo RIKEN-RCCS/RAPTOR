@@ -1,13 +1,13 @@
 //===- PreserveNVVM.cpp - Mark NVVM attributes for preservation.  -------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -260,31 +260,31 @@ handleCustomDerivative(llvm::Module &M, llvm::GlobalVariable &g,
 
           preserveLinkage(true, *Fs[1], false);
           Fs[0]->setMetadata(
-              "enzyme_augment",
+              "raptor_augment",
               llvm::MDTuple::get(Fs[0]->getContext(),
                                  {llvm::ValueAsMetadata::get(Fs[1])}));
           preserveLinkage(true, *Fs[2], false);
           Fs[0]->setMetadata(
-              "enzyme_gradient",
+              "raptor_gradient",
               llvm::MDTuple::get(Fs[0]->getContext(),
                                  {llvm::ValueAsMetadata::get(Fs[2])}));
         } else if (Mode == DerivativeMode::ForwardMode) {
           assert(numargs == 2);
           preserveLinkage(true, *Fs[1], false);
           Fs[0]->setMetadata(
-              "enzyme_derivative",
+              "raptor_derivative",
               llvm::MDTuple::get(Fs[0]->getContext(),
                                  {llvm::ValueAsMetadata::get(Fs[1])}));
         } else if (Mode == DerivativeMode::ForwardModeSplit) {
           assert(numargs == 3);
           preserveLinkage(true, *Fs[1], false);
           Fs[0]->setMetadata(
-              "enzyme_augment",
+              "raptor_augment",
               llvm::MDTuple::get(Fs[0]->getContext(),
                                  {llvm::ValueAsMetadata::get(Fs[1])}));
           preserveLinkage(true, *Fs[2], false);
           Fs[0]->setMetadata(
-              "enzyme_splitderivative",
+              "raptor_splitderivative",
               llvm::MDTuple::get(Fs[0]->getContext(),
                                  {llvm::ValueAsMetadata::get(Fs[2])}));
         } else
@@ -312,11 +312,11 @@ handleCustomDerivative(llvm::Module &M, llvm::GlobalVariable &g,
 bool preserveNVVM(bool Begin, Module &M) {
   bool changed = false;
   constexpr static const char gradient_handler_name[] =
-      "__enzyme_register_gradient";
+      "__raptor_register_gradient";
   constexpr static const char derivative_handler_name[] =
-      "__enzyme_register_derivative";
+      "__raptor_register_derivative";
   constexpr static const char splitderivative_handler_name[] =
-      "__enzyme_register_splitderivative";
+      "__raptor_register_splitderivative";
 
   if (Begin)
     if (GlobalVariable *GA = M.getGlobalVariable("llvm.global.annotations")) {
@@ -362,34 +362,34 @@ bool preserveNVVM(bool Begin, Module &M) {
             Function *Func = dyn_cast<Function>(Val);
             GlobalVariable *Glob = dyn_cast<GlobalVariable>(Val);
 
-            if (AS == "enzyme_inactive" && Func) {
+            if (AS == "raptor_inactive" && Func) {
               Func->addAttribute(
                   AttributeList::FunctionIndex,
-                  Attribute::get(Func->getContext(), "enzyme_inactive"));
+                  Attribute::get(Func->getContext(), "raptor_inactive"));
               changed = true;
               preserveLinkage(Begin, *Func);
               replacements.push_back(Constant::getNullValue(CAOp->getType()));
               continue;
             }
 
-            if (AS == "enzyme_shouldrecompute" && Func) {
+            if (AS == "raptor_shouldrecompute" && Func) {
               Func->addAttribute(
                   AttributeList::FunctionIndex,
-                  Attribute::get(Func->getContext(), "enzyme_shouldrecompute"));
+                  Attribute::get(Func->getContext(), "raptor_shouldrecompute"));
               changed = true;
               replacements.push_back(Constant::getNullValue(CAOp->getType()));
               continue;
             }
 
-            if (AS == "enzyme_inactive" && Glob) {
-              Glob->setMetadata("enzyme_inactive",
+            if (AS == "raptor_inactive" && Glob) {
+              Glob->setMetadata("raptor_inactive",
                                 MDNode::get(Glob->getContext(), {}));
               changed = true;
               replacements.push_back(Constant::getNullValue(CAOp->getType()));
               continue;
             }
 
-            if (AS == "enzyme_nofree" && Func) {
+            if (AS == "raptor_nofree" && Func) {
               Func->addAttribute(
                   AttributeList::FunctionIndex,
                   Attribute::get(Func->getContext(), Attribute::NoFree));
@@ -399,21 +399,21 @@ bool preserveNVVM(bool Begin, Module &M) {
               continue;
             }
 
-            if (startsWith(AS, "enzyme_function_like") && Func) {
+            if (startsWith(AS, "raptor_function_like") && Func) {
               auto val = AS.substr(1 + AS.find('='));
               Func->addAttribute(
                   AttributeList::FunctionIndex,
-                  Attribute::get(Func->getContext(), "enzyme_math", val));
+                  Attribute::get(Func->getContext(), "raptor_math", val));
               changed = true;
               preserveLinkage(Begin, *Func);
               replacements.push_back(Constant::getNullValue(CAOp->getType()));
               continue;
             }
 
-            if (AS == "enzyme_sparse_accumulate" && Func) {
+            if (AS == "raptor_sparse_accumulate" && Func) {
               Func->addAttribute(AttributeList::FunctionIndex,
                                  Attribute::get(Func->getContext(),
-                                                "enzyme_sparse_accumulate"));
+                                                "raptor_sparse_accumulate"));
               changed = true;
               preserveLinkage(Begin, *Func);
               replacements.push_back(Constant::getNullValue(CAOp->getType()));
@@ -430,11 +430,11 @@ bool preserveNVVM(bool Begin, Module &M) {
     if (g.getName().contains(gradient_handler_name) ||
         g.getName().contains(derivative_handler_name) ||
         g.getName().contains(splitderivative_handler_name) ||
-        g.getName().contains("__enzyme_nofree") ||
-        g.getName().contains("__enzyme_inactivefn") ||
-        g.getName().contains("__enzyme_sparse_accumulate") ||
-        g.getName().contains("__enzyme_function_like") ||
-        g.getName().contains("__enzyme_allocation_like")) {
+        g.getName().contains("__raptor_nofree") ||
+        g.getName().contains("__raptor_inactivefn") ||
+        g.getName().contains("__raptor_sparse_accumulate") ||
+        g.getName().contains("__raptor_function_like") ||
+        g.getName().contains("__raptor_allocation_like")) {
       if (g.hasInitializer()) {
         Value *V = g.getInitializer();
         while (1) {
@@ -470,7 +470,7 @@ bool preserveNVVM(bool Begin, Module &M) {
                                                                   toErase);
       changed = true;
     }
-    if (g.getName().contains("__enzyme_inactive_global")) {
+    if (g.getName().contains("__raptor_inactive_global")) {
       if (g.hasInitializer()) {
         Value *V = g.getInitializer();
         while (1) {
@@ -485,19 +485,19 @@ bool preserveNVVM(bool Begin, Module &M) {
           break;
         }
         if (auto GV = cast<GlobalVariable>(V)) {
-          GV->setMetadata("enzyme_inactive", MDNode::get(g.getContext(), {}));
+          GV->setMetadata("raptor_inactive", MDNode::get(g.getContext(), {}));
           toErase.push_back(&g);
           changed = true;
         } else {
-          llvm::errs() << "Param of __enzyme_inactive_global must be a "
+          llvm::errs() << "Param of __raptor_inactive_global must be a "
                           "global variable"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_inactive_global");
+          llvm_unreachable("__raptor_inactive_global");
         }
       }
     }
-    if (g.getName().contains("__enzyme_inactivefn")) {
+    if (g.getName().contains("__raptor_inactivefn")) {
       if (g.hasInitializer()) {
         Value *V = g.getInitializer();
         while (1) {
@@ -513,19 +513,19 @@ bool preserveNVVM(bool Begin, Module &M) {
         }
         if (auto F = cast<Function>(V)) {
           F->addAttribute(AttributeList::FunctionIndex,
-                          Attribute::get(g.getContext(), "enzyme_inactive"));
+                          Attribute::get(g.getContext(), "raptor_inactive"));
           toErase.push_back(&g);
           changed = true;
         } else {
-          llvm::errs() << "Param of __enzyme_inactivefn must be a "
+          llvm::errs() << "Param of __raptor_inactivefn must be a "
                           "constant function"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_inactivefn");
+          llvm_unreachable("__raptor_inactivefn");
         }
       }
     }
-    if (g.getName().contains("__enzyme_sparse_accumulate")) {
+    if (g.getName().contains("__raptor_sparse_accumulate")) {
       if (g.hasInitializer()) {
         Value *V = g.getInitializer();
         while (1) {
@@ -542,19 +542,19 @@ bool preserveNVVM(bool Begin, Module &M) {
         if (auto F = cast<Function>(V)) {
           F->addAttribute(
               AttributeList::FunctionIndex,
-              Attribute::get(g.getContext(), "enzyme_sparse_accumulate"));
+              Attribute::get(g.getContext(), "raptor_sparse_accumulate"));
           toErase.push_back(&g);
           changed = true;
         } else {
-          llvm::errs() << "Param of __enzyme_sparse_accumulate must be a "
+          llvm::errs() << "Param of __raptor_sparse_accumulate must be a "
                           "constant function"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_sparse_accumulate");
+          llvm_unreachable("__raptor_sparse_accumulate");
         }
       }
     }
-    if (g.getName().contains("__enzyme_nofree")) {
+    if (g.getName().contains("__raptor_nofree")) {
       if (g.hasInitializer()) {
         Value *V = g.getInitializer();
         while (1) {
@@ -574,24 +574,24 @@ bool preserveNVVM(bool Begin, Module &M) {
           toErase.push_back(&g);
           changed = true;
         } else {
-          llvm::errs() << "Param of __enzyme_nofree must be a "
+          llvm::errs() << "Param of __raptor_nofree must be a "
                           "constant function"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_nofree");
+          llvm_unreachable("__raptor_nofree");
         }
       }
     }
-    if (g.getName().contains("__enzyme_function_like")) {
+    if (g.getName().contains("__raptor_function_like")) {
       if (g.hasInitializer()) {
         auto CA = dyn_cast<ConstantAggregate>(g.getInitializer());
         if (!CA || CA->getNumOperands() < 2) {
           llvm::errs() << "Use of "
-                       << "enzyme_function_like"
+                       << "raptor_function_like"
                        << " must be a "
                           "constant of size at least "
                        << 2 << " " << g << "\n";
-          llvm_unreachable("enzyme_function_like");
+          llvm_unreachable("raptor_function_like");
         }
         Value *V = CA->getOperand(0);
         Value *name = CA->getOperand(1);
@@ -613,36 +613,36 @@ bool preserveNVVM(bool Begin, Module &M) {
         if (nameVal == "") {
           llvm::errs() << *name << "\n";
           llvm::errs() << "Use of "
-                       << "enzyme_function_like"
+                       << "raptor_function_like"
                        << "requires a non-empty function name"
                        << "\n";
-          llvm_unreachable("enzyme_function_like");
+          llvm_unreachable("raptor_function_like");
         }
         if (auto F = cast<Function>(V)) {
           F->addAttribute(
               AttributeList::FunctionIndex,
-              Attribute::get(g.getContext(), "enzyme_math", nameVal));
+              Attribute::get(g.getContext(), "raptor_math", nameVal));
           toErase.push_back(&g);
           changed = true;
         } else {
-          llvm::errs() << "Param of __enzyme_function_like must be a "
+          llvm::errs() << "Param of __raptor_function_like must be a "
                           "constant function"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_function_like");
+          llvm_unreachable("__raptor_function_like");
         }
       }
     }
-    if (g.getName().contains("__enzyme_allocation_like")) {
+    if (g.getName().contains("__raptor_allocation_like")) {
       if (g.hasInitializer()) {
         auto CA = dyn_cast<ConstantAggregate>(g.getInitializer());
         if (!CA || CA->getNumOperands() != 4) {
           llvm::errs() << "Use of "
-                       << "enzyme_allocation_like"
+                       << "raptor_allocation_like"
                        << " must be a "
                           "constant of size at least "
                        << 4 << " " << g << "\n";
-          llvm_unreachable("enzyme_allocation_like");
+          llvm_unreachable("raptor_allocation_like");
         }
         Value *V = CA->getOperand(0);
         Value *name = CA->getOperand(1);
@@ -669,10 +669,10 @@ bool preserveNVVM(bool Begin, Module &M) {
         } else {
           llvm::errs() << *name << "\n";
           llvm::errs() << "Use of "
-                       << "enzyme_allocation_like"
+                       << "raptor_allocation_like"
                        << "requires an integer index"
                        << "\n";
-          llvm_unreachable("enzyme_allocation_like");
+          llvm_unreachable("raptor_allocation_like");
         }
 
         StringRef deallocIndStr;
@@ -690,39 +690,39 @@ bool preserveNVVM(bool Begin, Module &M) {
         if (!foundInd) {
           llvm::errs() << *deallocind << "\n";
           llvm::errs() << "Use of "
-                       << "enzyme_allocation_like"
+                       << "raptor_allocation_like"
                        << "requires a deallocation index string"
                        << "\n";
-          llvm_unreachable("enzyme_allocation_like");
+          llvm_unreachable("raptor_allocation_like");
         }
         if (auto F = dyn_cast<Function>(V)) {
           F->addAttribute(AttributeList::FunctionIndex,
-                          Attribute::get(g.getContext(), "enzyme_allocator",
+                          Attribute::get(g.getContext(), "raptor_allocator",
                                          std::to_string(index)));
         } else {
-          llvm::errs() << "Param of __enzyme_allocation_like must be a "
+          llvm::errs() << "Param of __raptor_allocation_like must be a "
                           "function"
                        << g << "\n"
                        << *V << "\n";
-          llvm_unreachable("__enzyme_allocation_like");
+          llvm_unreachable("__raptor_allocation_like");
         }
         cast<Function>(V)->addAttribute(AttributeList::FunctionIndex,
                                         Attribute::get(g.getContext(),
-                                                       "enzyme_deallocator",
+                                                       "raptor_deallocator",
                                                        deallocIndStr));
 
         if (auto F = dyn_cast<Function>(deallocfn)) {
           cast<Function>(V)->setMetadata(
-              "enzyme_deallocator_fn",
+              "raptor_deallocator_fn",
               llvm::MDTuple::get(F->getContext(),
                                  {llvm::ValueAsMetadata::get(F)}));
           changed |= preserveLinkage(Begin, *F);
         } else {
-          llvm::errs() << "Free fn of __enzyme_allocation_like must be a "
+          llvm::errs() << "Free fn of __raptor_allocation_like must be a "
                           "function"
                        << g << "\n"
                        << *deallocfn << "\n";
-          llvm_unreachable("__enzyme_allocation_like");
+          llvm_unreachable("__raptor_allocation_like");
         }
         toErase.push_back(&g);
         changed = true;
@@ -864,7 +864,7 @@ bool preserveNVVM(bool Begin, Module &M) {
         // cannot be erased.
         F.addFnAttr("implements", found->second.second);
         F.addFnAttr("implements2", found->second.first);
-        F.addFnAttr("enzyme_math", found->second.first);
+        F.addFnAttr("raptor_math", found->second.first);
         changed |= preserveLinkage(Begin, F);
       }
     }

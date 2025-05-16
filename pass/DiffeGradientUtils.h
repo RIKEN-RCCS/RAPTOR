@@ -1,13 +1,13 @@
 //===- DiffeGradientUtils.h - Helper class and utilities for AD ---------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -25,8 +25,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ENZYME_DIFFEGRADIENTUTILS_H_
-#define ENZYME_DIFFEGRADIENTUTILS_H_
+#ifndef RAPTOR_DIFFEGRADIENTUTILS_H_
+#define RAPTOR_DIFFEGRADIENTUTILS_H_
 
 #include "GradientUtils.h"
 
@@ -50,7 +50,7 @@
 #include "llvm/Analysis/ValueTracking.h"
 
 #include "ActivityAnalysis.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "Utils.h"
 
 #include "llvm-c/Core.h"
@@ -61,7 +61,7 @@
 
 class DiffeGradientUtils final : public GradientUtils {
   DiffeGradientUtils(
-      EnzymeLogic &Logic, llvm::Function *newFunc_, llvm::Function *oldFunc_,
+      RaptorLogic &Logic, llvm::Function *newFunc_, llvm::Function *oldFunc_,
       llvm::TargetLibraryInfo &TLI, TypeAnalysis &TA, TypeResults TR,
       llvm::ValueToValueMapTy &invertedPointers_,
       const llvm::SmallPtrSetImpl<llvm::Value *> &constantvalues_,
@@ -77,7 +77,7 @@ public:
   llvm::ValueMap<const llvm::Value *, llvm::TrackingVH<llvm::AllocaInst>>
       differentials;
   static DiffeGradientUtils *
-  CreateFromClone(EnzymeLogic &Logic, DerivativeMode mode, bool runtimeActivity,
+  CreateFromClone(RaptorLogic &Logic, DerivativeMode mode, bool runtimeActivity,
                   unsigned width, llvm::Function *todiff,
                   llvm::TargetLibraryInfo &TLI, TypeAnalysis &TA,
                   FnTypeInfo &oldTypeInfo, DIFFE_TYPE retType,

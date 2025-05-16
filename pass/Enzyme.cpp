@@ -1,13 +1,13 @@
-//===- Enzyme.cpp - Automatic Differentiation Transformation Pass  -------===//
+//===- Raptor.cpp - Automatic Differentiation Transformation Pass  -------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -18,8 +18,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains Enzyme, a transformation pass that takes replaces calls
-// to function calls to *__enzyme_autodiff* with a call to the derivative of
+// This file contains Raptor, a transformation pass that takes replaces calls
+// to function calls to *__raptor_autodiff* with a call to the derivative of
 // the function passed as the first argument.
 //
 //===----------------------------------------------------------------------===//
@@ -77,7 +77,7 @@
 
 #include "ActivityAnalysis.h"
 #include "DiffeGradientUtils.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "GradientUtils.h"
 #include "TraceInterface.h"
 #include "TraceUtils.h"
@@ -98,33 +98,33 @@ using namespace llvm;
 #ifdef DEBUG_TYPE
 #undef DEBUG_TYPE
 #endif
-#define DEBUG_TYPE "lower-enzyme-intrinsic"
+#define DEBUG_TYPE "lower-raptor-intrinsic"
 
 #include <iostream>
 
-llvm::cl::opt<bool> EnzymeEnable("enzyme-enable", cl::init(true), cl::Hidden,
-                                 cl::desc("Run the Enzyme pass"));
+llvm::cl::opt<bool> RaptorEnable("raptor-enable", cl::init(true), cl::Hidden,
+                                 cl::desc("Run the Raptor pass"));
 
 llvm::cl::opt<bool>
-    EnzymePostOpt("enzyme-postopt", cl::init(false), cl::Hidden,
-                  cl::desc("Run enzymepostprocessing optimizations"));
+    RaptorPostOpt("raptor-postopt", cl::init(false), cl::Hidden,
+                  cl::desc("Run raptorpostprocessing optimizations"));
 
-llvm::cl::opt<bool> EnzymeAttributor("enzyme-attributor", cl::init(false),
+llvm::cl::opt<bool> RaptorAttributor("raptor-attributor", cl::init(false),
                                      cl::Hidden,
-                                     cl::desc("Run attributor post Enzyme"));
+                                     cl::desc("Run attributor post Raptor"));
 
-llvm::cl::opt<bool> EnzymeOMPOpt("enzyme-omp-opt", cl::init(false), cl::Hidden,
+llvm::cl::opt<bool> RaptorOMPOpt("raptor-omp-opt", cl::init(false), cl::Hidden,
                                  cl::desc("Whether to enable openmp opt"));
 
-llvm::cl::opt<std::string> EnzymeTruncateAll(
-    "enzyme-truncate-all", cl::init(""), cl::Hidden,
+llvm::cl::opt<std::string> RaptorTruncateAll(
+    "raptor-truncate-all", cl::init(""), cl::Hidden,
     cl::desc(
         "Truncate all floating point operations. "
         "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
 
-llvm::cl::opt<bool> EnzymeTruncateCount("enzyme-truncate-count", cl::init(false), cl::Hidden,
+llvm::cl::opt<bool> RaptorTruncateCount("raptor-truncate-count", cl::init(false), cl::Hidden,
                                         cl::desc("Count all non-truncated floating point operations."));
-llvm::cl::opt<bool> EnzymeTruncateAccessCount("enzyme-truncate-access-count", cl::init(false), cl::Hidden,
+llvm::cl::opt<bool> RaptorTruncateAccessCount("raptor-truncate-access-count", cl::init(false), cl::Hidden,
                                               cl::desc("Count all floating-point loads and stores."));
 
 #define addAttribute addAttributeAtIndex
@@ -139,13 +139,13 @@ bool attributeKnownFunctions(llvm::Function &F) {
       }
     }
   }
-  if (F.getName().contains("__enzyme_float") ||
-      F.getName().contains("__enzyme_double") ||
-      F.getName().contains("__enzyme_integer") ||
-      F.getName().contains("__enzyme_pointer") ||
-      F.getName().contains("__enzyme_todense") ||
-      F.getName().contains("__enzyme_iter") ||
-      F.getName().contains("__enzyme_virtualreverse")) {
+  if (F.getName().contains("__raptor_float") ||
+      F.getName().contains("__raptor_double") ||
+      F.getName().contains("__raptor_integer") ||
+      F.getName().contains("__raptor_pointer") ||
+      F.getName().contains("__raptor_todense") ||
+      F.getName().contains("__raptor_iter") ||
+      F.getName().contains("__raptor_virtualreverse")) {
     changed = true;
 #if LLVM_VERSION_MAJOR >= 16
     F.setOnlyReadsMemory();
@@ -153,7 +153,7 @@ bool attributeKnownFunctions(llvm::Function &F) {
 #else
     F.addFnAttr(Attribute::ReadNone);
 #endif
-    if (!F.getName().contains("__enzyme_todense"))
+    if (!F.getName().contains("__raptor_todense"))
       for (auto &arg : F.args()) {
         if (arg.getType()->isPointerTy()) {
           arg.addAttr(Attribute::ReadNone);
@@ -299,7 +299,7 @@ bool attributeKnownFunctions(llvm::Function &F) {
                   changed = true;
                   CI->addAttribute(
                       AttributeList::FunctionIndex,
-                      Attribute::get(CI->getContext(), "enzyme_inactive"));
+                      Attribute::get(CI->getContext(), "raptor_inactive"));
                 }
               }
             }
@@ -379,7 +379,7 @@ bool attributeKnownFunctions(llvm::Function &F) {
       changed = true;
       F.addAttribute(
           AttributeList::FunctionIndex,
-          Attribute::get(F.getContext(), "enzyme_no_escaping_allocation"));
+          Attribute::get(F.getContext(), "raptor_no_escaping_allocation"));
     }
   changed |= attributeTablegen(F);
   return changed;
@@ -409,7 +409,7 @@ castToDiffeFunctionArgType(IRBuilder<> &Builder, llvm::CallInst *CI,
         assert(value);
         assert(destType);
         assert(FT);
-        llvm::errs() << "Warning cast(2) __enzyme_autodiff argument " << i
+        llvm::errs() << "Warning cast(2) __raptor_autodiff argument " << i
                      << " " << *res << "|" << *res->getType() << " to argument "
                      << truei << " " << *destType << "\n"
                      << "orig: " << *FT << "\n";
@@ -428,7 +428,7 @@ castToDiffeFunctionArgType(IRBuilder<> &Builder, llvm::CallInst *CI,
       loc = arg->getDebugLoc();
     }
     EmitFailure("IllegalArgCast", loc, CI,
-                "Cannot cast __enzyme_autodiff shadow argument ", i, ", found ",
+                "Cannot cast __raptor_autodiff shadow argument ", i, ", found ",
                 *res, ", type ", *res->getType(), " - to arg ", truei, " ",
                 *destType);
     return nullptr;
@@ -642,11 +642,11 @@ static bool ReplaceOriginalCall(IRBuilder<> &Builder, Value *ret,
   return false;
 }
 
-class EnzymeBase {
+class RaptorBase {
 public:
-  EnzymeLogic Logic;
-  EnzymeBase(bool PostOpt)
-      : Logic(EnzymePostOpt.getNumOccurrences() ? EnzymePostOpt : PostOpt) {
+  RaptorLogic Logic;
+  RaptorBase(bool PostOpt)
+      : Logic(RaptorPostOpt.getNumOccurrences() ? RaptorPostOpt : PostOpt) {
     // initializeLowerAutodiffIntrinsicPass(*PassRegistry::getPassRegistry());
   }
 
@@ -690,7 +690,7 @@ public:
       Value *arg = CI->getArgOperand(i);
 
       if (auto MDName = getMetadataName(arg)) {
-        if (*MDName == "enzyme_width") {
+        if (*MDName == "raptor_width") {
           if (found) {
             EmitFailure("IllegalVectorWidth", CI->getDebugLoc(), CI,
                         "vector width declared more than once",
@@ -700,7 +700,7 @@ public:
 
           if (i + 1 >= CI->arg_size()) {
             EmitFailure("MissingVectorWidth", CI->getDebugLoc(), CI,
-                        "constant integer followong enzyme_width is missing",
+                        "constant integer followong raptor_width is missing",
                         *CI->getArgOperand(i), " in", *CI);
             return {};
           }
@@ -711,14 +711,14 @@ public:
             found = true;
           } else {
             EmitFailure("IllegalVectorWidth", CI->getDebugLoc(), CI,
-                        "enzyme_width must be a constant integer",
+                        "raptor_width must be a constant integer",
                         *CI->getArgOperand(i), " in", *CI);
             return {};
           }
 
           if (!found) {
             EmitFailure("IllegalVectorWidth", CI->getDebugLoc(), CI,
-                        "illegal enzyme vector argument width ",
+                        "illegal raptor vector argument width ",
                         *CI->getArgOperand(i), " in", *CI);
             return {};
           }
@@ -808,20 +808,20 @@ public:
       Value *res = CI->getArgOperand(i);
       auto metaString = getMetadataName(res);
       // handle metadata
-      if (metaString && startsWith(*metaString, "enzyme_")) {
-        if (*metaString == "enzyme_const_return") {
+      if (metaString && startsWith(*metaString, "raptor_")) {
+        if (*metaString == "raptor_const_return") {
           retType = DIFFE_TYPE::CONSTANT;
           continue;
-        } else if (*metaString == "enzyme_active_return") {
+        } else if (*metaString == "raptor_active_return") {
           retType = DIFFE_TYPE::OUT_DIFF;
           continue;
-        } else if (*metaString == "enzyme_dup_return") {
+        } else if (*metaString == "raptor_dup_return") {
           retType = DIFFE_TYPE::DUP_ARG;
           continue;
-        } else if (*metaString == "enzyme_noret") {
+        } else if (*metaString == "raptor_noret") {
           returnUsed = false;
           continue;
-        } else if (*metaString == "enzyme_primal_return") {
+        } else if (*metaString == "raptor_primal_return") {
           primalReturn = true;
           continue;
         }
@@ -831,7 +831,7 @@ public:
                                mode == DerivativeMode::ReverseModeGradient) &&
                               (retType == DIFFE_TYPE::OUT_DIFF);
 
-    // find and handle enzyme_width
+    // find and handle raptor_width
     if (auto parsedWidth = parseWidthParameter(CI)) {
       width = *parsedWidth;
     } else {
@@ -932,8 +932,8 @@ public:
     for (unsigned i = 1 + sret; i < maxsize; ++i) {
       Value *res = CI->getArgOperand(i);
       auto metaString = getMetadataName(res);
-      if (metaString && startsWith(*metaString, "enzyme_")) {
-        if (*metaString == "enzyme_interleave") {
+      if (metaString && startsWith(*metaString, "raptor_")) {
+        if (*metaString == "raptor_interleave") {
           maxsize = i;
           interleaved = i + 1;
           break;
@@ -959,14 +959,14 @@ public:
       bool skipArg = false;
 
       // handle metadata
-      while (metaString && startsWith(*metaString, "enzyme_")) {
-        if (*metaString == "enzyme_not_overwritten") {
+      while (metaString && startsWith(*metaString, "raptor_")) {
+        if (*metaString == "raptor_not_overwritten") {
           overwritten = false;
-        } else if (*metaString == "enzyme_byref") {
+        } else if (*metaString == "raptor_byref") {
           ++i;
           if (!isa<ConstantInt>(CI->getArgOperand(i))) {
             EmitFailure("IllegalAllocatedSize", CI->getDebugLoc(), CI,
-                        "illegal enzyme byref size ", *CI->getArgOperand(i),
+                        "illegal raptor byref size ", *CI->getArgOperand(i),
                         "in", *CI);
             return {};
           }
@@ -974,9 +974,9 @@ public:
           assert(byRefSize > 0);
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_dup") {
+        } else if (*metaString == "raptor_dup") {
           opt_ty = DIFFE_TYPE::DUP_ARG;
-        } else if (*metaString == "enzyme_dupv") {
+        } else if (*metaString == "raptor_dupv") {
           opt_ty = DIFFE_TYPE::DUP_ARG;
           ++i;
           Value *offset_arg = CI->getArgOperand(i);
@@ -984,14 +984,14 @@ public:
             batchOffset = offset_arg;
           } else {
             EmitFailure("IllegalVectorOffset", CI->getDebugLoc(), CI,
-                        "enzyme_batch must be followd by an integer "
+                        "raptor_batch must be followd by an integer "
                         "offset.",
                         *CI->getArgOperand(i), " in", *CI);
             return {};
           }
-        } else if (*metaString == "enzyme_dupnoneed") {
+        } else if (*metaString == "raptor_dupnoneed") {
           opt_ty = DIFFE_TYPE::DUP_NONEED;
-        } else if (*metaString == "enzyme_dupnoneedv") {
+        } else if (*metaString == "raptor_dupnoneedv") {
           opt_ty = DIFFE_TYPE::DUP_NONEED;
           ++i;
           Value *offset_arg = CI->getArgOperand(i);
@@ -999,24 +999,24 @@ public:
             batchOffset = offset_arg;
           } else {
             EmitFailure("IllegalVectorOffset", CI->getDebugLoc(), CI,
-                        "enzyme_batch must be followd by an integer "
+                        "raptor_batch must be followd by an integer "
                         "offset.",
                         *CI->getArgOperand(i), " in", *CI);
             return {};
           }
-        } else if (*metaString == "enzyme_out") {
+        } else if (*metaString == "raptor_out") {
           opt_ty = DIFFE_TYPE::OUT_DIFF;
-        } else if (*metaString == "enzyme_const") {
+        } else if (*metaString == "raptor_const") {
           opt_ty = DIFFE_TYPE::CONSTANT;
-        } else if (*metaString == "enzyme_noret") {
+        } else if (*metaString == "raptor_noret") {
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_allocated") {
+        } else if (*metaString == "raptor_allocated") {
           assert(!sizeOnly);
           ++i;
           if (!isa<ConstantInt>(CI->getArgOperand(i))) {
             EmitFailure("IllegalAllocatedSize", CI->getDebugLoc(), CI,
-                        "illegal enzyme allocated size ", *CI->getArgOperand(i),
+                        "illegal raptor allocated size ", *CI->getArgOperand(i),
                         "in", *CI);
             return {};
           }
@@ -1024,71 +1024,71 @@ public:
               cast<ConstantInt>(CI->getArgOperand(i))->getZExtValue();
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_tape") {
+        } else if (*metaString == "raptor_tape") {
           assert(!sizeOnly);
           ++i;
           tape = CI->getArgOperand(i);
           tapeIsPointer = true;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_nofree") {
+        } else if (*metaString == "raptor_nofree") {
           assert(!sizeOnly);
           freeMemory = false;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_runtime_activity") {
+        } else if (*metaString == "raptor_runtime_activity") {
           runtimeActivity = true;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_primal_return") {
+        } else if (*metaString == "raptor_primal_return") {
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_const_return") {
+        } else if (*metaString == "raptor_const_return") {
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_active_return") {
+        } else if (*metaString == "raptor_active_return") {
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_dup_return") {
+        } else if (*metaString == "raptor_dup_return") {
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_width") {
+        } else if (*metaString == "raptor_width") {
           ++i;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_interface") {
+        } else if (*metaString == "raptor_interface") {
           ++i;
           dynamic_interface = CI->getArgOperand(i);
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_trace") {
+        } else if (*metaString == "raptor_trace") {
           trace = CI->getArgOperand(++i);
           opt_ty = DIFFE_TYPE::CONSTANT;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_duptrace") {
+        } else if (*metaString == "raptor_duptrace") {
           trace = CI->getArgOperand(++i);
           diffeTrace = true;
           opt_ty = DIFFE_TYPE::CONSTANT;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_likelihood") {
+        } else if (*metaString == "raptor_likelihood") {
           likelihood = CI->getArgOperand(++i);
           opt_ty = DIFFE_TYPE::CONSTANT;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_duplikelihood") {
+        } else if (*metaString == "raptor_duplikelihood") {
           likelihood = CI->getArgOperand(++i);
           diffeLikelihood = CI->getArgOperand(++i);
           opt_ty = DIFFE_TYPE::DUP_ARG;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_observations") {
+        } else if (*metaString == "raptor_observations") {
           observations = CI->getArgOperand(++i);
           opt_ty = DIFFE_TYPE::CONSTANT;
           skipArg = true;
           break;
-        } else if (*metaString == "enzyme_active_rand_var") {
+        } else if (*metaString == "raptor_active_rand_var") {
           Value *string = CI->getArgOperand(++i);
           StringRef const_string;
           if (getConstantStringInfo(string, const_string)) {
@@ -1103,7 +1103,7 @@ public:
           break;
         } else {
           EmitFailure("IllegalDiffeType", CI->getDebugLoc(), CI,
-                      "illegal enzyme metadata classification ", *CI,
+                      "illegal raptor metadata classification ", *CI,
                       *metaString);
           return {};
         }
@@ -1116,8 +1116,8 @@ public:
         }
         ++i;
         if (i == CI->arg_size()) {
-          EmitFailure("EnzymeCallingError", CI->getDebugLoc(), CI,
-                      "Too few arguments to Enzyme call ", *CI);
+          EmitFailure("RaptorCallingError", CI->getDebugLoc(), CI,
+                      "Too few arguments to Raptor call ", *CI);
           return {};
         }
         res = CI->getArgOperand(i);
@@ -1140,7 +1140,7 @@ public:
 
         if (!subTy) {
           EmitFailure("IllegalByVal", CI->getDebugLoc(), CI,
-                      "illegal enzyme byval arg", truei, " ", *res);
+                      "illegal raptor byval arg", truei, " ", *res);
           return {};
         }
 
@@ -1148,7 +1148,7 @@ public:
         auto BitSize = DL.getTypeSizeInBits(subTy);
         if (BitSize / 8 != byRefSize) {
           EmitFailure("IllegalByRefSize", CI->getDebugLoc(), CI,
-                      "illegal enzyme pointer type size ", *res, " expected ",
+                      "illegal raptor pointer type size ", *res, " expected ",
                       byRefSize, " (bytes) actual size ", BitSize,
                       " (bits) in ", *CI);
         }
@@ -1205,7 +1205,7 @@ public:
           }
         }
         EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
-                    "Had too many arguments to __enzyme_autodiff", *CI,
+                    "Had too many arguments to __raptor_autodiff", *CI,
                     " - extra arg - ", *res);
         return {};
       }
@@ -1240,7 +1240,7 @@ public:
               assert(res);
               assert(PTy);
               assert(FT);
-              llvm::errs() << "Warning cast(1) __enzyme_autodiff argument " << i
+              llvm::errs() << "Warning cast(1) __raptor_autodiff argument " << i
                            << " " << *res << "|" << *res->getType()
                            << " to argument " << truei << " " << *PTy << "\n"
                            << "orig: " << *FT << "\n";
@@ -1263,7 +1263,7 @@ public:
           if (!S)
             S = res;
           EmitFailure("IllegalArgCast", loc, CI,
-                      "Cannot cast __enzyme_autodiff primal argument ", i,
+                      "Cannot cast __raptor_autodiff primal argument ", i,
                       ", found ", *res, ", type ", *res->getType(),
                       " (simplified to ", *S, " ) ", " - to arg ", truei, ", ",
                       *PTy);
@@ -1289,7 +1289,7 @@ public:
         for (unsigned v = 0; v < width; ++v) {
           if ((size_t)((interleaved == -1) ? i : interleaved) >= num_args) {
             EmitFailure("MissingArgShadow", CI->getDebugLoc(), CI,
-                        "__enzyme_autodiff missing argument shadow at index ",
+                        "__raptor_autodiff missing argument shadow at index ",
                         *((interleaved == -1) ? &i : &interleaved),
                         ", need shadow of type ", *PTy,
                         " to shadow primal argument ", *args.back(),
@@ -1356,7 +1356,7 @@ public:
     if (truei < FT->getNumParams()) {
       auto numParams = FT->getNumParams();
       EmitFailure(
-          "EnzymeInsufficientArgs", CI->getDebugLoc(), CI,
+          "RaptorInsufficientArgs", CI->getDebugLoc(), CI,
           "Insufficient number of args passed to derivative call required ",
           numParams, " primal args, found ", truei);
       return {};
@@ -1429,7 +1429,7 @@ public:
     unsigned ArgSize = CI->arg_size();
     if (ArgSize != 4 && ArgSize != 3) {
       EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
-                  "Had incorrect number of args to __enzyme_truncate_func", *CI,
+                  "Had incorrect number of args to __raptor_truncate_func", *CI,
                   " - expected 3 or 4");
       return false;
     }
@@ -1467,7 +1467,7 @@ public:
     res = Builder.CreatePointerCast(res, CI->getType());
 
     Module *M = F->getParent();
-    auto fname = std::string(EnzymeFPRTPrefix) + "trunc_change";
+    auto fname = std::string(RaptorFPRTPrefix) + "trunc_change";
     Function *ChangeF = M->getFunction(fname);
     if (!ChangeF) {
       FunctionType *FnTy = FunctionType::get(
@@ -1512,7 +1512,7 @@ public:
     unsigned ArgSize = CI->arg_size();
     if (ArgSize != 4 && ArgSize != 3) {
       EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
-                  "Had incorrect number of args to __enzyme_truncate_value",
+                  "Had incorrect number of args to __raptor_truncate_value",
                   *CI, " - expected 3");
       return false;
     }
@@ -1568,7 +1568,7 @@ public:
     assert(F);
     FunctionType *FT = F->getFunctionType();
 
-    // find and handle enzyme_width
+    // find and handle raptor_width
     if (auto parsedWidth = parseWidthParameter(CI)) {
       width = *parsedWidth;
     } else {
@@ -1592,7 +1592,7 @@ public:
 
       if (truei >= FT->getNumParams()) {
         EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
-                    "Had too many arguments to __enzyme_batch", *CI,
+                    "Had too many arguments to __raptor_batch", *CI,
                     " - extra arg - ", *res);
         return false;
       }
@@ -1603,12 +1603,12 @@ public:
       auto metaString = getMetadataName(res);
 
       // handle metadata
-      if (metaString && startsWith(*metaString, "enzyme_")) {
-        if (*metaString == "enzyme_scalar") {
+      if (metaString && startsWith(*metaString, "raptor_")) {
+        if (*metaString == "raptor_scalar") {
           ty = BATCH_TYPE::SCALAR;
-        } else if (*metaString == "enzyme_vector") {
+        } else if (*metaString == "raptor_vector") {
           ty = BATCH_TYPE::VECTOR;
-        } else if (*metaString == "enzyme_buffer") {
+        } else if (*metaString == "raptor_buffer") {
           ty = BATCH_TYPE::VECTOR;
           ++i;
           Value *offset_arg = CI->getArgOperand(i);
@@ -1616,18 +1616,18 @@ public:
             batchOffset[i + 1] = offset_arg;
           } else {
             EmitFailure("IllegalVectorOffset", CI->getDebugLoc(), CI,
-                        "enzyme_batch must be followd by an integer "
+                        "raptor_batch must be followd by an integer "
                         "offset.",
                         *CI->getArgOperand(i), " in", *CI);
             return false;
           }
           continue;
-        } else if (*metaString == "enzyme_width") {
+        } else if (*metaString == "raptor_width") {
           ++i;
           continue;
         } else {
           EmitFailure("IllegalDiffeType", CI->getDebugLoc(), CI,
-                      "illegal enzyme metadata classification ", *CI,
+                      "illegal raptor metadata classification ", *CI,
                       *metaString);
           return false;
         }
@@ -1645,7 +1645,7 @@ public:
         for (unsigned v = 0; v < width; ++v) {
           if (i >= CI->arg_size()) {
             EmitFailure("MissingVectorArg", CI->getDebugLoc(), CI,
-                        "__enzyme_batch missing vector argument at index ", i,
+                        "__raptor_batch missing vector argument at index ", i,
                         ", need argument of type ", *PTy, " at call ", *CI);
             return false;
           }
@@ -1841,7 +1841,7 @@ public:
       if (primalReturn) {
         EmitFailure(
             "SplitPrimalRet", CI->getDebugLoc(), CI,
-            "Option enzyme_primal_return not available in reverse split mode");
+            "Option raptor_primal_return not available in reverse split mode");
       }
       bool forceAnonymousTape = !sizeOnly && allocatedTapeSize == -1;
       bool shadowReturnUsed = returnUsed && (retType == DIFFE_TYPE::DUP_ARG ||
@@ -1938,7 +1938,7 @@ public:
         args.push_back(ConstantArray::get(AT, csts));
       } else {
         auto RT = fn->getReturnType();
-        EmitFailure("EnzymeCallingError", CI->getDebugLoc(), CI,
+        EmitFailure("RaptorCallingError", CI->getDebugLoc(), CI,
                     "Differential return required for call ", *CI,
                     " but one of type ", *RT, " could not be auto deduced");
         return false;
@@ -1969,7 +1969,7 @@ public:
       args.push_back(tape);
     }
 
-    if (EnzymePrint) {
+    if (RaptorPrint) {
       llvm::errs() << "postfn:\n" << *newFunc << "\n";
     }
     Builder.setFastMathFlags(getFast());
@@ -1984,7 +1984,7 @@ public:
       auto modestr = to_string(mode);
       EmitFailure(
           "TooFewArguments", CI->getDebugLoc(), CI,
-          "Too few arguments passed to __enzyme_autodiff mode=", modestr);
+          "Too few arguments passed to __raptor_autodiff mode=", modestr);
       return false;
     }
     assert(args.size() == newFunc->getFunctionType()->getNumParams());
@@ -2060,7 +2060,7 @@ public:
 
     IRBuilder<> Builder(CI);
 
-    if (EnzymePrint)
+    if (RaptorPrint)
       llvm::errs() << "prefn:\n" << *fn << "\n";
 
     std::map<int, Type *> byVal;
@@ -2139,10 +2139,10 @@ public:
     SmallPtrSet<Function *, 4> sampleFunctions;
     SmallPtrSet<Function *, 4> observeFunctions;
     for (auto &func : F->getParent()->functions()) {
-      if (func.getName().contains("__enzyme_sample")) {
+      if (func.getName().contains("__raptor_sample")) {
         assert(func.getFunctionType()->getNumParams() >= 3);
         sampleFunctions.insert(&func);
-      } else if (func.getName().contains("__enzyme_observe")) {
+      } else if (func.getName().contains("__raptor_observe")) {
         assert(func.getFunctionType()->getNumParams() >= 3);
         observeFunctions.insert(&func);
       }
@@ -2221,17 +2221,17 @@ public:
   bool handleFlopMemory(Function &F) {
     if (F.isDeclaration())
       return false;
-    if (!EnzymeTruncateAccessCount)
+    if (!RaptorTruncateAccessCount)
       return false;
 
-    if (F.getName().starts_with(EnzymeFPRTPrefix))
+    if (F.getName().starts_with(RaptorFPRTPrefix))
       return false;
 
     auto M = F.getParent();
     auto &DL = M->getDataLayout();
     IRBuilder<> B(M->getContext());
 
-    auto fname = std::string(EnzymeFPRTPrefix) + "memory_access";
+    auto fname = std::string(RaptorFPRTPrefix) + "memory_access";
     Function *AccessF = M->getFunction(fname);
     Type *PtrTy = PointerType::get(M->getContext(), 0);
     if (!AccessF) {
@@ -2273,10 +2273,10 @@ public:
   bool handleFlopCount(Function &F) {
     if (F.isDeclaration())
       return false;
-    if (!EnzymeTruncateCount)
+    if (!RaptorTruncateCount)
       return false;
 
-    if (F.getName().starts_with(EnzymeFPRTPrefix))
+    if (F.getName().starts_with(RaptorFPRTPrefix))
       return false;
 
     for (auto Repr : {getDefaultFloatRepr(16), getDefaultFloatRepr(32),
@@ -2306,11 +2306,11 @@ public:
   }
 
   bool handleFullModuleTrunc(Function &F) {
-    if (startsWith(F.getName(), EnzymeFPRTPrefix))
+    if (startsWith(F.getName(), RaptorFPRTPrefix))
       return false;
     typedef std::vector<FloatTruncation> TruncationsTy;
     static TruncationsTy FullModuleTruncs = []() -> TruncationsTy {
-      StringRef ConfigStr(EnzymeTruncateAll);
+      StringRef ConfigStr(RaptorTruncateAll);
       auto Invalid = [=]() {
         // TODO emit better diagnostic
         llvm::report_fatal_error("error: invalid format for truncation config");
@@ -2378,8 +2378,8 @@ public:
     return true;
   }
 
-  bool lowerEnzymeCalls(Function &F, std::set<Function *> &done) {
-    if (!EnzymeTruncateAll.empty() && EnzymeTruncateCount)
+  bool lowerRaptorCalls(Function &F, std::set<Function *> &done) {
+    if (!RaptorTruncateAll.empty() && RaptorTruncateCount)
       llvm::report_fatal_error(
           "error: trunc all and trunc count are incompatible");
 
@@ -2408,23 +2408,23 @@ public:
         if (!Fn)
           continue;
 
-        if (!(Fn->getName().contains("__enzyme_float") ||
-              Fn->getName().contains("__enzyme_double") ||
-              Fn->getName().contains("__enzyme_integer") ||
-              Fn->getName().contains("__enzyme_pointer") ||
-              Fn->getName().contains("__enzyme_virtualreverse") ||
-              Fn->getName().contains("__enzyme_call_inactive") ||
-              Fn->getName().contains("__enzyme_autodiff") ||
-              Fn->getName().contains("__enzyme_fwddiff") ||
-              Fn->getName().contains("__enzyme_fwdsplit") ||
-              Fn->getName().contains("__enzyme_augmentfwd") ||
-              Fn->getName().contains("__enzyme_augmentsize") ||
-              Fn->getName().contains("__enzyme_reverse") ||
-              Fn->getName().contains("__enzyme_truncate") ||
-              Fn->getName().contains("__enzyme_batch") ||
-              Fn->getName().contains("__enzyme_error_estimate") ||
-              Fn->getName().contains("__enzyme_trace") ||
-              Fn->getName().contains("__enzyme_condition")))
+        if (!(Fn->getName().contains("__raptor_float") ||
+              Fn->getName().contains("__raptor_double") ||
+              Fn->getName().contains("__raptor_integer") ||
+              Fn->getName().contains("__raptor_pointer") ||
+              Fn->getName().contains("__raptor_virtualreverse") ||
+              Fn->getName().contains("__raptor_call_inactive") ||
+              Fn->getName().contains("__raptor_autodiff") ||
+              Fn->getName().contains("__raptor_fwddiff") ||
+              Fn->getName().contains("__raptor_fwdsplit") ||
+              Fn->getName().contains("__raptor_augmentfwd") ||
+              Fn->getName().contains("__raptor_augmentsize") ||
+              Fn->getName().contains("__raptor_reverse") ||
+              Fn->getName().contains("__raptor_truncate") ||
+              Fn->getName().contains("__raptor_batch") ||
+              Fn->getName().contains("__raptor_error_estimate") ||
+              Fn->getName().contains("__raptor_trace") ||
+              Fn->getName().contains("__raptor_condition")))
           continue;
 
         SmallVector<Value *, 16> CallArgs(II->arg_begin(), II->arg_end());
@@ -2489,7 +2489,7 @@ public:
 
         size_t num_args = CI->arg_size();
 
-        if (Fn->getName().contains("__enzyme_todense")) {
+        if (Fn->getName().contains("__raptor_todense")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2497,21 +2497,7 @@ public:
           CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
 #endif
         }
-        if (Fn->getName().contains("__enzyme_float")) {
-#if LLVM_VERSION_MAJOR >= 16
-          CI->setOnlyReadsMemory();
-          CI->setOnlyWritesMemory();
-#else
-          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
-#endif
-          for (size_t i = 0; i < num_args; ++i) {
-            if (CI->getArgOperand(i)->getType()->isPointerTy()) {
-              CI->addParamAttr(i, Attribute::ReadNone);
-              CI->addParamAttr(i, Attribute::NoCapture);
-            }
-          }
-        }
-        if (Fn->getName().contains("__enzyme_integer")) {
+        if (Fn->getName().contains("__raptor_float")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2525,7 +2511,7 @@ public:
             }
           }
         }
-        if (Fn->getName().contains("__enzyme_double")) {
+        if (Fn->getName().contains("__raptor_integer")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2539,7 +2525,7 @@ public:
             }
           }
         }
-        if (Fn->getName().contains("__enzyme_pointer")) {
+        if (Fn->getName().contains("__raptor_double")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2553,7 +2539,21 @@ public:
             }
           }
         }
-        if (Fn->getName().contains("__enzyme_virtualreverse")) {
+        if (Fn->getName().contains("__raptor_pointer")) {
+#if LLVM_VERSION_MAJOR >= 16
+          CI->setOnlyReadsMemory();
+          CI->setOnlyWritesMemory();
+#else
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
+#endif
+          for (size_t i = 0; i < num_args; ++i) {
+            if (CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadNone);
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+        if (Fn->getName().contains("__raptor_virtualreverse")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2561,7 +2561,7 @@ public:
           CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
 #endif
         }
-        if (Fn->getName().contains("__enzyme_iter")) {
+        if (Fn->getName().contains("__raptor_iter")) {
 #if LLVM_VERSION_MAJOR >= 16
           CI->setOnlyReadsMemory();
           CI->setOnlyWritesMemory();
@@ -2569,7 +2569,7 @@ public:
           CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
 #endif
         }
-        if (Fn->getName().contains("__enzyme_call_inactive")) {
+        if (Fn->getName().contains("__raptor_call_inactive")) {
           InactiveCalls.insert(CI);
         }
         if (Fn->getName() == "omp_get_max_threads" ||
@@ -2766,7 +2766,7 @@ public:
           }
         }
 
-        bool enableEnzyme = false;
+        bool enableRaptor = false;
         bool virtualCall = false;
         bool sizeOnly = false;
         bool batch = false;
@@ -2777,64 +2777,64 @@ public:
         bool probProg = false;
         DerivativeMode derivativeMode;
         ProbProgMode probProgMode;
-        if (Fn->getName().contains("__enzyme_autodiff")) {
-          enableEnzyme = true;
+        if (Fn->getName().contains("__raptor_autodiff")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ReverseModeCombined;
-        } else if (Fn->getName().contains("__enzyme_fwddiff")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_fwddiff")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ForwardMode;
-        } else if (Fn->getName().contains("__enzyme_error_estimate")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_error_estimate")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ForwardModeError;
-        } else if (Fn->getName().contains("__enzyme_fwdsplit")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_fwdsplit")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ForwardModeSplit;
-        } else if (Fn->getName().contains("__enzyme_augmentfwd")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_augmentfwd")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ReverseModePrimal;
-        } else if (Fn->getName().contains("__enzyme_augmentsize")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_augmentsize")) {
+          enableRaptor = true;
           sizeOnly = true;
           derivativeMode = DerivativeMode::ReverseModePrimal;
-        } else if (Fn->getName().contains("__enzyme_reverse")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_reverse")) {
+          enableRaptor = true;
           derivativeMode = DerivativeMode::ReverseModeGradient;
-        } else if (Fn->getName().contains("__enzyme_virtualreverse")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_virtualreverse")) {
+          enableRaptor = true;
           virtualCall = true;
           derivativeMode = DerivativeMode::ReverseModeCombined;
-        } else if (Fn->getName().contains("__enzyme_batch")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_batch")) {
+          enableRaptor = true;
           batch = true;
-        } else if (Fn->getName().contains("__enzyme_truncate_mem_func")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_truncate_mem_func")) {
+          enableRaptor = true;
           truncateFuncMem = true;
-        } else if (Fn->getName().contains("__enzyme_truncate_op_func")) {
-          std::cout << "Found __enzyme_truncate_op_func." << std::endl;
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_truncate_op_func")) {
+          std::cout << "Found __raptor_truncate_op_func." << std::endl;
+          enableRaptor = true;
           truncateFuncOp = true;
-        } else if (Fn->getName().contains("__enzyme_truncate_mem_value")) {
-          std::cout << "Found __enzyme_truncate_mem_value" << std::endl;
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_truncate_mem_value")) {
+          std::cout << "Found __raptor_truncate_mem_value" << std::endl;
+          enableRaptor = true;
           truncateValue = true;
-        } else if (Fn->getName().contains("__enzyme_expand_mem_value")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_expand_mem_value")) {
+          enableRaptor = true;
           expandValue = true;
-        } else if (Fn->getName().contains("__enzyme_likelihood")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_likelihood")) {
+          enableRaptor = true;
           probProgMode = ProbProgMode::Likelihood;
           probProg = true;
-        } else if (Fn->getName().contains("__enzyme_trace")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_trace")) {
+          enableRaptor = true;
           probProgMode = ProbProgMode::Trace;
           probProg = true;
-        } else if (Fn->getName().contains("__enzyme_condition")) {
-          enableEnzyme = true;
+        } else if (Fn->getName().contains("__raptor_condition")) {
+          enableRaptor = true;
           probProgMode = ProbProgMode::Condition;
           probProg = true;
         }
 
-        if (enableEnzyme) {
+        if (enableRaptor) {
 
           Value *fn = CI->getArgOperand(0);
           while (auto ci = dyn_cast<CastInst>(fn)) {
@@ -2895,7 +2895,7 @@ public:
             // AD case.
             bool tmp = Logic.PostOpt;
             Logic.PostOpt = true;
-            Changed |= lowerEnzymeCalls(*dc, done);
+            Changed |= lowerRaptorCalls(*dc, done);
             Logic.PostOpt = tmp;
           }
         }
@@ -2917,7 +2917,7 @@ public:
       }
       auto Rep = B.CreateCall(FT, fn, Args);
       Rep->addAttribute(AttributeList::FunctionIndex,
-                        Attribute::get(Rep->getContext(), "enzyme_inactive"));
+                        Attribute::get(Rep->getContext(), "raptor_inactive"));
       CI->replaceAllUsesWith(Rep);
       CI->eraseFromParent();
       Changed = true;
@@ -3039,9 +3039,9 @@ public:
       }
     }
 
-    if (Changed && EnzymeAttributor) {
+    if (Changed && RaptorAttributor) {
       // TODO consider enabling when attributor does not delete
-      // dead internal functions, which invalidates Enzyme's cache
+      // dead internal functions, which invalidates Raptor's cache
       // code left here to re-enable upon Attributor patch
 
 #if !defined(FLANG) && !defined(ROCM)
@@ -3102,13 +3102,13 @@ public:
   }
 
   bool run(Module &M) {
-    if (char *Name = getenv("ENZYME_DUMP_MODULE_PRE")) {
+    if (char *Name = getenv("RAPTOR_DUMP_MODULE_PRE")) {
       std::error_code EC;
       raw_fd_stream Out(Name, EC);
       if (!EC) {
         Out << M;
       } else {
-        llvm::errs() << "Could not open Enzyme dump file.";
+        llvm::errs() << "Could not open Raptor dump file.";
       }
     }
     Logic.clear();
@@ -3156,7 +3156,7 @@ public:
       }
     }
 
-    if (Logic.PostOpt && EnzymeOMPOpt) {
+    if (Logic.PostOpt && RaptorOMPOpt) {
       OpenMPOptPass().run(M, Logic.PPC.MAM);
       /// Attributor is run second time for promoted args to get attributes.
       AttributorPass().run(M, Logic.PPC.MAM);
@@ -3175,7 +3175,7 @@ public:
       if (F.empty())
         continue;
 
-      changed |= lowerEnzymeCalls(F, done);
+      changed |= lowerRaptorCalls(F, done);
     }
 
     for (Function &F : M) {
@@ -3198,14 +3198,14 @@ public:
                 }
             }
             if (F) {
-              if (F->getName().contains("__enzyme_float") ||
-                  F->getName().contains("__enzyme_double") ||
-                  F->getName().contains("__enzyme_integer") ||
-                  F->getName().contains("__enzyme_pointer")) {
+              if (F->getName().contains("__raptor_float") ||
+                  F->getName().contains("__raptor_double") ||
+                  F->getName().contains("__raptor_integer") ||
+                  F->getName().contains("__raptor_pointer")) {
                 CI->eraseFromParent();
                 changed = true;
               }
-              if (F->getName() == "__enzyme_iter") {
+              if (F->getName() == "__raptor_iter") {
                 CI->replaceAllUsesWith(CI->getArgOperand(0));
                 CI->eraseFromParent();
                 changed = true;
@@ -3226,11 +3226,11 @@ public:
             if (!fun)
               continue;
 
-            if (fun->getName().contains("__enzyme_sample")) {
+            if (fun->getName().contains("__raptor_sample")) {
               if (CI->getNumOperands() < 3) {
                 EmitFailure(
                     "IllegalNumberOfArguments", CI->getDebugLoc(), CI,
-                    "Not enough arguments passed to call to __enzyme_sample");
+                    "Not enough arguments passed to call to __raptor_sample");
               }
               Function *samplefn = GetFunctionFromValue(CI->getOperand(0));
               unsigned expected =
@@ -3239,7 +3239,7 @@ public:
               if (actual - 3 != samplefn->getFunctionType()->getNumParams()) {
                 EmitFailure("IllegalNumberOfArguments", CI->getDebugLoc(), CI,
                             "Illegal number of arguments passed to call to "
-                            "__enzyme_sample.",
+                            "__raptor_sample.",
                             " Expected: ", expected, " got: ", actual);
               }
               Function *pdf = GetFunctionFromValue(CI->getArgOperand(1));
@@ -3280,11 +3280,11 @@ public:
               }
               sample_calls.insert(CI);
 
-            } else if (fun->getName().contains("__enzyme_observe")) {
+            } else if (fun->getName().contains("__raptor_observe")) {
               if (CI->getNumOperands() < 3) {
                 EmitFailure(
                     "IllegalNumberOfArguments", CI->getDebugLoc(), CI,
-                    "Not enough arguments passed to call to __enzyme_sample");
+                    "Not enough arguments passed to call to __raptor_sample");
               }
               Value *observed = CI->getOperand(0);
               Function *pdf = GetFunctionFromValue(CI->getArgOperand(1));
@@ -3294,7 +3294,7 @@ public:
               if (actual - 3 != expected) {
                 EmitFailure("IllegalNumberOfArguments", CI->getDebugLoc(), CI,
                             "Illegal number of arguments passed to call to "
-                            "__enzyme_observe.",
+                            "__raptor_observe.",
                             " Expected: ", expected, " got: ", actual);
               }
 
@@ -3329,7 +3329,7 @@ public:
       }
     }
 
-    // Replace calls to __enzyme_sample with the actual sample calls after
+    // Replace calls to __raptor_sample with the actual sample calls after
     // running prob prog
     for (auto call : sample_calls) {
       Function *samplefn = GetFunctionFromValue(call->getArgOperand(0));
@@ -3357,7 +3357,7 @@ public:
     Logic.clear();
 
     if (changed && Logic.PostOpt) {
-      TimeTraceScope timeScope("Enzyme PostOpt", M.getName());
+      TimeTraceScope timeScope("Raptor PostOpt", M.getName());
 
       PassBuilder PB;
       LoopAnalysisManager LAM;
@@ -3372,7 +3372,7 @@ public:
       auto PM = PB.buildModuleSimplificationPipeline(OptimizationLevel::O2,
                                                      ThinOrFullLTOPhase::None);
       PM.run(M, MAM);
-      if (EnzymeOMPOpt) {
+      if (RaptorOMPOpt) {
         OpenMPOptPass().run(M, MAM);
         /// Attributor is run second time for promoted args to get attributes.
         AttributorPass().run(M, MAM);
@@ -3386,23 +3386,23 @@ public:
       if (!F.empty())
         changed |= LowerSparsification(&F);
     }
-    if (char *Name = getenv("ENZYME_DUMP_MODULE_POST")) {
+    if (char *Name = getenv("RAPTOR_DUMP_MODULE_POST")) {
       std::error_code EC;
       raw_fd_stream Out(Name, EC);
       if (!EC) {
         Out << M;
       } else {
-        llvm::errs() << "Could not open Enzyme dump file.";
+        llvm::errs() << "Could not open Raptor dump file.";
       }
     }
     return changed;
   }
 };
 
-class EnzymeOldPM : public EnzymeBase, public ModulePass {
+class RaptorOldPM : public RaptorBase, public ModulePass {
 public:
   static char ID;
-  EnzymeOldPM(bool PostOpt = false) : EnzymeBase(PostOpt), ModulePass(ID) {}
+  RaptorOldPM(bool PostOpt = false) : RaptorBase(PostOpt), ModulePass(ID) {}
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<TargetLibraryInfoWrapperPass>();
@@ -3419,36 +3419,36 @@ public:
 
 } // namespace
 
-char EnzymeOldPM::ID = 0;
+char RaptorOldPM::ID = 0;
 
-static RegisterPass<EnzymeOldPM> X("enzyme", "Enzyme Pass");
+static RegisterPass<RaptorOldPM> X("raptor", "Raptor Pass");
 
-ModulePass *createEnzymePass(bool PostOpt) { return new EnzymeOldPM(PostOpt); }
+ModulePass *createRaptorPass(bool PostOpt) { return new RaptorOldPM(PostOpt); }
 
 #include <llvm-c/Core.h>
 #include <llvm-c/Types.h>
 
 #include "llvm/IR/LegacyPassManager.h"
 
-extern "C" void AddEnzymePass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createEnzymePass(/*PostOpt*/ false));
+extern "C" void AddRaptorPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createRaptorPass(/*PostOpt*/ false));
 }
 
 #include "llvm/Passes/PassPlugin.h"
 
-class EnzymeNewPM final : public EnzymeBase,
-                          public AnalysisInfoMixin<EnzymeNewPM> {
-  friend struct llvm::AnalysisInfoMixin<EnzymeNewPM>;
+class RaptorNewPM final : public RaptorBase,
+                          public AnalysisInfoMixin<RaptorNewPM> {
+  friend struct llvm::AnalysisInfoMixin<RaptorNewPM>;
 
 private:
   static llvm::AnalysisKey Key;
 
 public:
   using Result = llvm::PreservedAnalyses;
-  EnzymeNewPM(bool PostOpt = false) : EnzymeBase(PostOpt) {}
+  RaptorNewPM(bool PostOpt = false) : RaptorBase(PostOpt) {}
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-    return EnzymeBase::run(M) ? PreservedAnalyses::none()
+    return RaptorBase::run(M) ? PreservedAnalyses::none()
                               : PreservedAnalyses::all();
   }
 
@@ -3456,7 +3456,7 @@ public:
 };
 
 #undef DEBUG_TYPE
-AnalysisKey EnzymeNewPM::Key;
+AnalysisKey RaptorNewPM::Key;
 
 #include "ActivityAnalysisPrinter.h"
 #include "JLInstSimplify.h"
@@ -3553,7 +3553,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
   auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level) {
     MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
 
-    if (!EnzymeEnable)
+    if (!RaptorEnable)
       return;
 
     if (Level != OptimizationLevel::O0)
@@ -3569,7 +3569,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     OptimizerPM.addPass(llvm::SROAPass());
 #endif
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizerPM)));
-    MPM.addPass(EnzymeNewPM(/*PostOpt=*/true));
+    MPM.addPass(RaptorNewPM(/*PostOpt=*/true));
     MPM.addPass(PreserveNVVMNewPM(/*Begin*/ false));
 #if LLVM_VERSION_MAJOR >= 16
     OptimizerPM2.addPass(llvm::GVNPass());
@@ -3586,7 +3586,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizerPM2)));
     MPM.addPass(GlobalOptPass());
   };
-  // TODO need for perf reasons to move Enzyme pass to the pre vectorization.
+  // TODO need for perf reasons to move Raptor pass to the pre vectorization.
   PB.registerOptimizerEarlyEPCallback(loadPass);
 
   auto loadNVVM = [](ModulePassManager &MPM, OptimizationLevel) {
@@ -3838,15 +3838,15 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
   PB.registerFullLinkTimeOptimizationEarlyEPCallback(loadLTO);
 }
 
-void registerEnzyme(llvm::PassBuilder &PB) {
-#ifdef ENZYME_RUNPASS
+void registerRaptor(llvm::PassBuilder &PB) {
+#ifdef RAPTOR_RUNPASS
   augmentPassBuilder(PB);
 #endif
   PB.registerPipelineParsingCallback(
       [](llvm::StringRef Name, llvm::ModulePassManager &MPM,
          llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-        if (Name == "enzyme") {
-          MPM.addPass(EnzymeNewPM());
+        if (Name == "raptor") {
+          MPM.addPass(RaptorNewPM());
           return true;
         }
         if (Name == "preserve-nvvm") {
@@ -3876,5 +3876,5 @@ void registerEnzyme(llvm::PassBuilder &PB) {
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "EnzymeNewPM", "v0.1", registerEnzyme};
+  return {LLVM_PLUGIN_API_VERSION, "RaptorNewPM", "v0.1", registerRaptor};
 }

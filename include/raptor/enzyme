@@ -1,5 +1,5 @@
 #ifdef __cplusplus
-#include "enzyme/utils"
+#include "raptor/utils"
 #else
-#warning "Enzyme wrapper templates only available in C++"
+#warning "Raptor wrapper templates only available in C++"
 #endif

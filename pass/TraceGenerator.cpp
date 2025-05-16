@@ -1,13 +1,13 @@
 //===- TraceGenerator.h - Trace sample statements and calls  --------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -47,7 +47,7 @@
 using namespace llvm;
 
 TraceGenerator::TraceGenerator(
-    EnzymeLogic &Logic, TraceUtils *tutils, bool autodiff,
+    RaptorLogic &Logic, TraceUtils *tutils, bool autodiff,
     ValueMap<const Value *, WeakTrackingVH> &originalToNewFn,
     const SmallPtrSetImpl<Function *> &generativeFunctions,
     const StringSet<> &activeRandomVariables)
@@ -99,15 +99,15 @@ void TraceGenerator::visitFunction(Function &F) {
 #if LLVM_VERSION_MAJOR >= 14
     call->addAttributeAtIndex(
         AttributeList::FunctionIndex,
-        Attribute::get(F.getContext(), "enzyme_insert_argument"));
+        Attribute::get(F.getContext(), "raptor_insert_argument"));
     call->addAttributeAtIndex(AttributeList::FunctionIndex,
-                              Attribute::get(F.getContext(), "enzyme_active"));
+                              Attribute::get(F.getContext(), "raptor_active"));
 #else
     call->addAttribute(
         AttributeList::FunctionIndex,
-        Attribute::get(F.getContext(), "enzyme_insert_argument"));
+        Attribute::get(F.getContext(), "raptor_insert_argument"));
     call->addAttribute(AttributeList::FunctionIndex,
-                       Attribute::get(F.getContext(), "enzyme_active"));
+                       Attribute::get(F.getContext(), "raptor_active"));
 #endif
     if (autodiff) {
       auto gradient_setter = ValueAsMetadata::get(
@@ -115,7 +115,7 @@ void TraceGenerator::visitFunction(Function &F) {
       auto gradient_setter_node =
           MDNode::get(F.getContext(), {gradient_setter});
 
-      call->setMetadata("enzyme_gradient_setter", gradient_setter_node);
+      call->setMetadata("raptor_gradient_setter", gradient_setter_node);
     }
   }
 }
@@ -137,7 +137,7 @@ void TraceGenerator::handleObserveCall(CallInst &call, CallInst *new_call) {
       (is_address_const && activeRandomVariables.count(const_address));
   Attribute activity_attribute = Attribute::get(
       call.getContext(),
-      is_random_var_active ? "enzyme_active" : "enzyme_inactive_val");
+      is_random_var_active ? "raptor_active" : "raptor_inactive_val");
 
   // calculate and accumulate log likelihood
   Args.push_back(observed);
@@ -176,17 +176,17 @@ void TraceGenerator::handleObserveCall(CallInst &call, CallInst *new_call) {
 #if LLVM_VERSION_MAJOR >= 14
     trace_call->addAttributeAtIndex(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_inactive"));
+        Attribute::get(call.getContext(), "raptor_inactive"));
     trace_call->addAttributeAtIndex(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_notypeanalysis"));
+        Attribute::get(call.getContext(), "raptor_notypeanalysis"));
 #else
     trace_call->addAttribute(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_inactive"));
+        Attribute::get(call.getContext(), "raptor_inactive"));
     trace_call->addAttribute(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_notypeanalysis"));
+        Attribute::get(call.getContext(), "raptor_notypeanalysis"));
 #endif
   }
 
@@ -239,17 +239,17 @@ void TraceGenerator::handleSampleCall(CallInst &call, CallInst *new_call) {
       (is_address_const && activeRandomVariables.count(const_address));
   Attribute activity_attribute = Attribute::get(
       call.getContext(),
-      is_random_var_active ? "enzyme_active" : "enzyme_inactive_val");
+      is_random_var_active ? "raptor_active" : "raptor_inactive_val");
 
 #if LLVM_VERSION_MAJOR >= 14
   sample_call->addAttributeAtIndex(
       AttributeList::FunctionIndex,
-      Attribute::get(call.getContext(), "enzyme_sample"));
+      Attribute::get(call.getContext(), "raptor_sample"));
   sample_call->addAttributeAtIndex(AttributeList::FunctionIndex,
                                    activity_attribute);
 #else
   sample_call->addAttribute(AttributeList::FunctionIndex,
-                            Attribute::get(call.getContext(), "enzyme_sample"));
+                            Attribute::get(call.getContext(), "raptor_sample"));
   sample_call->addAttribute(AttributeList::FunctionIndex, activity_attribute);
 #endif
 
@@ -260,7 +260,7 @@ void TraceGenerator::handleSampleCall(CallInst &call, CallInst *new_call) {
     auto gradient_setter_node =
         MDNode::get(call.getContext(), {gradient_setter});
 
-    sample_call->setMetadata("enzyme_gradient_setter", gradient_setter_node);
+    sample_call->setMetadata("raptor_gradient_setter", gradient_setter_node);
   }
 
   // calculate and accumulate log likelihood
@@ -301,17 +301,17 @@ void TraceGenerator::handleSampleCall(CallInst &call, CallInst *new_call) {
 #if LLVM_VERSION_MAJOR >= 14
     trace_call->addAttributeAtIndex(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_inactive"));
+        Attribute::get(call.getContext(), "raptor_inactive"));
     trace_call->addAttributeAtIndex(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_notypeanalysis"));
+        Attribute::get(call.getContext(), "raptor_notypeanalysis"));
 #else
     trace_call->addAttribute(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_inactive"));
+        Attribute::get(call.getContext(), "raptor_inactive"));
     trace_call->addAttribute(
         AttributeList::FunctionIndex,
-        Attribute::get(call.getContext(), "enzyme_notypeanalysis"));
+        Attribute::get(call.getContext(), "raptor_notypeanalysis"));
 #endif
   }
 

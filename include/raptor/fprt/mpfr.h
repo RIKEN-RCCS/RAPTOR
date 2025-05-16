@@ -1,13 +1,13 @@
 //===- fprt/mpfr - MPFR wrappers ---------------------------------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -21,8 +21,8 @@
 // This file contains easy to use wrappers around MPFR functions.
 //
 //===----------------------------------------------------------------------===//
-#ifndef __ENZYME_RUNTIME_ENZYME_MPFR__
-#define __ENZYME_RUNTIME_ENZYME_MPFR__
+#ifndef __RAPTOR_RUNTIME_RAPTOR_MPFR__
+#define __RAPTOR_RUNTIME_RAPTOR_MPFR__
 
 #include <iostream>
 #include <mpfr.h>
@@ -74,269 +74,269 @@ extern "C" {
 // TODO we need to provide f32 versions, and also instrument the
 // truncation/expansion between f32/f64/etc
 
-// typedef struct __enzyme_fp {
+// typedef struct __raptor_fp {
 //   mpfr_t result;
-// #ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+// #ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 //   double excl_result;
 //   double shadow;
 // #endif
-// } __enzyme_fp;
+// } __raptor_fp;
 
-#ifdef ENZYME_FPRT_ENABLE_DUMPING
-#define ENZYME_DUMP(X, OP_TYPE, LLVM_OP_NAME, TAG)                             \
+#ifdef RAPTOR_FPRT_ENABLE_DUMPING
+#define RAPTOR_DUMP(X, OP_TYPE, LLVM_OP_NAME, TAG)                             \
   do {                                                                         \
     fprintf(stderr, #OP_TYPE " " #LLVM_OP_NAME " " TAG ": %p ", X);            \
     fprintf(stderr, "%f\n",                                                    \
-            mpfr_get_d(X->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE));       \
+            mpfr_get_d(X->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE));       \
   } while (0)
-#define ENZYME_DUMP_INPUT(X, OP_TYPE, LLVM_OP_NAME)                            \
-  ENZYME_DUMP(X, OP_TYPE, LLVM_OP_NAME, "in")
-#define ENZYME_DUMP_RESULT(X, OP_TYPE, LLVM_OP_NAME)                           \
-  ENZYME_DUMP(X, OP_TYPE, LLVM_OP_NAME, "res")
+#define RAPTOR_DUMP_INPUT(X, OP_TYPE, LLVM_OP_NAME)                            \
+  RAPTOR_DUMP(X, OP_TYPE, LLVM_OP_NAME, "in")
+#define RAPTOR_DUMP_RESULT(X, OP_TYPE, LLVM_OP_NAME)                           \
+  RAPTOR_DUMP(X, OP_TYPE, LLVM_OP_NAME, "res")
 #else
-#define ENZYME_DUMP_INPUT(X, OP_TYPE, LLVM_OP_NAME)                            \
+#define RAPTOR_DUMP_INPUT(X, OP_TYPE, LLVM_OP_NAME)                            \
   do {                                                                         \
   } while (0)
-#define ENZYME_DUMP_RESULT(X, OP_TYPE, LLVM_OP_NAME)                           \
+#define RAPTOR_DUMP_RESULT(X, OP_TYPE, LLVM_OP_NAME)                           \
   do {                                                                         \
   } while (0)
 #endif
 
-#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
-double __enzyme_fprt_64_52_abs_err(double a, double b) {
+#ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
+double __raptor_fprt_64_52_abs_err(double a, double b) {
   return std::abs(a - b);
 }
 #endif
 
-#define ENZYME_FPRT_ENABLE_GARBAGE_COLLECTION
-#ifdef ENZYME_FPRT_ENABLE_GARBAGE_COLLECTION
+#define RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
+#ifdef RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
 
-void enzyme_fprt_gc_dump_status();
-double enzyme_fprt_gc_mark_seen(double a);
-void enzyme_fprt_gc_doit();
+void raptor_fprt_gc_dump_status();
+double raptor_fprt_gc_mark_seen(double a);
+void raptor_fprt_gc_doit();
 
-void enzyme_fprt_excl_trunc_start();
-void enzyme_fprt_excl_trunc_end();
+void raptor_fprt_excl_trunc_start();
+void raptor_fprt_excl_trunc_end();
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_const(double _a, int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_const(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-__enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+__raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
                                                   int64_t significand,
                                                   int64_t mode,
                                                   const char *loc);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
                                 int64_t mode, const char *loc, mpfr_t *scratch);
 
 #else
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
-  __enzyme_fp *a = __enzyme_fprt_double_to_ptr(_a);
-  return mpfr_get_d(a->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);
+  __raptor_fp *a = __raptor_fprt_double_to_ptr(_a);
+  return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
-  __enzyme_fp *a = (__enzyme_fp *)malloc(sizeof(__enzyme_fp));
+  __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
   if (!a)
-    exit(__ENZYME_MPFR_MALLOC_FAILURE_EXIT_STATUS);
+    exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
   mpfr_init2(a->result, significand);
-  mpfr_set_d(a->result, _a, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);
+  mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
   a->excl_result = _a;
   a->shadow = _a;
-  return __enzyme_fprt_ptr_to_double(a);
+  return __raptor_fprt_ptr_to_double(a);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_const(double _a, int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_const(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc, mpfr_t *scratch) {
   // TODO This should really be called only once for an appearance in the code,
   // currently it is called every time a flop uses a constant.
-  return __enzyme_fprt_64_52_new(_a, exponent, significand, mode, loc, scratch);
+  return __raptor_fprt_64_52_new(_a, exponent, significand, mode, loc, scratch);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-__enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+__raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
                                                   int64_t significand,
                                                   int64_t mode,
                                                   const char *loc) {
-  __enzyme_fp *a = (__enzyme_fp *)malloc(sizeof(__enzyme_fp));
+  __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
   if (!a)
-    exit(__ENZYME_MPFR_MALLOC_FAILURE_EXIT_STATUS);
+    exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
   mpfr_init2(a->result, significand);
   return a;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
                                 int64_t mode, const char *loc,
                                 mpfr_t *scratch) {
-  free(__enzyme_fprt_double_to_ptr(a));
+  free(__raptor_fprt_double_to_ptr(a));
 }
 
 #endif
 
 // Handle the case where people zero out memory and expect the floating
 // point numbers there to be zero.
-__ENZYME_MPFR_ATTRIBUTES
-double __enzyme_fprt_64_52_check_zero(double _a, int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+double __raptor_fprt_64_52_check_zero(double _a, int64_t exponent,
                                       int64_t significand, int64_t mode,
                                       const char *loc, mpfr_t *scratch) {
   if ((*(uint64_t *)(&_a)) == 0)
-    return __enzyme_fprt_64_52_const(0, exponent, significand, mode, loc,
+    return __raptor_fprt_64_52_const(0, exponent, significand, mode, loc,
                                      scratch);
   else
     return _a;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-__enzyme_fp *__enzyme_fprt_double_to_ptr_checked(double d, int64_t exponent,
+__RAPTOR_MPFR_ATTRIBUTES
+__raptor_fp *__raptor_fprt_double_to_ptr_checked(double d, int64_t exponent,
                                                  int64_t significand,
                                                  int64_t mode, const char *loc,
                                                  mpfr_t *scratch) {
-  d = __enzyme_fprt_64_52_check_zero(d, exponent, significand, mode, loc,
+  d = __raptor_fprt_64_52_check_zero(d, exponent, significand, mode, loc,
                                      scratch);
-  return __enzyme_fprt_double_to_ptr(d);
+  return __raptor_fprt_double_to_ptr(d);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_trunc_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_trunc_count(int64_t exponent, int64_t significand,
                                     int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_count(int64_t exponent, int64_t significand,
                                     int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_32_23_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_32_23_count(int64_t exponent, int64_t significand,
                                     int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_16_10_count(int64_t exponent, int64_t significand,
                                     int64_t mode, const char *loc, mpfr_t *scratch);
 
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_trunc_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_trunc_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_double_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_double_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_float_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_float_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_half_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_half_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_trunc_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_trunc_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_double_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_double_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_float_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_float_flop_count();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_half_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_half_flop_count();
 
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_trunc_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_trunc_store();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_trunc_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_trunc_load();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_original_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_original_store();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_original_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_original_load();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_trunc_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_trunc_store();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_trunc_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_trunc_load();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_original_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_original_store();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_original_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_original_load();
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_memory_access(void *, int64_t size, int64_t is_store);
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_memory_access(void *, int64_t size, int64_t is_store);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_32_23_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_32_23_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_16_10_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_trunc_change(int64_t is_truncating,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_trunc_change(int64_t is_truncating,
                                 int64_t to_e,
                                 int64_t to_m,
                                 int64_t mode);
 
 
 
-__ENZYME_MPFR_ATTRIBUTES
-void *__enzyme_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+__RAPTOR_MPFR_ATTRIBUTES
+void *__raptor_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
                                       const char *loc, void *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
                                       const char *loc, void *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_reset_shadow_trace();
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_reset_shadow_trace();
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_reset_shadow_trace();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_reset_shadow_trace();
 
-typedef struct __enzyme_op {
+typedef struct __raptor_op {
   const char *op;             // Operation name
   double l1_err = 0;          // Running error.
   long long count_thresh = 0; // Number of error violations
   long long count = 0;        // Number of samples
   long long count_ignore = 0;
-} __enzyme_op;
+} __raptor_op;
 
-__ENZYME_MPFR_ATTRIBUTES
-std::map<const char *, struct __enzyme_op> opdata;
+__RAPTOR_MPFR_ATTRIBUTES
+std::map<const char *, struct __raptor_op> opdata;
 
-__ENZYME_MPFR_ATTRIBUTES
-void enzyme_fprt_op_dump_status(int num);
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_op_dump_status(int num);
 
-__ENZYME_MPFR_ATTRIBUTES
-void enzyme_fprt_op_clear();
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_op_clear();
 
-#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+#ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 // #define SHADOW_ERR_REL 6.25e-1   //
 // #define SHADOW_ERR_ABS 6.25e-1   // If reference is 0.
 #define SHADOW_ERR_REL 2.5e-4   // 12bit
@@ -347,13 +347,13 @@ void enzyme_fprt_op_clear();
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
-#define __ENZYME_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
+#define __RAPTOR_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
                              MPFR_SET_ARG1, ROUNDING_MODE)                     \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       RET c = mpfr_get_si(scratch[0], ROUNDING_MODE);                          \
       return c;                                                                \
@@ -362,44 +362,44 @@ void enzyme_fprt_op_clear();
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
+#define __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
                              RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
                              ROUNDING_MODE)                                    \
-  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a); \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  RET __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a); \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], ROUNDING_MODE);            \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mc->shadow =                                                             \
-          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+          __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow);                                                     \
       if (excl_trunc) {                                                        \
-        __enzyme_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
+        __raptor_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
         mc->excl_result =                                                      \
-          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->excl_result); \
+          __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ma->excl_result); \
         mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
-        __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+        __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);          \
         mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
       }                                                                        \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       double trunc = mpfr_get_##MPFR_GET(mc->result,                           \
-                                         __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+                                         __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE); \
+      double err = __raptor_fprt_64_52_abs_err(trunc, mc->shadow);             \
       if (!opdata[loc].count)                                                  \
         opdata[loc].op = #LLVM_OP_NAME;                                        \
       if (trunc != 0 && err / trunc > SHADOW_ERR_REL) {                        \
@@ -409,7 +409,7 @@ void enzyme_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -417,81 +417,81 @@ void enzyme_fprt_op_clear();
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
-#define __ENZYME_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
+#define __RAPTOR_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
                               FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,   \
                               ARG2, ROUNDING_MODE)                             \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], b, ROUNDING_MODE);         \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, b, ROUNDING_MODE);         \
       mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);        \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
+#define __RAPTOR_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
                           RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ARG2,            \
                           MPFR_SET_ARG2, ROUNDING_MODE)                        \
-  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a,  \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  RET __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a,  \
                                                                       ARG2 b); \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_set_##MPFR_SET_ARG2(scratch[1], b, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], scratch[1],                \
                             ROUNDING_MODE);                                    \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       mc->shadow =                                                             \
-          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+          __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow, mb->shadow);                                         \
       if (excl_trunc) {                                                        \
-        __enzyme_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
+        __raptor_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
         mc->excl_result =                                                      \
-          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+          __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->excl_result, mb->excl_result);                               \
         mpfr_set_##MPFR_SET_ARG1(mc->result, mc->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
-        __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);  \
+        __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);  \
         mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,              \
                               ROUNDING_MODE);                                  \
         mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);      \
       }                                                                        \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
       double trunc = mpfr_get_##MPFR_GET(mc->result,                           \
-                                         __ENZYME_MPFR_DEFAULT_ROUNDING_MODE); \
-      double err = __enzyme_fprt_64_52_abs_err(trunc, mc->shadow);             \
+                                         __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE); \
+      double err = __raptor_fprt_64_52_abs_err(trunc, mc->shadow);             \
       if (!opdata[loc].count)                                                  \
         opdata[loc].op = #LLVM_OP_NAME;                                        \
       if (trunc != 0 && err / trunc > SHADOW_ERR_REL) {                        \
@@ -501,23 +501,23 @@ void enzyme_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_FMULADD(LLVM_OP_NAME, FROM_TYPE, TYPE, MPFR_TYPE,        \
+#define __RAPTOR_MPFR_FMULADD(LLVM_OP_NAME, FROM_TYPE, TYPE, MPFR_TYPE,        \
                               LLVM_TYPE, ROUNDING_MODE)                        \
-  __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  TYPE __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(        \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
+  TYPE __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(        \
       TYPE a, TYPE b, TYPE c);                                                 \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  TYPE __enzyme_fprt_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(          \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  TYPE __raptor_fprt_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(          \
       TYPE a, TYPE b, TYPE c, int64_t exponent, int64_t significand,           \
       int64_t mode, const char *loc, mpfr_t *scratch) {                        \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_TYPE(scratch[0], a, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[1], b, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[2], c, ROUNDING_MODE);                      \
@@ -525,29 +525,29 @@ void enzyme_fprt_op_clear();
       mpfr_add(scratch[0], scratch[0], scratch[2], ROUNDING_MODE);             \
       TYPE res = mpfr_get_##MPFR_TYPE(scratch[0], ROUNDING_MODE);              \
       return res;                                                              \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mc = __raptor_fprt_double_to_ptr_checked(                   \
           c, exponent, significand, mode, loc, scratch);                       \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
-      __enzyme_fp *madd = __enzyme_fprt_64_52_new_intermediate(                \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
+      __raptor_fp *madd = __raptor_fprt_64_52_new_intermediate(                \
           exponent, significand, mode, loc);                                   \
       madd->shadow =                                                           \
-          __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+          __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow, mb->shadow, mc->shadow);                             \
       if (excl_trunc) {                                                        \
-        __enzyme_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
+        __raptor_fprt_##FROM_TYPE##_count(exponent, significand, mode, loc, scratch); \
         madd->excl_result =                                                    \
-            __enzyme_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
+            __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(   \
                 ma->excl_result, mb->excl_result, mc->excl_result);                           \
         mpfr_set_##MPFR_TYPE(madd->result, madd->excl_result, ROUNDING_MODE);  \
       } else {                                                                 \
-        __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);  \
+        __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);  \
         mpfr_t mmul;                                                           \
         mpfr_init2(mmul, significand);                                         \
         mpfr_mul(madd->result, ma->result, mb->result, ROUNDING_MODE);         \
@@ -555,11 +555,11 @@ void enzyme_fprt_op_clear();
         mpfr_clear(mmul);                                                      \
         madd->excl_result = mpfr_get_##MPFR_TYPE(madd->result, ROUNDING_MODE); \
       }                                                                        \
-      ENZYME_DUMP_RESULT(__enzyme_fprt_double_to_ptr(madd), OP_TYPE,           \
+      RAPTOR_DUMP_RESULT(__raptor_fprt_double_to_ptr(madd), OP_TYPE,           \
                          LLVM_OP_NAME);                                        \
       double trunc = mpfr_get_##MPFR_TYPE(                                     \
-          madd->result, __ENZYME_MPFR_DEFAULT_ROUNDING_MODE);                  \
-      double err = __enzyme_fprt_64_52_abs_err(trunc, madd->shadow);           \
+          madd->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);                  \
+      double err = __raptor_fprt_64_52_abs_err(trunc, madd->shadow);           \
       if (!opdata[loc].count)                                                  \
         opdata[loc].op = #LLVM_OP_NAME;                                        \
       if (trunc != 0 && err / trunc > SHADOW_ERR_REL) {                        \
@@ -569,30 +569,30 @@ void enzyme_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __enzyme_fprt_ptr_to_double(madd);                                \
+      return __raptor_fprt_ptr_to_double(madd);                                \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
   }
 
 // TODO This does not currently make distinctions between ordered/unordered.
-#define __ENZYME_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
+#define __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
                                 ROUNDING_MODE)                                 \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  bool __enzyme_fprt_##FROM_TYPE##_fcmp_##NAME(                                \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  bool __raptor_fprt_##FROM_TYPE##_fcmp_##NAME(                                \
       TYPE a, TYPE b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_GET(scratch[0], a, ROUNDING_MODE);                       \
       mpfr_set_##MPFR_GET(scratch[1], b, ROUNDING_MODE);                       \
       int ret = mpfr_cmp(scratch[0], scratch[1]);                              \
       return ret CMP;                                                          \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
       int ret = mpfr_cmp(ma->result, mb->result);                              \
       return ret CMP;                                                          \
@@ -603,13 +603,13 @@ void enzyme_fprt_op_clear();
 #else
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
-#define __ENZYME_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
+#define __RAPTOR_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
                              MPFR_SET_ARG1, ROUNDING_MODE)                     \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       RET c = mpfr_get_si(scratch[0], ROUNDING_MODE);                          \
       return c;                                                                \
@@ -618,29 +618,29 @@ void enzyme_fprt_op_clear();
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
+#define __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
                              RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
                              ROUNDING_MODE)                                    \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], ROUNDING_MODE);            \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);            \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -648,76 +648,76 @@ void enzyme_fprt_op_clear();
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
-#define __ENZYME_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
+#define __RAPTOR_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
                               FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,   \
                               ARG2, ROUNDING_MODE)                             \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], b, ROUNDING_MODE);         \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, b, ROUNDING_MODE);         \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
+#define __RAPTOR_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
                           RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ARG2,            \
                           MPFR_SET_ARG2, ROUNDING_MODE)                        \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  RET __enzyme_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  RET __raptor_fprt_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(                  \
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_set_##MPFR_SET_ARG2(scratch[1], b, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], scratch[1],                \
                             ROUNDING_MODE);                                    \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
       return c;                                                                \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_64_52_new_intermediate(                  \
+      __raptor_fp *mc = __raptor_fprt_64_52_new_intermediate(                  \
           exponent, significand, mode, loc);                                   \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,                \
                             ROUNDING_MODE);                                    \
-      ENZYME_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __enzyme_fprt_ptr_to_double(mc);                                  \
+      RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
+      return __raptor_fprt_ptr_to_double(mc);                                  \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
   }
 
-#define __ENZYME_MPFR_FMULADD(LLVM_OP_NAME, FROM_TYPE, TYPE, MPFR_TYPE,        \
+#define __RAPTOR_MPFR_FMULADD(LLVM_OP_NAME, FROM_TYPE, TYPE, MPFR_TYPE,        \
                               LLVM_TYPE, ROUNDING_MODE)                        \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  TYPE __enzyme_fprt_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(          \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  TYPE __raptor_fprt_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(          \
       TYPE a, TYPE b, TYPE c, int64_t exponent, int64_t significand,           \
       int64_t mode, const char *loc, mpfr_t *scratch) {                        \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_TYPE(scratch[0], a, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[1], b, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[2], c, ROUNDING_MODE);                      \
@@ -725,23 +725,23 @@ void enzyme_fprt_op_clear();
       mpfr_add(scratch[0], scratch[0], scratch[2], ROUNDING_MODE);             \
       TYPE res = mpfr_get_##MPFR_TYPE(scratch[0], ROUNDING_MODE);              \
       return res;                                                              \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mc = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mc = __raptor_fprt_double_to_ptr_checked(                   \
           c, exponent, significand, mode, loc, scratch);                       \
-      ENZYME_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
-      ENZYME_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
-      double mmul = __enzyme_fprt_##FROM_TYPE##_binop_fmul(                    \
-          __enzyme_fprt_ptr_to_double(ma), __enzyme_fprt_ptr_to_double(mb),    \
+      RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
+      RAPTOR_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
+      double mmul = __raptor_fprt_##FROM_TYPE##_binop_fmul(                    \
+          __raptor_fprt_ptr_to_double(ma), __raptor_fprt_ptr_to_double(mb),    \
           exponent, significand, mode, loc, scratch);                          \
-      double madd = __enzyme_fprt_##FROM_TYPE##_binop_fadd(                    \
-          mmul, __enzyme_fprt_ptr_to_double(mc), exponent, significand, mode,  \
+      double madd = __raptor_fprt_##FROM_TYPE##_binop_fadd(                    \
+          mmul, __raptor_fprt_ptr_to_double(mc), exponent, significand, mode,  \
           loc, scratch);                                                       \
-      ENZYME_DUMP_RESULT(__enzyme_fprt_double_to_ptr(madd), OP_TYPE,           \
+      RAPTOR_DUMP_RESULT(__raptor_fprt_double_to_ptr(madd), OP_TYPE,           \
                          LLVM_OP_NAME);                                        \
       return madd;                                                             \
     } else {                                                                   \
@@ -750,23 +750,23 @@ void enzyme_fprt_op_clear();
   }
 
 // TODO This does not currently make distinctions between ordered/unordered.
-#define __ENZYME_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
+#define __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
                                 ROUNDING_MODE)                                 \
-  __ENZYME_MPFR_ATTRIBUTES                                                     \
-  bool __enzyme_fprt_##FROM_TYPE##_fcmp_##NAME(                                \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  bool __raptor_fprt_##FROM_TYPE##_fcmp_##NAME(                                \
       TYPE a, TYPE b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
-    if (__enzyme_fprt_is_op_mode(mode)) {                                      \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+    if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_GET(scratch[0], a, ROUNDING_MODE);                       \
       mpfr_set_##MPFR_GET(scratch[1], b, ROUNDING_MODE);                       \
       int ret = mpfr_cmp(scratch[0], scratch[1]);                              \
       return ret CMP;                                                          \
-    } else if (__enzyme_fprt_is_mem_mode(mode)) {                              \
-      __enzyme_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
-      __enzyme_fp *ma = __enzyme_fprt_double_to_ptr_checked(                   \
+    } else if (__raptor_fprt_is_mem_mode(mode)) {                              \
+      __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      __raptor_fp *ma = __raptor_fprt_double_to_ptr_checked(                   \
           a, exponent, significand, mode, loc, scratch);                       \
-      __enzyme_fp *mb = __enzyme_fprt_double_to_ptr_checked(                   \
+      __raptor_fp *mb = __raptor_fprt_double_to_ptr_checked(                   \
           b, exponent, significand, mode, loc, scratch);                       \
       int ret = mpfr_cmp(ma->result, mb->result);                              \
       return ret CMP;                                                          \
@@ -774,16 +774,16 @@ void enzyme_fprt_op_clear();
       abort();                                                                 \
     }                                                                          \
   }
-#endif  // ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+#endif  // RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 
-__ENZYME_MPFR_ORIGINAL_ATTRIBUTES
-bool __enzyme_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a,
+__RAPTOR_MPFR_ORIGINAL_ATTRIBUTES
+bool __raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a,
                                                            int32_t tests);
-__ENZYME_MPFR_ATTRIBUTES bool __enzyme_fprt_64_52_intr_llvm_is_fpclass_f64(
+__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_64_52_intr_llvm_is_fpclass_f64(
     double a, int32_t tests, int64_t exponent, int64_t significand,
     int64_t mode, const char *loc, mpfr_t *scratch) {
-  return __enzyme_fprt_original_64_52_intr_llvm_is_fpclass_f64(
-      __enzyme_fprt_64_52_get(a, exponent, significand, mode, loc, scratch),
+  return __raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(
+      __raptor_fprt_64_52_get(a, exponent, significand, mode, loc, scratch),
       tests);
 }
 
@@ -793,4 +793,4 @@ __ENZYME_MPFR_ATTRIBUTES bool __enzyme_fprt_64_52_intr_llvm_is_fpclass_f64(
 }
 #endif
 
-#endif // #ifndef __ENZYME_RUNTIME_ENZYME_MPFR__
+#endif // #ifndef __RAPTOR_RUNTIME_RAPTOR_MPFR__

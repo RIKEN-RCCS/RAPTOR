@@ -1,19 +1,18 @@
 cmake_minimum_required(VERSION 3.13)
-project(Enzyme)
+project(Raptor)
 
 include(CMakePackageConfigHelpers)
 include(CheckIncludeFile)
 include(CheckIncludeFileCXX)
 
-set(ENZYME_MAJOR_VERSION 0)
-set(ENZYME_MINOR_VERSION 0)
-set(ENZYME_PATCH_VERSION 79)
-set(ENZYME_VERSION
-  ${ENZYME_MAJOR_VERSION}.${ENZYME_MINOR_VERSION}.${ENZYME_PATCH_VERSION})
+set(RAPTOR_MAJOR_VERSION 0)
+set(RAPTOR_MINOR_VERSION 0)
+set(RAPTOR_PATCH_VERSION 0)
+set(RAPTOR_VERSION ${RAPTOR_MAJOR_VERSION}.${RAPTOR_MINOR_VERSION}.${RAPTOR_PATCH_VERSION})
 
-add_definitions(-DENZYME_VERSION_MAJOR=${ENZYME_MAJOR_VERSION})
-add_definitions(-DENZYME_VERSION_MINOR=${ENZYME_MINOR_VERSION})
-add_definitions(-DENZYME_VERSION_PATCH=${ENZYME_PATCH_VERSION})
+add_definitions(-DRAPTOR_VERSION_MAJOR=${RAPTOR_MAJOR_VERSION})
+add_definitions(-DRAPTOR_VERSION_MINOR=${RAPTOR_MINOR_VERSION})
+add_definitions(-DRAPTOR_VERSION_PATCH=${RAPTOR_PATCH_VERSION})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -29,15 +28,15 @@ SET(CMAKE_CXX_FLAGS_DEBUG  "-O0 -g -ggdb -fno-omit-frame-pointer")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(ENZYME_CLANG "Build enzyme clang plugin" ON)
-option(ENZYME_FLANG "Build enzyme flang symlink" OFF)
-option(ENZYME_MLIR "Build enzyme mlir plugin" OFF)
-option(ENZYME_IFX "Enable enzyme support for the Intel Fortran compiler IFX" OFF)
-option(ENZYME_EXTERNAL_SHARED_LIB "Build external shared library" OFF)
-option(ENZYME_STATIC_LIB "Build static library" OFF)
-set(ENZYME_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set(ENZYME_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
-list(APPEND CMAKE_MODULE_PATH "${ENZYME_SOURCE_DIR}/cmake/modules")
+option(RAPTOR_CLANG "Build raptor clang plugin" ON)
+option(RAPTOR_FLANG "Build raptor flang symlink" OFF)
+option(RAPTOR_MLIR "Build raptor mlir plugin" OFF)
+option(RAPTOR_IFX "Enable raptor support for the Intel Fortran compiler IFX" OFF)
+option(RAPTOR_EXTERNAL_SHARED_LIB "Build external shared library" OFF)
+option(RAPTOR_STATIC_LIB "Build static library" OFF)
+set(RAPTOR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(RAPTOR_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
+list(APPEND CMAKE_MODULE_PATH "${RAPTOR_SOURCE_DIR}/cmake/modules")
 
 set(LLVM_SHLIBEXT "${CMAKE_SHARED_MODULE_SUFFIX}")
 if (APPLE)
@@ -94,7 +93,7 @@ message("found llvm lit " ${LLVM_EXTERNAL_LIT})
 
 list(INSERT CMAKE_PREFIX_PATH 0 "${LLVM_DIR}")
 message("LLVM dir ${LLVM_DIR}")
-if (ENZYME_CLANG)
+if (RAPTOR_CLANG)
 if (DEFINED Clang_DIR)
     get_filename_component(Clang_ABSOLUTE_DIR
       "${Clang_DIR}"
@@ -130,7 +129,7 @@ endif()
 else()
 endif()
 
-if (ENZYME_MLIR)
+if (RAPTOR_MLIR)
     if (DEFINED MLIR_DIR)
         get_filename_component(MLIR_ABSOLUTE_DIR
         "${MLIR_DIR}"
@@ -173,8 +172,8 @@ if (ENZYME_MLIR)
     endif()
 endif()
 
-if(ENZYME_IFX)
-    add_definitions(-DENZYME_IFX=1)
+if(RAPTOR_IFX)
+    add_definitions(-DRAPTOR_IFX=1)
     message("Building with support for the Intel Fortran compiler IFX")
 endif()
 
@@ -202,7 +201,7 @@ if (DEFINED MLIR_DIR)
         include_directories(${MLIR_INCLUDE_DIRS})
         message("MLIR inc dir ${MLIR_INCLUDE_DIRS}")
         add_definitions(${MLIR_DEFINITIONS})
-        add_definitions(-DENZYME_MLIR=1)
+        add_definitions(-DRAPTOR_MLIR=1)
         list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
         include(TableGen)
         include(AddMLIR)
@@ -224,13 +223,13 @@ if(LLVM_VERSION_MAJOR LESS 15)
   message(FATAL_ERROR "LLVM version < 15 is not supported")
 endif()
 
-option(ENZYME_FLANG_VERSION "Build for non-version compliant FLANG" OFF)
-if (ENZYME_FLANG_VERSION)
+option(RAPTOR_FLANG_VERSION "Build for non-version compliant FLANG" OFF)
+if (RAPTOR_FLANG_VERSION)
   add_definitions(-DFLANG=1)
 endif()
 
-option(ENZYME_ROCM_VERSION "Build for non-version compliant ROCM" OFF)
-if (ENZYME_ROCM_VERSION)
+option(RAPTOR_ROCM_VERSION "Build for non-version compliant ROCM" OFF)
+if (RAPTOR_ROCM_VERSION)
   add_definitions(-DROCM=1)
 endif()
 
@@ -239,7 +238,7 @@ set(INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header fi
 if(WIN32 AND NOT CYGWIN)
   set(DEF_INSTALL_CMAKE_DIR CMake)
 else()
-  set(DEF_INSTALL_CMAKE_DIR lib/cmake/Enzyme)
+  set(DEF_INSTALL_CMAKE_DIR lib/cmake/Raptor)
 endif()
 set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
   "Installation directory for CMake files")
@@ -269,7 +268,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/include/SCEV/ScalarEvolutionExpander.h" 
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/include")
 
 add_subdirectory(tools)
-add_subdirectory(Enzyme)
+add_subdirectory(Raptor)
 add_subdirectory(BCLoad)
 add_subdirectory(test)
 
@@ -288,56 +287,56 @@ if(NOT IS_ABSOLUTE "${${var}}")
 endif()
 endforeach()
 
-export(TARGETS LLVMEnzyme-${LLVM_VERSION_MAJOR}
-  FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
+export(TARGETS LLVMRaptor-${LLVM_VERSION_MAJOR}
+  FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 if (${Clang_FOUND})
-export(TARGETS ClangEnzyme-${LLVM_VERSION_MAJOR}
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS ClangEnzymeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
+export(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS ClangRaptorFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
-file(GLOB_RECURSE ENZYME_INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
-set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Enzyme/Clang/bundled_includes.h")
-list(APPEND ENZYME_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
+file(GLOB_RECURSE RAPTOR_INCLUDES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
+set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")
+list(APPEND RAPTOR_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
 add_custom_command(OUTPUT ${bundled_includes}
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/enzyme/enzyme
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/raptor
   ${bundled_includes}
-  DEPENDS ${ENZYME_INCLUDES}
+  DEPENDS ${RAPTOR_INCLUDES}
   COMMENT "Bundling includes"
   VERBATIM
 )
 add_custom_target(bundled_includes_target DEPENDS ${bundled_includes})
-add_dependencies(ClangEnzyme-${LLVM_VERSION_MAJOR} bundled_includes_target)
-target_include_directories(ClangEnzyme-${LLVM_VERSION_MAJOR} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Enzyme/Clang/")
+add_dependencies(ClangRaptor-${LLVM_VERSION_MAJOR} bundled_includes_target)
+target_include_directories(ClangRaptor-${LLVM_VERSION_MAJOR} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/")
 endif()
 
-if (${ENZYME_FLANG} AND ${Clang_FOUND})
+if (${RAPTOR_FLANG} AND ${Clang_FOUND})
 	add_custom_target(link_target ALL
   COMMAND ${CMAKE_COMMAND} -E create_symlink
-	  ClangEnzyme-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
-	  ${PROJECT_BINARY_DIR}/Enzyme/FlangEnzyme-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
+	  ClangRaptor-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
+	  ${PROJECT_BINARY_DIR}/Raptor/FlangRaptor-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
   )
 endif()
 
-export(TARGETS LLDEnzyme-${LLVM_VERSION_MAJOR}
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
+export(TARGETS LLDRaptor-${LLVM_VERSION_MAJOR}
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
-export(TARGETS LLDEnzymeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS LLDEnzymeAssumeUnknownNoFree
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS LLDEnzymeLooseTypeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS LLDEnzymePrintTypeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS LLDEnzymePrintFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
-export(TARGETS LLDEnzymeNoStrictAliasingFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/EnzymeTargets.cmake")
+export(TARGETS LLDRaptorFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS LLDRaptorAssumeUnknownNoFree
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS LLDRaptorLooseTypeFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS LLDRaptorPrintTypeFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS LLDRaptorPrintFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+export(TARGETS LLDRaptorNoStrictAliasingFlags
+    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
-export(PACKAGE Enzyme)
+export(PACKAGE Raptor)
 
 set(CONF_LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
 set(CONF_LLVM_VERSION_MINOR ${LLVM_VERSION_MINOR})
@@ -351,21 +350,21 @@ else()
 endif()
 
 set(CONF_INCLUDE_DIRS lib)
-configure_file(cmake/EnzymeConfig.cmake.in
-     "${PROJECT_BINARY_DIR}/EnzymeConfig.cmake" @ONLY)
+configure_file(cmake/RaptorConfig.cmake.in
+     "${PROJECT_BINARY_DIR}/RaptorConfig.cmake" @ONLY)
    
 set(CONF_INCLUDE_DIRS lib)
-configure_file(cmake/EnzymeConfig.cmake.in
-     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/EnzymeConfig.cmake" @ONLY)
+configure_file(cmake/RaptorConfig.cmake.in
+     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake" @ONLY)
 
-configure_file(cmake/EnzymeConfigVersion.cmake.in
-     "${PROJECT_BINARY_DIR}/EnzymeConfigVersion.cmake" @ONLY)
+configure_file(cmake/RaptorConfigVersion.cmake.in
+     "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake" @ONLY)
    
 install(FILES
-     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/EnzymeConfig.cmake"
-     "${PROJECT_BINARY_DIR}/EnzymeConfigVersion.cmake"
+     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake"
+     "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake"
      DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
    
-install(EXPORT EnzymeTargets 
+install(EXPORT RaptorTargets
   DESTINATION "${INSTALL_CMAKE_DIR}" 
   COMPONENT   dev)

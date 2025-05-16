@@ -5,13 +5,13 @@
 
 using namespace llvm;
 
-void registerEnzyme(llvm::PassBuilder &PB);
+void registerRaptor(llvm::PassBuilder &PB);
 
 extern "C" int optMain(int argc, char **argv,
                        llvm::ArrayRef<std::function<void(llvm::PassBuilder &)>>
                            PassBuilderCallbacks);
 
 int main(int argc, char **argv) {
-  std::function<void(llvm::PassBuilder &)> plugins[] = {registerEnzyme};
+  std::function<void(llvm::PassBuilder &)> plugins[] = {registerRaptor};
   return optMain(argc, argv, plugins);
 }

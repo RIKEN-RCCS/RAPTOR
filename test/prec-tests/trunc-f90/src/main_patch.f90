@@ -4,7 +4,7 @@ module truncate
   implicit none
 
   interface
-     function f_enzyme_get_trunc_flop_count() result(count) bind(C)
+     function f_raptor_get_trunc_flop_count() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -13,7 +13,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_double_flop_count() result(count) bind(C)
+     function f_raptor_get_double_flop_count() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -22,7 +22,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_float_flop_count() result(count) bind(C)
+     function f_raptor_get_float_flop_count() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -31,7 +31,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_half_flop_count() result(count) bind(C)
+     function f_raptor_get_half_flop_count() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -40,7 +40,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_memory_access_trunc_store() result(count) bind(C)
+     function f_raptor_get_memory_access_trunc_store() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -49,7 +49,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_memory_access_trunc_load() result(count) bind(C)
+     function f_raptor_get_memory_access_trunc_load() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -58,7 +58,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_memory_access_original_store() result(count) bind(C)
+     function f_raptor_get_memory_access_original_store() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -67,7 +67,7 @@ module truncate
   end interface
 
   interface
-     function f_enzyme_get_memory_access_original_load() result(count) bind(C)
+     function f_raptor_get_memory_access_original_load() result(count) bind(C)
        use, intrinsic :: iso_c_binding, only: c_long_long
        implicit none
 
@@ -76,7 +76,7 @@ module truncate
   end interface
 
   public :: simple_sum
-  public :: f__enzyme_truncate_op_func_simple_sum
+  public :: f__raptor_truncate_op_func_simple_sum
 contains
   ! function simple_sum(a, b) result(c)
   !   double precision, intent(in) :: a, b
@@ -85,7 +85,7 @@ contains
   !   c = a + b
   ! end function simple_sum
 
-  function f__enzyme_truncate_op_func_simple_sum(from, to_e, to_m, a, b) result(c)
+  function f__raptor_truncate_op_func_simple_sum(from, to_e, to_m, a, b) result(c)
     implicit none
 
     integer :: from, to_e, to_m
@@ -93,7 +93,7 @@ contains
     double precision :: c
 
     c = simple_sum(a, b)
-  end function f__enzyme_truncate_op_func_simple_sum
+  end function f__raptor_truncate_op_func_simple_sum
 end module truncate
 
 ! module simple_math
@@ -126,23 +126,23 @@ program trunc_f90
   read(args(1), *) a
   read(args(2), *) b
 
-  c = f__enzyme_truncate_op_func_simple_sum(64, 3, 4, a, b)
+  c = f__raptor_truncate_op_func_simple_sum(64, 3, 4, a, b)
 
   write(*,*) a, "+", b, "=", a+b
   write(*,*) a, "+", b, "=", c
 
-  write(*,*) "Number of truncated flops: ", f_enzyme_get_trunc_flop_count()
-  write(*,*) "Number of double flops: ", f_enzyme_get_double_flop_count()
-  write(*,*) "Number of float flops: ", f_enzyme_get_float_flop_count()
-  write(*,*) "Number of half flops: ", f_enzyme_get_half_flop_count()
+  write(*,*) "Number of truncated flops: ", f_raptor_get_trunc_flop_count()
+  write(*,*) "Number of double flops: ", f_raptor_get_double_flop_count()
+  write(*,*) "Number of float flops: ", f_raptor_get_float_flop_count()
+  write(*,*) "Number of half flops: ", f_raptor_get_half_flop_count()
 
-  write(*,*) "Number of truncated stores: ", f_enzyme_get_memory_access_trunc_store()
-  write(*,*) "Number of truncated loads: ", f_enzyme_get_memory_access_trunc_load()
-  write(*,*) "Number of original stores: ", f_enzyme_get_memory_access_original_store()
-  write(*,*) "Number of original loads: ", f_enzyme_get_memory_access_original_load()
+  write(*,*) "Number of truncated stores: ", f_raptor_get_memory_access_trunc_store()
+  write(*,*) "Number of truncated loads: ", f_raptor_get_memory_access_trunc_load()
+  write(*,*) "Number of original stores: ", f_raptor_get_memory_access_original_store()
+  write(*,*) "Number of original loads: ", f_raptor_get_memory_access_original_load()
 
 ! contains
-!   function f__enzyme_truncate_op_func_simple_sum(from, to_e, to_m, a, b) result(c)
+!   function f__raptor_truncate_op_func_simple_sum(from, to_e, to_m, a, b) result(c)
 !     use simple_math
 !     implicit none
 
@@ -151,5 +151,5 @@ program trunc_f90
 !     double precision :: c
 
 !     c = simple_sum(a, b)
-!   end function f__enzyme_truncate_op_func_simple_sum
+!   end function f__raptor_truncate_op_func_simple_sum
 end program trunc_f90

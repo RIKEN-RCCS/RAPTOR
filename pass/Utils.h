@@ -1,17 +1,17 @@
 //===- Utils.h - Declaration of miscellaneous utilities -------------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @misc{enzymeGithub,
+// @misc{raptorGithub,
 //  author = {William S. Moses and Valentin Churavy},
-//  title = {Enzyme: High Performance Automatic Differentiation of LLVM},
+//  title = {Raptor: High Performance Automatic Differentiation of LLVM},
 //  year = {2020},
-//  howpublished = {\url{https://github.com/wsmoses/Enzyme}},
+//  howpublished = {\url{https://github.com/wsmoses/Raptor}},
 //  note = {commit xxxxxxx}
 // }
 //
@@ -22,8 +22,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ENZYME_UTILS_H
-#define ENZYME_UTILS_H
+#ifndef RAPTOR_UTILS_H
+#define RAPTOR_UTILS_H
 
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
@@ -90,10 +90,10 @@ enum class ErrorType {
 
 extern "C" {
 /// Print additional debug info relevant to performance
-extern llvm::cl::opt<bool> EnzymePrintPerf;
-extern llvm::cl::opt<bool> EnzymeStrongZero;
-extern llvm::cl::opt<bool> EnzymeBlasCopy;
-extern llvm::cl::opt<bool> EnzymeLapackCopy;
+extern llvm::cl::opt<bool> RaptorPrintPerf;
+extern llvm::cl::opt<bool> RaptorStrongZero;
+extern llvm::cl::opt<bool> RaptorBlasCopy;
+extern llvm::cl::opt<bool> RaptorLapackCopy;
 extern LLVMValueRef (*CustomErrorHandler)(const char *, LLVMValueRef, ErrorType,
                                           const void *, LLVMValueRef,
                                           LLVMBuilderRef);
@@ -132,16 +132,16 @@ void EmitWarning(llvm::StringRef RemarkName,
                  const llvm::BasicBlock *BB, const Args &...args) {
 
   llvm::LLVMContext &Ctx = BB->getContext();
-  if (Ctx.getDiagHandlerPtr()->isPassedOptRemarkEnabled("enzyme")) {
+  if (Ctx.getDiagHandlerPtr()->isPassedOptRemarkEnabled("raptor")) {
     std::string str;
     llvm::raw_string_ostream ss(str);
     (ss << ... << args);
-    auto R = llvm::OptimizationRemark("enzyme", RemarkName, Loc, BB)
+    auto R = llvm::OptimizationRemark("raptor", RemarkName, Loc, BB)
              << ss.str();
     Ctx.diagnose(R);
   }
 
-  if (EnzymePrintPerf)
+  if (RaptorPrintPerf)
     (llvm::errs() << ... << args) << "\n";
 }
 
@@ -155,22 +155,22 @@ template <typename... Args>
 void EmitWarning(llvm::StringRef RemarkName, const llvm::Function &F,
                  const Args &...args) {
   llvm::LLVMContext &Ctx = F.getContext();
-  if (Ctx.getDiagHandlerPtr()->isPassedOptRemarkEnabled("enzyme")) {
+  if (Ctx.getDiagHandlerPtr()->isPassedOptRemarkEnabled("raptor")) {
     std::string str;
     llvm::raw_string_ostream ss(str);
     (ss << ... << args);
-    auto R = llvm::OptimizationRemark("enzyme", RemarkName, &F) << ss.str();
+    auto R = llvm::OptimizationRemark("raptor", RemarkName, &F) << ss.str();
     Ctx.diagnose(R);
   }
-  if (EnzymePrintPerf)
+  if (RaptorPrintPerf)
     (llvm::errs() << ... << args) << "\n";
 }
 
-class EnzymeFailure final : public llvm::DiagnosticInfoUnsupported {
+class RaptorFailure final : public llvm::DiagnosticInfoUnsupported {
 public:
-  EnzymeFailure(const llvm::Twine &Msg, const llvm::DiagnosticLocation &Loc,
+  RaptorFailure(const llvm::Twine &Msg, const llvm::DiagnosticLocation &Loc,
                 const llvm::Instruction *CodeRegion);
-  EnzymeFailure(const llvm::Twine &Msg, const llvm::DiagnosticLocation &Loc,
+  RaptorFailure(const llvm::Twine &Msg, const llvm::DiagnosticLocation &Loc,
                 const llvm::Function *CodeRegion);
 };
 
@@ -182,7 +182,7 @@ void EmitFailure(llvm::StringRef RemarkName,
   llvm::raw_string_ostream ss(*str);
   (ss << ... << args);
   CodeRegion->getContext().diagnose(
-      (EnzymeFailure("Enzyme: " + ss.str(), Loc, CodeRegion)));
+      (RaptorFailure("Raptor: " + ss.str(), Loc, CodeRegion)));
 }
 
 template <typename... Args>
@@ -193,7 +193,7 @@ void EmitFailure(llvm::StringRef RemarkName,
   llvm::raw_string_ostream ss(*str);
   (ss << ... << args);
   CodeRegion->getContext().diagnose(
-      (EnzymeFailure("Enzyme: " + ss.str(), Loc, CodeRegion)));
+      (RaptorFailure("Raptor: " + ss.str(), Loc, CodeRegion)));
 }
 
 static inline llvm::Function *isCalledFunction(llvm::Value *val) {
@@ -1151,10 +1151,10 @@ template <typename T> static inline llvm::Function *getFunctionFromCall(T *op) {
 }
 
 static inline llvm::StringRef getFuncName(llvm::Function *called) {
-  if (called->hasFnAttribute("enzyme_math"))
-    return called->getFnAttribute("enzyme_math").getValueAsString();
-  else if (called->hasFnAttribute("enzyme_allocator"))
-    return "enzyme_allocator";
+  if (called->hasFnAttribute("raptor_math"))
+    return called->getFnAttribute("raptor_math").getValueAsString();
+  else if (called->hasFnAttribute("raptor_allocator"))
+    return "raptor_allocator";
   else
     return called->getName();
 }
@@ -1162,10 +1162,10 @@ static inline llvm::StringRef getFuncName(llvm::Function *called) {
 static inline llvm::StringRef getFuncNameFromCall(const llvm::CallBase *op) {
   auto AttrList =
       op->getAttributes().getAttributes(llvm::AttributeList::FunctionIndex);
-  if (AttrList.hasAttribute("enzyme_math"))
-    return AttrList.getAttribute("enzyme_math").getValueAsString();
-  if (AttrList.hasAttribute("enzyme_allocator"))
-    return "enzyme_allocator";
+  if (AttrList.hasAttribute("raptor_math"))
+    return AttrList.getAttribute("raptor_math").getValueAsString();
+  if (AttrList.hasAttribute("raptor_allocator"))
+    return "raptor_allocator";
 
   if (auto called = getFunctionFromCall(op)) {
     return getFuncName(called);
@@ -1177,7 +1177,7 @@ static inline bool hasNoCache(llvm::Value *op) {
   using namespace llvm;
   if (auto CB = dyn_cast<CallBase>(op)) {
     if (auto called = getFunctionFromCall(CB)) {
-      if (called->hasFnAttribute("enzyme_nocache"))
+      if (called->hasFnAttribute("raptor_nocache"))
         return true;
     }
   }
@@ -1194,9 +1194,9 @@ getAllocationIndexFromCall(const llvm::CallBase *op)
 {
   auto AttrList =
       op->getAttributes().getAttributes(llvm::AttributeList::FunctionIndex);
-  if (AttrList.hasAttribute("enzyme_allocator")) {
+  if (AttrList.hasAttribute("raptor_allocator")) {
     size_t res;
-    bool b = AttrList.getAttribute("enzyme_allocator")
+    bool b = AttrList.getAttribute("raptor_allocator")
                  .getValueAsString()
                  .getAsInteger(10, res);
     (void)b;
@@ -1209,9 +1209,9 @@ getAllocationIndexFromCall(const llvm::CallBase *op)
   }
 
   if (auto called = getFunctionFromCall(op)) {
-    if (called->hasFnAttribute("enzyme_allocator")) {
+    if (called->hasFnAttribute("raptor_allocator")) {
       size_t res;
-      bool b = called->getFnAttribute("enzyme_allocator")
+      bool b = called->getFnAttribute("raptor_allocator")
                    .getValueAsString()
                    .getAsInteger(10, res);
       (void)b;
@@ -1232,14 +1232,14 @@ getAllocationIndexFromCall(const llvm::CallBase *op)
 
 template <typename T>
 static inline llvm::Function *getDeallocatorFnFromCall(T *op) {
-  if (auto MD = hasMetadata(op, "enzyme_deallocator_fn")) {
+  if (auto MD = hasMetadata(op, "raptor_deallocator_fn")) {
     auto md2 = llvm::cast<llvm::MDTuple>(MD);
     assert(md2->getNumOperands() == 1);
     return llvm::cast<llvm::Function>(
         llvm::cast<llvm::ConstantAsMetadata>(md2->getOperand(0))->getValue());
   }
   if (auto called = getFunctionFromCall(op)) {
-    if (auto MD = hasMetadata(called, "enzyme_deallocator_fn")) {
+    if (auto MD = hasMetadata(called, "raptor_deallocator_fn")) {
       auto md2 = llvm::cast<llvm::MDTuple>(MD);
       assert(md2->getNumOperands() == 1);
       return llvm::cast<llvm::Function>(
@@ -1256,12 +1256,12 @@ static inline std::vector<ssize_t> getDeallocationIndicesFromCall(T *op) {
   llvm::StringRef res = "";
   auto AttrList =
       op->getAttributes().getAttributes(llvm::AttributeList::FunctionIndex);
-  if (AttrList.hasAttribute("enzyme_deallocator"))
-    res = AttrList.getAttribute("enzyme_deaellocator").getValueAsString();
+  if (AttrList.hasAttribute("raptor_deallocator"))
+    res = AttrList.getAttribute("raptor_deaellocator").getValueAsString();
 
   if (auto called = getFunctionFromCall(op)) {
-    if (called->hasFnAttribute("enzyme_deallocator"))
-      res = called->getFnAttribute("enzyme_deallocator").getValueAsString();
+    if (called->hasFnAttribute("raptor_deallocator"))
+      res = called->getFnAttribute("raptor_deallocator").getValueAsString();
   }
   if (res.size() == 0)
     llvm_unreachable("Illegal deallocator");
@@ -1296,15 +1296,15 @@ static inline bool shouldDisableNoWrite(const llvm::CallInst *CI) {
   auto F = getFunctionFromCall(CI);
   auto funcName = getFuncNameFromCall(CI);
 
-  if (CI->hasFnAttr("enzyme_preserve_primal") ||
-      hasMetadata(CI, "enzyme_augment") || hasMetadata(CI, "enzyme_gradient") ||
-      hasMetadata(CI, "enzyme_derivative") ||
-      hasMetadata(CI, "enzyme_splitderivative") ||
+  if (CI->hasFnAttr("raptor_preserve_primal") ||
+      hasMetadata(CI, "raptor_augment") || hasMetadata(CI, "raptor_gradient") ||
+      hasMetadata(CI, "raptor_derivative") ||
+      hasMetadata(CI, "raptor_splitderivative") ||
       (F &&
-       (F->hasFnAttribute("enzyme_preserve_primal") ||
-        hasMetadata(F, "enzyme_augment") || hasMetadata(F, "enzyme_gradient") ||
-        hasMetadata(F, "enzyme_derivative") ||
-        hasMetadata(F, "enzyme_splitderivative"))) ||
+       (F->hasFnAttribute("raptor_preserve_primal") ||
+        hasMetadata(F, "raptor_augment") || hasMetadata(F, "raptor_gradient") ||
+        hasMetadata(F, "raptor_derivative") ||
+        hasMetadata(F, "raptor_splitderivative"))) ||
       !F) {
     return true;
   }
@@ -1362,7 +1362,7 @@ static inline bool isPointerArithmeticInst(const llvm::Value *V,
     if (funcName == "julia.pointer_from_objref") {
       return true;
     }
-    if (funcName.contains("__enzyme_todense")) {
+    if (funcName.contains("__raptor_todense")) {
       return true;
     }
   }
@@ -1406,9 +1406,9 @@ static inline llvm::Value *getBaseObject(llvm::Value *V,
       auto funcName = getFuncNameFromCall(Call);
       auto AttrList = Call->getAttributes().getAttributes(
           llvm::AttributeList::FunctionIndex);
-      if (AttrList.hasAttribute("enzyme_pointermath") && offsetAllowed) {
+      if (AttrList.hasAttribute("raptor_pointermath") && offsetAllowed) {
         size_t res = 0;
-        bool failed = AttrList.getAttribute("enzyme_pointermath")
+        bool failed = AttrList.getAttribute("raptor_pointermath")
                           .getValueAsString()
                           .getAsInteger(10, res);
         (void)failed;
@@ -1424,7 +1424,7 @@ static inline llvm::Value *getBaseObject(llvm::Value *V,
         V = Call->getArgOperand(1);
         continue;
       }
-      if (funcName.contains("__enzyme_todense")) {
+      if (funcName.contains("__raptor_todense")) {
 #if LLVM_VERSION_MAJOR >= 14
         size_t numargs = Call->arg_size();
 #else
@@ -1438,9 +1438,9 @@ static inline llvm::Value *getBaseObject(llvm::Value *V,
       if (auto fn = getFunctionFromCall(Call)) {
         auto AttrList = fn->getAttributes().getAttributes(
             llvm::AttributeList::FunctionIndex);
-        if (AttrList.hasAttribute("enzyme_pointermath") && offsetAllowed) {
+        if (AttrList.hasAttribute("raptor_pointermath") && offsetAllowed) {
           size_t res = 0;
-          bool failed = AttrList.getAttribute("enzyme_pointermath")
+          bool failed = AttrList.getAttribute("raptor_pointermath")
                             .getValueAsString()
                             .getAsInteger(10, res);
           (void)failed;
@@ -1508,8 +1508,8 @@ static inline bool isReadOnly(const llvm::Function *F, ssize_t arg = -1) {
     if (F->hasParamAttribute(arg, llvm::Attribute::ReadOnly) ||
         F->hasParamAttribute(arg, llvm::Attribute::ReadNone))
       return true;
-    // if (F->getAttributes().hasParamAttribute(arg, "enzyme_ReadOnly") ||
-    //     F->getAttributes().hasParamAttribute(arg, "enzyme_ReadNone"))
+    // if (F->getAttributes().hasParamAttribute(arg, "raptor_ReadOnly") ||
+    //     F->getAttributes().hasParamAttribute(arg, "raptor_ReadNone"))
     //   return true;
   }
   return false;
@@ -1597,7 +1597,7 @@ static inline bool isNoCapture(const llvm::CallBase *call, size_t idx) {
     if (F->getCallingConv() == call->getCallingConv())
       if (F->hasParamAttribute(idx, llvm::Attribute::NoCapture))
         return true;
-    // if (F->getAttributes().hasParamAttribute(idx, "enzyme_NoCapture"))
+    // if (F->getAttributes().hasParamAttribute(idx, "raptor_NoCapture"))
     //   return true;
   }
   return false;
@@ -1624,7 +1624,7 @@ static inline bool isNoAlias(const llvm::Value *val) {
 }
 
 static inline bool isNoEscapingAllocation(const llvm::Function *F) {
-  if (F->hasFnAttribute("enzyme_no_escaping_allocation"))
+  if (F->hasFnAttribute("raptor_no_escaping_allocation"))
     return true;
   using namespace llvm;
   switch (F->getIntrinsicID()) {
@@ -1706,7 +1706,7 @@ static inline bool isNoEscapingAllocation(const llvm::Function *F) {
 static inline bool isNoEscapingAllocation(const llvm::CallBase *call) {
   auto AttrList =
       call->getAttributes().getAttributes(llvm::AttributeList::FunctionIndex);
-  if (AttrList.hasAttribute("enzyme_no_escaping_allocation"))
+  if (AttrList.hasAttribute("raptor_no_escaping_allocation"))
     return true;
   if (auto F = getFunctionFromCall(call)) {
     auto res = isNoEscapingAllocation(F);
@@ -1744,7 +1744,7 @@ static inline llvm::Value *checkedMul(llvm::IRBuilder<> &Builder2,
                                       llvm::Value *idiff, llvm::Value *pres,
                                       const llvm::Twine &Name = "") {
   llvm::Value *res = Builder2.CreateFMul(idiff, pres, Name);
-  if (EnzymeStrongZero) {
+  if (RaptorStrongZero) {
     llvm::Value *zero = llvm::Constant::getNullValue(idiff->getType());
     if (auto C = llvm::dyn_cast<llvm::ConstantFP>(pres))
       if (!C->isInfinity() && !C->isNaN())
@@ -1757,7 +1757,7 @@ static inline llvm::Value *checkedDiv(llvm::IRBuilder<> &Builder2,
                                       llvm::Value *idiff, llvm::Value *pres,
                                       const llvm::Twine &Name = "") {
   llvm::Value *res = Builder2.CreateFDiv(idiff, pres, Name);
-  if (EnzymeStrongZero) {
+  if (RaptorStrongZero) {
     llvm::Value *zero = llvm::Constant::getNullValue(idiff->getType());
     if (auto C = llvm::dyn_cast<llvm::ConstantFP>(pres))
       if (!C->isZero() && !C->isNaN())
@@ -2022,4 +2022,4 @@ llvm::CallInst *createIntrinsicCall(llvm::IRBuilderBase &B,
                                     llvm::ArrayRef<llvm::Value *> Args,
                                     llvm::Instruction *FMFSource = nullptr,
                                     const llvm::Twine &Name = "");
-#endif // ENZYME_UTILS_H
+#endif // RAPTOR_UTILS_H

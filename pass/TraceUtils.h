@@ -1,13 +1,13 @@
 //===- TraceUtils.h - Utilites for interacting with traces  ---------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -54,11 +54,11 @@ public:
   llvm::SmallPtrSet<llvm::Function *, 4> sampleFunctions;
   llvm::SmallPtrSet<llvm::Function *, 4> observeFunctions;
 
-  constexpr static const char TraceParameterAttribute[] = "enzyme_trace";
+  constexpr static const char TraceParameterAttribute[] = "raptor_trace";
   constexpr static const char ObservationsParameterAttribute[] =
-      "enzyme_observations";
+      "raptor_observations";
   constexpr static const char LikelihoodParameterAttribute[] =
-      "enzyme_likelihood";
+      "raptor_likelihood";
 
 public:
   TraceUtils(ProbProgMode mode,

@@ -1,14 +1,14 @@
 //===- InstructionBatcher.h
 //--------------------------------------------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -45,7 +45,7 @@
 
 #include "llvm/ADT/SmallPtrSet.h"
 
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 
 class InstructionBatcher final : public llvm::InstVisitor<InstructionBatcher> {
 public:
@@ -56,7 +56,7 @@ public:
           &vectorizedValues,
       llvm::ValueMap<const llvm::Value *, llvm::WeakTrackingVH>
           &originalToNewFn,
-      llvm::SmallPtrSetImpl<llvm::Value *> &toVectorize, EnzymeLogic &Logic);
+      llvm::SmallPtrSetImpl<llvm::Value *> &toVectorize, RaptorLogic &Logic);
 
 private:
   llvm::ValueMap<const llvm::Value *, std::vector<llvm::Value *>>
@@ -64,7 +64,7 @@ private:
   llvm::ValueMap<const llvm::Value *, llvm::WeakTrackingVH> &originalToNewFn;
   llvm::SmallPtrSetImpl<llvm::Value *> &toVectorize;
   unsigned width;
-  EnzymeLogic &Logic;
+  RaptorLogic &Logic;
 
 private:
   llvm::Value *getNewOperand(unsigned int i, llvm::Value *op);

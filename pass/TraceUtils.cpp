@@ -1,13 +1,13 @@
 //===- TraceUtils.cpp - Utilites for interacting with traces  ------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -214,10 +214,10 @@ CallInst *TraceUtils::CreateTrace(IRBuilder<> &Builder, const Twine &Name) {
 #if LLVM_VERSION_MAJOR >= 14
   call->addAttributeAtIndex(
       AttributeList::FunctionIndex,
-      Attribute::get(call->getContext(), "enzyme_newtrace"));
+      Attribute::get(call->getContext(), "raptor_newtrace"));
 #else
   call->addAttribute(AttributeList::FunctionIndex,
-                     Attribute::get(call->getContext(), "enzyme_newtrace"));
+                     Attribute::get(call->getContext(), "raptor_newtrace"));
 
 #endif
   return call;
@@ -229,10 +229,10 @@ CallInst *TraceUtils::FreeTrace(IRBuilder<> &Builder) {
 #if LLVM_VERSION_MAJOR >= 14
   call->addAttributeAtIndex(
       AttributeList::FunctionIndex,
-      Attribute::get(call->getContext(), "enzyme_freetrace"));
+      Attribute::get(call->getContext(), "raptor_freetrace"));
 #else
   call->addAttribute(AttributeList::FunctionIndex,
-                     Attribute::get(call->getContext(), "enzyme_freetrace"));
+                     Attribute::get(call->getContext(), "raptor_freetrace"));
 
 #endif
   return call;
@@ -263,10 +263,10 @@ CallInst *TraceUtils::InsertCall(IRBuilder<> &Builder, Value *address,
 #if LLVM_VERSION_MAJOR >= 14
   call->addAttributeAtIndex(
       AttributeList::FunctionIndex,
-      Attribute::get(call->getContext(), "enzyme_insert_call"));
+      Attribute::get(call->getContext(), "raptor_insert_call"));
 #else
   call->addAttribute(AttributeList::FunctionIndex,
-                     Attribute::get(call->getContext(), "enzyme_insert_call"));
+                     Attribute::get(call->getContext(), "raptor_insert_call"));
 
 #endif
   return call;
@@ -379,10 +379,10 @@ Instruction *TraceUtils::GetChoice(IRBuilder<> &Builder, Value *address,
 #if LLVM_VERSION_MAJOR >= 14
   call->addAttributeAtIndex(
       AttributeList::FunctionIndex,
-      Attribute::get(call->getContext(), "enzyme_inactive"));
+      Attribute::get(call->getContext(), "raptor_inactive"));
 #else
   call->addAttribute(AttributeList::FunctionIndex,
-                     Attribute::get(call->getContext(), "enzyme_inactive"));
+                     Attribute::get(call->getContext(), "raptor_inactive"));
 #endif
   call->addParamAttr(1, Attribute::ReadOnly);
   call->addParamAttr(1, Attribute::NoCapture);

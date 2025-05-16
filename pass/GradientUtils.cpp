@@ -1,13 +1,13 @@
 //===- GradientUtils.cpp - Helper class and utilities for AD     ---------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -83,47 +83,47 @@ StringMap<std::function<bool(IRBuilder<> &, CallInst *, GradientUtils &,
 
 extern "C" {
 llvm::cl::opt<bool>
-    EnzymeNewCache("enzyme-new-cache", cl::init(true), cl::Hidden,
+    RaptorNewCache("raptor-new-cache", cl::init(true), cl::Hidden,
                    cl::desc("Use new cache decision algorithm"));
 
-llvm::cl::opt<bool> EnzymeMinCutCache("enzyme-mincut-cache", cl::init(true),
+llvm::cl::opt<bool> RaptorMinCutCache("raptor-mincut-cache", cl::init(true),
                                       cl::Hidden,
-                                      cl::desc("Use Enzyme Mincut algorithm"));
+                                      cl::desc("Use Raptor Mincut algorithm"));
 
-llvm::cl::opt<bool> EnzymeLoopInvariantCache(
-    "enzyme-loop-invariant-cache", cl::init(true), cl::Hidden,
+llvm::cl::opt<bool> RaptorLoopInvariantCache(
+    "raptor-loop-invariant-cache", cl::init(true), cl::Hidden,
     cl::desc("Attempt to hoist cache outside of loop"));
 
-llvm::cl::opt<bool> EnzymeInactiveDynamic(
-    "enzyme-inactive-dynamic", cl::init(true), cl::Hidden,
+llvm::cl::opt<bool> RaptorInactiveDynamic(
+    "raptor-inactive-dynamic", cl::init(true), cl::Hidden,
     cl::desc("Force wholy inactive dynamic loops to have 0 iter reverse pass"));
 
 llvm::cl::opt<bool>
-    EnzymeSharedForward("enzyme-shared-forward", cl::init(false), cl::Hidden,
+    RaptorSharedForward("raptor-shared-forward", cl::init(false), cl::Hidden,
                         cl::desc("Forward Shared Memory from definitions"));
 
 llvm::cl::opt<bool>
-    EnzymeRegisterReduce("enzyme-register-reduce", cl::init(false), cl::Hidden,
+    RaptorRegisterReduce("raptor-register-reduce", cl::init(false), cl::Hidden,
                          cl::desc("Reduce the amount of register reduce"));
 llvm::cl::opt<bool>
-    EnzymeSpeculatePHIs("enzyme-speculate-phis", cl::init(false), cl::Hidden,
+    RaptorSpeculatePHIs("raptor-speculate-phis", cl::init(false), cl::Hidden,
                         cl::desc("Speculatively execute phi computations"));
-llvm::cl::opt<bool> EnzymeFreeInternalAllocations(
-    "enzyme-free-internal-allocations", cl::init(true), cl::Hidden,
+llvm::cl::opt<bool> RaptorFreeInternalAllocations(
+    "raptor-free-internal-allocations", cl::init(true), cl::Hidden,
     cl::desc("Always free internal allocations (disable if allocation needs "
              "access outside)"));
 
 llvm::cl::opt<bool>
-    EnzymeRematerialize("enzyme-rematerialize", cl::init(true), cl::Hidden,
+    RaptorRematerialize("raptor-rematerialize", cl::init(true), cl::Hidden,
                         cl::desc("Rematerialize allocations/shadows in the "
                                  "reverse rather than caching"));
 
 llvm::cl::opt<bool>
-    EnzymeVectorSplitPhi("enzyme-vector-split-phi", cl::init(true), cl::Hidden,
+    RaptorVectorSplitPhi("raptor-vector-split-phi", cl::init(true), cl::Hidden,
                          cl::desc("Split phis according to vector size"));
 
 llvm::cl::opt<bool>
-    EnzymePrintDiffUse("enzyme-print-diffuse", cl::init(false), cl::Hidden,
+    RaptorPrintDiffUse("raptor-print-diffuse", cl::init(false), cl::Hidden,
                        cl::desc("Print differential use analysis"));
 }
 
@@ -154,7 +154,7 @@ static bool isPotentialLastLoopValue(llvm::Value *val,
 }
 
 GradientUtils::GradientUtils(
-    EnzymeLogic &Logic, Function *newFunc_, Function *oldFunc_,
+    RaptorLogic &Logic, Function *newFunc_, Function *oldFunc_,
     TargetLibraryInfo &TLI_, TypeAnalysis &TA_, TypeResults TR_,
     ValueToValueMapTy &invertedPointers_,
     const SmallPtrSetImpl<Value *> &constantvalues_,
@@ -547,7 +547,7 @@ Value *GradientUtils::getOrInsertConditionalIndex(Value *val, LoopContext &lc,
 }
 
 bool GradientUtils::assumeDynamicLoopOfSizeOne(Loop *L) const {
-  if (!EnzymeInactiveDynamic)
+  if (!RaptorInactiveDynamic)
     return false;
   auto OL = OrigLI->getLoopFor(isOriginal(L->getHeader()));
   assert(OL);
@@ -688,7 +688,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
   }
 
   if (isa<LoadInst>(val) &&
-      cast<LoadInst>(val)->getMetadata("enzyme_mustcache")) {
+      cast<LoadInst>(val)->getMetadata("raptor_mustcache")) {
     return val;
   }
 
@@ -792,7 +792,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
                       {ValueAsMetadata::get(const_cast<Value *>(pair.first)),
                        ValueAsMetadata::get(pair.second)}));
               placeholder->setMetadata(
-                  "enzyme_available",
+                  "raptor_available",
                   MDNode::get(placeholder->getContext(), avail));
               if (!permitCache)
                 return placeholder;
@@ -849,7 +849,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
                                            const_cast<Value *>(pair.first)),
                                        ValueAsMetadata::get(pair.second)}));
                   placeholder->setMetadata(
-                      "enzyme_available",
+                      "raptor_available",
                       MDNode::get(placeholder->getContext(), avail));
                   if (!permitCache)
                     return placeholder;
@@ -1230,7 +1230,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
     assert(val->getType() == toreturn->getType());
     return toreturn;
   } else if (auto load = dyn_cast<LoadInst>(val)) {
-    if (load->getMetadata("enzyme_noneedunwrap"))
+    if (load->getMetadata("raptor_noneedunwrap"))
       return load;
 
     bool legalMove = unwrapMode == UnwrapMode::LegalFullUnwrap ||
@@ -1395,7 +1395,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
       if (auto dli = dyn_cast_or_null<LoadInst>(hasUninverted(phi))) {
         // Almost identical code to unwrap load (replacing use of shadow
         // where appropriate)
-        if (dli->getMetadata("enzyme_noneedunwrap"))
+        if (dli->getMetadata("raptor_noneedunwrap"))
           return dli;
 
         bool legalMove = unwrapMode == UnwrapMode::LegalFullUnwrap ||
@@ -1879,7 +1879,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
                 if (prevIteration.count(PB)) {
                   assert(0 && "tri block prev iteration unhandled");
                 } else if (!DT.dominates(inst->getParent(), phi->getParent()) ||
-                           (!EnzymeSpeculatePHIs &&
+                           (!RaptorSpeculatePHIs &&
                             (isa<CallInst>(inst) || isa<LoadInst>(inst))))
                   vals.push_back(getOpFull(B, inst, nextScope));
                 else
@@ -2075,7 +2075,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
               }
               vals.push_back(___res);
             } else if (!DT.dominates(inst->getParent(), phi->getParent()) ||
-                       (!EnzymeSpeculatePHIs &&
+                       (!RaptorSpeculatePHIs &&
                         (isa<CallInst>(inst) || isa<LoadInst>(inst))))
               vals.push_back(getOpFull(B, inst, nextScope));
             else
@@ -2254,7 +2254,7 @@ Value *GradientUtils::unwrapM(Value *const val, IRBuilder<> &BuilderM,
           BasicBlock *nextScope = PB;
           // if (inst->getParent() == nextScope) nextScope = phi->getParent();
           if (!DT.dominates(inst->getParent(), phi->getParent()) ||
-              (!EnzymeSpeculatePHIs &&
+              (!RaptorSpeculatePHIs &&
                (isa<CallInst>(inst) || isa<LoadInst>(inst))))
             vals.push_back(getOpFull(B, inst, nextScope));
           else
@@ -3225,7 +3225,7 @@ BasicBlock *GradientUtils::prepRematerializedLoopEntry(LoopContext &lc) {
             ts->setDebugLoc(getNewFromOriginal(I.getDebugLoc()));
           } else if (auto CI = dyn_cast<CallInst>(&I)) {
             StringRef funcName = getFuncNameFromCall(CI);
-            if (funcName == "enzyme_zerotype")
+            if (funcName == "raptor_zerotype")
               continue;
             if (funcName == "julia.write_barrier" ||
                 funcName == "julia.write_barrier_binding" ||
@@ -3273,7 +3273,7 @@ BasicBlock *GradientUtils::prepRematerializedLoopEntry(LoopContext &lc) {
                 std::pair<AssertingVH<AllocaInst>, LimitContext>(cache, lctx));
           }
           auto cache = found->second.first;
-          if (auto MD = hasMetadata(&I, "enzyme_fromstack")) {
+          if (auto MD = hasMetadata(&I, "raptor_fromstack")) {
             auto replacement = NB.CreateAlloca(
                 Type::getInt8Ty(I.getContext()),
                 lookupM(getNewFromOriginal(I.getOperand(0)), NB, available));
@@ -3517,7 +3517,7 @@ BasicBlock *GradientUtils::prepRematerializedLoopEntry(LoopContext &lc) {
 
               anti = applyChainRule(orig->getType(), NB, rule);
 
-              if (auto MD = hasMetadata(orig, "enzyme_fromstack")) {
+              if (auto MD = hasMetadata(orig, "raptor_fromstack")) {
                 auto rule = [&](Value *anti) {
                   AllocaInst *replacement = NB.CreateAlloca(
                       Type::getInt8Ty(orig->getContext()), args[0]);
@@ -3886,7 +3886,7 @@ bool GradientUtils::legalRecompute(const Value *val,
   }
 
   if (isa<Instruction>(val) &&
-      cast<Instruction>(val)->getMetadata("enzyme_mustcache")) {
+      cast<Instruction>(val)->getMetadata("raptor_mustcache")) {
     return false;
   }
 
@@ -4043,13 +4043,13 @@ bool GradientUtils::legalRecompute(const Value *val,
     auto called = ci->getCalledFunction();
     Intrinsic::ID ID = Intrinsic::not_intrinsic;
 
-    if (ci->hasFnAttr("enzyme_shouldrecompute") ||
-        (called && called->hasFnAttribute("enzyme_shouldrecompute")) ||
+    if (ci->hasFnAttr("raptor_shouldrecompute") ||
+        (called && called->hasFnAttribute("raptor_shouldrecompute")) ||
         isMemFreeLibMFunction(n, &ID) || n == "lgamma_r" || n == "lgammaf_r" ||
         n == "lgammal_r" || n == "__lgamma_r_finite" ||
         n == "__lgammaf_r_finite" || n == "__lgammal_r_finite" || n == "tanh" ||
         n == "tanhf" || n == "__pow_finite" ||
-        n == "julia.pointer_from_objref" || startsWith(n, "enzyme_wrapmpi$$") ||
+        n == "julia.pointer_from_objref" || startsWith(n, "raptor_wrapmpi$$") ||
         n == "omp_get_thread_num" || n == "omp_get_max_threads") {
       return true;
     }
@@ -4085,7 +4085,7 @@ bool GradientUtils::shouldRecompute(const Value *val,
 
   // If this is a load from cache already, just reload this
   if (isa<LoadInst>(val) &&
-      cast<LoadInst>(val)->getMetadata("enzyme_fromcache"))
+      cast<LoadInst>(val)->getMetadata("raptor_fromcache"))
     return true;
 
   if (!isa<Instruction>(val))
@@ -4109,7 +4109,7 @@ bool GradientUtils::shouldRecompute(const Value *val,
   if (isa<CastInst>(val) || isa<GetElementPtrInst>(val))
     return true;
 
-  if (EnzymeNewCache && !EnzymeMinCutCache) {
+  if (RaptorNewCache && !RaptorMinCutCache) {
     // if this has operands that need to be loaded and haven't already been
     // loaded
     // TODO, just cache this
@@ -4194,12 +4194,12 @@ bool GradientUtils::shouldRecompute(const Value *val,
     auto called = ci->getCalledFunction();
     auto n = getFuncNameFromCall(const_cast<CallInst *>(ci));
     Intrinsic::ID ID = Intrinsic::not_intrinsic;
-    if ((called && called->hasFnAttribute("enzyme_shouldrecompute")) ||
+    if ((called && called->hasFnAttribute("raptor_shouldrecompute")) ||
         isMemFreeLibMFunction(n, &ID) || n == "lgamma_r" || n == "lgammaf_r" ||
         n == "lgammal_r" || n == "__lgamma_r_finite" ||
         n == "__lgammaf_r_finite" || n == "__lgammal_r_finite" || n == "tanh" ||
         n == "tanhf" || n == "__pow_finite" ||
-        n == "julia.pointer_from_objref" || startsWith(n, "enzyme_wrapmpi$$") ||
+        n == "julia.pointer_from_objref" || startsWith(n, "raptor_wrapmpi$$") ||
         n == "omp_get_thread_num" || n == "omp_get_max_threads" ||
         startsWith(n, "_ZN4libm4math3log")) {
       return true;
@@ -4249,7 +4249,7 @@ MDNode *GradientUtils::getDerivativeAliasScope(const Value *origptr,
 }
 
 GradientUtils *GradientUtils::CreateFromClone(
-    EnzymeLogic &Logic, bool runtimeActivity, unsigned width, Function *todiff,
+    RaptorLogic &Logic, bool runtimeActivity, unsigned width, Function *todiff,
     TargetLibraryInfo &TLI, TypeAnalysis &TA, FnTypeInfo &oldTypeInfo,
     DIFFE_TYPE retType, ArrayRef<DIFFE_TYPE> constant_args, bool returnUsed,
     bool shadowReturnUsed, std::map<AugmentedStruct, int> &returnMapping,
@@ -4432,7 +4432,7 @@ DIFFE_TYPE GradientUtils::getDiffeType(Value *v, bool foreignFunction) const {
 }
 
 Constant *GradientUtils::GetOrCreateShadowConstant(
-    RequestContext context, EnzymeLogic &Logic, TargetLibraryInfo &TLI,
+    RequestContext context, RaptorLogic &Logic, TargetLibraryInfo &TLI,
     TypeAnalysis &TA, Constant *oval, DerivativeMode mode, bool runtimeActivity,
     unsigned width, bool AtomicAdd) {
   if (isa<ConstantPointerNull>(oval)) {
@@ -4497,8 +4497,8 @@ Constant *GradientUtils::GetOrCreateShadowConstant(
         startsWith(arg->getName(), "??_R")) // any of the MS RTTI manglings
       return arg;
 
-    if (hasMetadata(arg, "enzyme_shadow")) {
-      auto md = arg->getMetadata("enzyme_shadow");
+    if (hasMetadata(arg, "raptor_shadow")) {
+      auto md = arg->getMetadata("raptor_shadow");
       if (!isa<MDTuple>(md)) {
         llvm::errs() << *arg << "\n";
         llvm::errs() << *md << "\n";
@@ -4535,7 +4535,7 @@ Constant *GradientUtils::GetOrCreateShadowConstant(
           Constant::getNullValue(type), arg->getName() + "_shadow", arg,
           arg->getThreadLocalMode(), arg->getType()->getAddressSpace(),
           arg->isExternallyInitialized());
-      arg->setMetadata("enzyme_shadow",
+      arg->setMetadata("raptor_shadow",
                        MDTuple::get(shadow->getContext(),
                                     {ConstantAsMetadata::get(shadow)}));
       shadow->setAlignment(arg->getAlign());
@@ -4552,7 +4552,7 @@ Constant *GradientUtils::GetOrCreateShadowConstant(
 }
 
 Constant *GradientUtils::GetOrCreateShadowFunction(
-    RequestContext context, EnzymeLogic &Logic, TargetLibraryInfo &TLI,
+    RequestContext context, RaptorLogic &Logic, TargetLibraryInfo &TLI,
     TypeAnalysis &TA, Function *fn, DerivativeMode mode, bool runtimeActivity,
     unsigned width, bool AtomicAdd) {
   //! Todo allow tape propagation
@@ -4565,8 +4565,8 @@ Constant *GradientUtils::GetOrCreateShadowFunction(
   //  failure, among much worse)
   bool isRealloc = false;
   if (fn->empty()) {
-    if (hasMetadata(fn, "enzyme_callwrapper")) {
-      auto md = fn->getMetadata("enzyme_callwrapper");
+    if (hasMetadata(fn, "raptor_callwrapper")) {
+      auto md = fn->getMetadata("raptor_callwrapper");
       if (!isa<MDTuple>(md)) {
         llvm::errs() << *fn << "\n";
         llvm::errs() << *md << "\n";
@@ -4592,7 +4592,7 @@ Constant *GradientUtils::GetOrCreateShadowFunction(
       else
         B.CreateRet(res);
       oldfn->setMetadata(
-          "enzyme_callwrapper",
+          "raptor_callwrapper",
           MDTuple::get(oldfn->getContext(), {ConstantAsMetadata::get(fn)}));
       if (oldfn->getName() == "realloc")
         isRealloc = true;
@@ -4671,8 +4671,8 @@ Constant *GradientUtils::GetOrCreateShadowFunction(
     assert(newf);
 
     std::string prefix = (mode == DerivativeMode::ForwardMode)
-                             ? "_enzyme_forward"
-                             : "_enzyme_forwarderror";
+                             ? "_raptor_forward"
+                             : "_raptor_forwarderror";
 
     if (width > 1) {
       prefix += std::to_string(width);
@@ -4703,7 +4703,7 @@ Constant *GradientUtils::GetOrCreateShadowFunction(
 
     assert(newf);
 
-    std::string prefix = "_enzyme_forwardsplit";
+    std::string prefix = "_raptor_forwardsplit";
 
     if (width > 1) {
       prefix += std::to_string(width);
@@ -4761,7 +4761,7 @@ Constant *GradientUtils::GetOrCreateShadowFunction(
         StructType::get(newf->getContext(),
                         {augdata.fn->getType(), newf->getType()}),
         {augdata.fn, newf});
-    std::string globalname = ("_enzyme_reverse_" + fn->getName() + "'").str();
+    std::string globalname = ("_raptor_reverse_" + fn->getName() + "'").str();
     auto GV = fn->getParent()->getNamedValue(globalname);
 
     if (GV == nullptr) {
@@ -5351,7 +5351,7 @@ Value *GradientUtils::invertPointerM(Value *const oval, IRBuilder<> &BuilderM,
     Value *aliasTarget = arg->getAliasee();
     return invertPointerM(aliasTarget, BuilderM, nullShadow);
   } else if (auto arg = dyn_cast<GlobalVariable>(oval)) {
-    if (!hasMetadata(arg, "enzyme_shadow")) {
+    if (!hasMetadata(arg, "raptor_shadow")) {
 
       if ((mode == DerivativeMode::ReverseModeCombined ||
            mode == DerivativeMode::ForwardMode ||
@@ -5457,10 +5457,10 @@ Value *GradientUtils::invertPointerM(Value *const oval, IRBuilder<> &BuilderM,
             UndefValue::get(type), arg->getName() + "_shadow", arg,
             arg->getThreadLocalMode(), arg->getType()->getAddressSpace(),
             arg->isExternallyInitialized());
-        arg->setMetadata("enzyme_shadow",
+        arg->setMetadata("raptor_shadow",
                          MDTuple::get(shadow->getContext(),
                                       {ConstantAsMetadata::get(shadow)}));
-        shadow->setMetadata("enzyme_internalshadowglobal",
+        shadow->setMetadata("raptor_internalshadowglobal",
                             MDTuple::get(shadow->getContext(), {}));
         shadow->setAlignment(arg->getAlign());
         shadow->setUnnamedAddr(arg->getUnnamedAddr());
@@ -5495,7 +5495,7 @@ Value *GradientUtils::invertPointerM(Value *const oval, IRBuilder<> &BuilderM,
 
         Value *shadow = applyChainRule(oval->getType(), BuilderM, rule);
         arg->setMetadata(
-            "enzyme_shadow",
+            "raptor_shadow",
             MDTuple::get(shadow->getContext(),
                          {ConstantAsMetadata::get(cast<Constant>(shadow))}));
         if (getWidth() != 1) {
@@ -5533,7 +5533,7 @@ Value *GradientUtils::invertPointerM(Value *const oval, IRBuilder<> &BuilderM,
       }
       return UndefValue::get(getShadowType(arg->getType()));
     }
-    auto md = arg->getMetadata("enzyme_shadow");
+    auto md = arg->getMetadata("raptor_shadow");
     if (!isa<MDTuple>(md)) {
       llvm::errs() << *arg << "\n";
       llvm::errs() << *md << "\n";
@@ -6184,7 +6184,7 @@ Value *GradientUtils::invertPointerM(Value *const oval, IRBuilder<> &BuilderM,
         bb.SetInsertPoint(bb.GetInsertBlock(), bb.GetInsertBlock()->begin());
       }
 
-      if (EnzymeVectorSplitPhi && width > 1) {
+      if (RaptorVectorSplitPhi && width > 1) {
         IRBuilder<> postPhi(NewV->getParent()->getFirstNonPHI());
         Type *shadowTy = getShadowType(phi->getType());
         PHINode *tmp = bb.CreatePHI(shadowTy, phi->getNumIncomingValues());
@@ -6377,7 +6377,7 @@ Value *GradientUtils::lookupM(Value *val, IRBuilder<> &BuilderM,
 
   bool reduceRegister = false;
 
-  if (EnzymeRegisterReduce) {
+  if (RaptorRegisterReduce) {
     if (auto II = dyn_cast<IntrinsicInst>(inst)) {
       switch (II->getIntrinsicID()) {
       case Intrinsic::nvvm_ldu_global_i:
@@ -6736,7 +6736,7 @@ Value *GradientUtils::lookupM(Value *val, IRBuilder<> &BuilderM,
             Arch == Triple::amdgcn
                 ? (int)AMDGPU::HSAMD::AddressSpaceQualifier::Local
                 : 3;
-        if (EnzymeSharedForward && scev1 != OrigSE->getCouldNotCompute() &&
+        if (RaptorSharedForward && scev1 != OrigSE->getCouldNotCompute() &&
             cast<PointerType>(orig_liobj->getType())->getAddressSpace() ==
                 SharedAddrSpace) {
           Value *resultValue = nullptr;
@@ -6946,7 +6946,7 @@ Value *GradientUtils::lookupM(Value *val, IRBuilder<> &BuilderM,
 
       // this is guarded because havent told cacheForReverse how to move
       if (mode == DerivativeMode::ReverseModeCombined)
-        if (!li->isVolatile() && EnzymeLoopInvariantCache) {
+        if (!li->isVolatile() && RaptorLoopInvariantCache) {
           if (auto AI = dyn_cast<AllocaInst>(liobj)) {
             assert(isa<AllocaInst>(orig_liobj));
             if (auto AT = dyn_cast<ArrayType>(AI->getAllocatedType()))
@@ -7140,7 +7140,7 @@ Value *GradientUtils::lookupM(Value *val, IRBuilder<> &BuilderM,
                 {
                   SCEVExpander OrigExp(
                       *OrigSE, ctx->getParent()->getParent()->getDataLayout(),
-                      "enzyme");
+                      "raptor");
 
                   OrigExp.setInsertPoint(
                       isOriginal(l1.header)->getTerminator());
@@ -8020,7 +8020,7 @@ nofast:;
 }
 
 void GradientUtils::computeMinCache() {
-  if (EnzymeMinCutCache) {
+  if (RaptorMinCutCache) {
     SetVector<Value *> Recomputes;
 
     std::map<UsageKey, bool> FullSeen;
@@ -8321,7 +8321,7 @@ void GradientUtils::forceActiveDetection() {
     for (Instruction &I : BB) {
       bool const_inst = ATA->isConstantInstruction(TR, &I);
       bool const_value = ATA->isConstantValue(TR, &I);
-      if (EnzymePrintActivity)
+      if (RaptorPrintActivity)
         llvm::errs() << I << " cv=" << const_value << " ci=" << const_inst
                      << "\n";
     }
@@ -8350,21 +8350,21 @@ bool GradientUtils::isConstantValue(Value *val) const {
   }
 
   if (auto gv = dyn_cast<GlobalVariable>(val)) {
-    if (hasMetadata(gv, "enzyme_shadow"))
+    if (hasMetadata(gv, "raptor_shadow"))
       return false;
-    if (auto md = gv->getMetadata("enzyme_activity_value")) {
+    if (auto md = gv->getMetadata("raptor_activity_value")) {
       auto res = cast<MDString>(md->getOperand(0))->getString();
       if (res == "const")
         return true;
       if (res == "active")
         return false;
     }
-    if (EnzymeNonmarkedGlobalsInactive)
+    if (RaptorNonmarkedGlobalsInactive)
       return true;
     goto err;
   }
   if (isa<GlobalValue>(val)) {
-    if (EnzymeNonmarkedGlobalsInactive)
+    if (RaptorNonmarkedGlobalsInactive)
       return true;
     goto err;
   }
@@ -8670,9 +8670,9 @@ void SubTransferHelper(GradientUtils *gutils, DerivativeMode mode,
       // (i.e. suppose we are copying constant memory representing dimensions
       // into a tensor)
       //  to ensure that the differential tensor is well formed for use
-      //  OUTSIDE the derivative generation (as enzyme doesn't need this), we
+      //  OUTSIDE the derivative generation (as raptor doesn't need this), we
       //  should also perform the copy onto the differential. Future
-      //  Optimization (not implemented): If dst can never escape Enzyme code,
+      //  Optimization (not implemented): If dst can never escape Raptor code,
       //  we may omit this copy.
       // no need to update pointers, even if dst is active
       auto dsto = shadow_dst;
@@ -8714,7 +8714,7 @@ void SubTransferHelper(GradientUtils *gutils, DerivativeMode mode,
 }
 
 void GradientUtils::computeForwardingProperties(Instruction *V) {
-  if (!EnzymeRematerialize)
+  if (!RaptorRematerialize)
     return;
 
   // For the piece of memory V allocated within this scope, it will be
@@ -8832,7 +8832,7 @@ void GradientUtils::computeForwardingProperties(Instruction *V) {
         }
         continue;
       }
-      if (funcName == "enzyme_zerotype") {
+      if (funcName == "raptor_zerotype") {
         stores.insert(CI);
         continue;
       }
@@ -8889,8 +8889,8 @@ void GradientUtils::computeForwardingProperties(Instruction *V) {
           // values are never `needed` in the reverse pass (just we need to mark
           // those values as being GC'd by the function).
           bool returnRoots =
-              CI->getAttributes().hasParamAttr(idx, "enzymejl_returnRoots") ||
-              CI->getAttributes().hasParamAttr(idx, "enzymejl_returnRoots_v");
+              CI->getAttributes().hasParamAttr(idx, "raptorjl_returnRoots") ||
+              CI->getAttributes().hasParamAttr(idx, "raptorjl_returnRoots_v");
           if (primalNeededInReverse && !returnRoots) {
             promotable = false;
             EmitWarning("NotPromotable", *cur, " Could not promote allocation ",
@@ -9254,7 +9254,7 @@ void GradientUtils::computeGuaranteedFrees() {
       }
       if (isAllocationFunction(funcName, TLI)) {
         allocsToPromote.insert(CI);
-        if (hasMetadata(CI, "enzyme_fromstack")) {
+        if (hasMetadata(CI, "raptor_fromstack")) {
           allocationsWithGuaranteedFree[CI].insert(CI);
         }
         if (funcName == "jl_alloc_array_1d" ||
@@ -9335,7 +9335,7 @@ llvm::CallInst *freeKnownAllocation(llvm::IRBuilder<> &builder,
       allocationfn == "ijl_gc_alloc_typed")
     return nullptr;
 
-  if (allocationfn == "enzyme_allocator") {
+  if (allocationfn == "raptor_allocator") {
     auto inds = getDeallocationIndicesFromCall(orig);
     SmallVector<Value *, 2> vals;
     for (auto ind : inds) {
@@ -9534,7 +9534,7 @@ bool GradientUtils::needsCacheWholeAllocation(
         // as GC will deal with any issues with.
         if (auto PT = dyn_cast<PointerType>(CI->getArgOperand(idx)->getType()))
           if (PT->getAddressSpace() == 10)
-            if (EnzymeJuliaAddrLoad)
+            if (RaptorJuliaAddrLoad)
               if (auto F = getFunctionFromCall(CI))
                 if (!F->empty())
                   continue;
@@ -9587,7 +9587,7 @@ bool GradientUtils::needsCacheWholeAllocation(
     // GC will deal with any issues with.
     if (auto PT = dyn_cast<PointerType>(cur->getType()))
       if (PT->getAddressSpace() == 10)
-        if (EnzymeJuliaAddrLoad)
+        if (RaptorJuliaAddrLoad)
           continue;
 
     // If caching this user, it cannot be a gep/cast of original

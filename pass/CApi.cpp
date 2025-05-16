@@ -1,13 +1,13 @@
-//===- CApi.cpp - Enzyme API exported to C for external use -----------===//
+//===- CApi.cpp - Raptor API exported to C for external use -----------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -18,7 +18,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines various utility functions of Enzyme for access via C
+// This file defines various utility functions of Raptor for access via C
 //
 //===----------------------------------------------------------------------===//
 #include "CApi.h"
@@ -34,7 +34,7 @@
 
 #include "DiffeGradientUtils.h"
 #include "DifferentialUseAnalysis.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "GradientUtils.h"
 #include "LibraryFuncs.h"
 #if LLVM_VERSION_MAJOR >= 16
@@ -65,20 +65,20 @@ TargetLibraryInfo eunwrap(LLVMTargetLibraryInfoRef P) {
   return TargetLibraryInfo(*reinterpret_cast<TargetLibraryInfoImpl *>(P));
 }
 
-EnzymeLogic &eunwrap(EnzymeLogicRef LR) { return *(EnzymeLogic *)LR; }
+RaptorLogic &eunwrap(RaptorLogicRef LR) { return *(RaptorLogic *)LR; }
 
-TraceInterface *eunwrap(EnzymeTraceInterfaceRef Ref) {
+TraceInterface *eunwrap(RaptorTraceInterfaceRef Ref) {
   return (TraceInterface *)Ref;
 }
 
-TypeAnalysis &eunwrap(EnzymeTypeAnalysisRef TAR) {
+TypeAnalysis &eunwrap(RaptorTypeAnalysisRef TAR) {
   return *(TypeAnalysis *)TAR;
 }
-AugmentedReturn *eunwrap(EnzymeAugmentedReturnPtr ARP) {
+AugmentedReturn *eunwrap(RaptorAugmentedReturnPtr ARP) {
   return (AugmentedReturn *)ARP;
 }
-EnzymeAugmentedReturnPtr ewrap(const AugmentedReturn &AR) {
-  return (EnzymeAugmentedReturnPtr)(&AR);
+RaptorAugmentedReturnPtr ewrap(const AugmentedReturn &AR) {
+  return (RaptorAugmentedReturnPtr)(&AR);
 }
 
 ConcreteType eunwrap(CConcreteType CDT, llvm::LLVMContext &ctx) {
@@ -180,35 +180,35 @@ FnTypeInfo eunwrap(CFnTypeInfo CTI, llvm::Function *F) {
 
 extern "C" {
 
-void EnzymeSetCLBool(void *ptr, uint8_t val) {
+void RaptorSetCLBool(void *ptr, uint8_t val) {
   auto cl = (llvm::cl::opt<bool> *)ptr;
   cl->setValue((bool)val);
 }
 
-uint8_t EnzymeGetCLBool(void *ptr) {
+uint8_t RaptorGetCLBool(void *ptr) {
   auto cl = (llvm::cl::opt<bool> *)ptr;
   return (uint8_t)(bool)cl->getValue();
 }
 
-void EnzymeSetCLInteger(void *ptr, int64_t val) {
+void RaptorSetCLInteger(void *ptr, int64_t val) {
   auto cl = (llvm::cl::opt<int> *)ptr;
   cl->setValue((int)val);
 }
 
-int64_t EnzymeGetCLInteger(void *ptr) {
+int64_t RaptorGetCLInteger(void *ptr) {
   auto cl = (llvm::cl::opt<int> *)ptr;
   return (int64_t)cl->getValue();
 }
 
-EnzymeLogicRef CreateEnzymeLogic(uint8_t PostOpt) {
-  return (EnzymeLogicRef)(new EnzymeLogic((bool)PostOpt));
+RaptorLogicRef CreateRaptorLogic(uint8_t PostOpt) {
+  return (RaptorLogicRef)(new RaptorLogic((bool)PostOpt));
 }
 
-EnzymeTraceInterfaceRef FindEnzymeStaticTraceInterface(LLVMModuleRef M) {
-  return (EnzymeTraceInterfaceRef)(new StaticTraceInterface(unwrap(M)));
+RaptorTraceInterfaceRef FindRaptorStaticTraceInterface(LLVMModuleRef M) {
+  return (RaptorTraceInterfaceRef)(new StaticTraceInterface(unwrap(M)));
 }
 
-EnzymeTraceInterfaceRef CreateEnzymeStaticTraceInterface(
+RaptorTraceInterfaceRef CreateRaptorStaticTraceInterface(
     LLVMContextRef C, LLVMValueRef getTraceFunction,
     LLVMValueRef getChoiceFunction, LLVMValueRef insertCallFunction,
     LLVMValueRef insertChoiceFunction, LLVMValueRef insertArgumentFunction,
@@ -217,7 +217,7 @@ EnzymeTraceInterfaceRef CreateEnzymeStaticTraceInterface(
     LLVMValueRef insertArgumentGradientFunction, LLVMValueRef newTraceFunction,
     LLVMValueRef freeTraceFunction, LLVMValueRef hasCallFunction,
     LLVMValueRef hasChoiceFunction) {
-  return (EnzymeTraceInterfaceRef)(new StaticTraceInterface(
+  return (RaptorTraceInterfaceRef)(new StaticTraceInterface(
       *unwrap(C), cast<Function>(unwrap(getTraceFunction)),
       cast<Function>(unwrap(getChoiceFunction)),
       cast<Function>(unwrap(insertCallFunction)),
@@ -233,31 +233,31 @@ EnzymeTraceInterfaceRef CreateEnzymeStaticTraceInterface(
       cast<Function>(unwrap(hasChoiceFunction))));
 };
 
-EnzymeTraceInterfaceRef
-CreateEnzymeDynamicTraceInterface(LLVMValueRef interface, LLVMValueRef F) {
-  return (EnzymeTraceInterfaceRef)(new DynamicTraceInterface(
+RaptorTraceInterfaceRef
+CreateRaptorDynamicTraceInterface(LLVMValueRef interface, LLVMValueRef F) {
+  return (RaptorTraceInterfaceRef)(new DynamicTraceInterface(
       unwrap(interface), cast<Function>(unwrap(F))));
 }
 
-void ClearEnzymeLogic(EnzymeLogicRef Ref) { eunwrap(Ref).clear(); }
+void ClearRaptorLogic(RaptorLogicRef Ref) { eunwrap(Ref).clear(); }
 
-void EnzymeLogicErasePreprocessedFunctions(EnzymeLogicRef Ref) {
+void RaptorLogicErasePreprocessedFunctions(RaptorLogicRef Ref) {
   auto &Logic = eunwrap(Ref);
   for (const auto &pair : Logic.PPC.cache)
     pair.second->eraseFromParent();
 }
 
-void FreeEnzymeLogic(EnzymeLogicRef Ref) { delete (EnzymeLogic *)Ref; }
+void FreeRaptorLogic(RaptorLogicRef Ref) { delete (RaptorLogic *)Ref; }
 
-void FreeTraceInterface(EnzymeTraceInterfaceRef Ref) {
+void FreeTraceInterface(RaptorTraceInterfaceRef Ref) {
   delete (TraceInterface *)Ref;
 }
 
-EnzymeTypeAnalysisRef CreateTypeAnalysis(EnzymeLogicRef Log,
+RaptorTypeAnalysisRef CreateTypeAnalysis(RaptorLogicRef Log,
                                          char **customRuleNames,
                                          CustomRuleType *customRules,
                                          size_t numRules) {
-  TypeAnalysis *TA = new TypeAnalysis(((EnzymeLogic *)Log)->PPC.FAM);
+  TypeAnalysis *TA = new TypeAnalysis(((RaptorLogic *)Log)->PPC.FAM);
   for (size_t i = 0; i < numRules; i++) {
     CustomRuleType rule = customRules[i];
     TA->CustomRules[customRuleNames[i]] =
@@ -287,42 +287,42 @@ EnzymeTypeAnalysisRef CreateTypeAnalysis(EnzymeLogicRef Log,
       return result;
     };
   }
-  return (EnzymeTypeAnalysisRef)TA;
+  return (RaptorTypeAnalysisRef)TA;
 }
 
-void ClearTypeAnalysis(EnzymeTypeAnalysisRef TAR) { eunwrap(TAR).clear(); }
+void ClearTypeAnalysis(RaptorTypeAnalysisRef TAR) { eunwrap(TAR).clear(); }
 
-void FreeTypeAnalysis(EnzymeTypeAnalysisRef TAR) {
+void FreeTypeAnalysis(RaptorTypeAnalysisRef TAR) {
   TypeAnalysis *TA = (TypeAnalysis *)TAR;
   delete TA;
 }
 
-void *EnzymeAnalyzeTypes(EnzymeTypeAnalysisRef TAR, CFnTypeInfo CTI,
+void *RaptorAnalyzeTypes(RaptorTypeAnalysisRef TAR, CFnTypeInfo CTI,
                          LLVMValueRef F) {
   FnTypeInfo FTI(eunwrap(CTI, cast<Function>(unwrap(F))));
   return (void *)((TypeAnalysis *)TAR)->analyzeFunction(FTI).analyzer;
 }
 
-void *EnzymeGradientUtilsTypeAnalyzer(GradientUtils *G) {
+void *RaptorGradientUtilsTypeAnalyzer(GradientUtils *G) {
   return (void *)&G->TR.analyzer;
 }
 
-void EnzymeGradientUtilsErase(GradientUtils *G, LLVMValueRef I) {
+void RaptorGradientUtilsErase(GradientUtils *G, LLVMValueRef I) {
   return G->erase(cast<Instruction>(unwrap(I)));
 }
-void EnzymeGradientUtilsEraseWithPlaceholder(GradientUtils *G, LLVMValueRef I,
+void RaptorGradientUtilsEraseWithPlaceholder(GradientUtils *G, LLVMValueRef I,
                                              LLVMValueRef orig, uint8_t erase) {
   return G->eraseWithPlaceholder(cast<Instruction>(unwrap(I)),
                                  cast<Instruction>(unwrap(orig)),
                                  "_replacementABI", erase != 0);
 }
 
-void EnzymeGradientUtilsReplaceAWithB(GradientUtils *G, LLVMValueRef A,
+void RaptorGradientUtilsReplaceAWithB(GradientUtils *G, LLVMValueRef A,
                                       LLVMValueRef B) {
   return G->replaceAWithB(unwrap(A), unwrap(B));
 }
 
-void EnzymeRegisterAllocationHandler(char *Name, CustomShadowAlloc AHandle,
+void RaptorRegisterAllocationHandler(char *Name, CustomShadowAlloc AHandle,
                                      CustomShadowFree FHandle) {
   shadowHandlers[Name] = [=](IRBuilder<> &B, CallInst *CI,
                              ArrayRef<Value *> Args,
@@ -338,7 +338,7 @@ void EnzymeRegisterAllocationHandler(char *Name, CustomShadowAlloc AHandle,
   };
 }
 
-void EnzymeRegisterCallHandler(char *Name,
+void RaptorRegisterCallHandler(char *Name,
                                CustomAugmentedFunctionForward FwdHandle,
                                CustomFunctionReverse RevHandle) {
   auto &pair = customCallHandlers[Name];
@@ -361,7 +361,7 @@ void EnzymeRegisterCallHandler(char *Name,
   };
 }
 
-void EnzymeRegisterFwdCallHandler(char *Name, CustomFunctionForward FwdHandle) {
+void RaptorRegisterFwdCallHandler(char *Name, CustomFunctionForward FwdHandle) {
   auto &pair = customFwdCallHandlers[Name];
   pair = [=](IRBuilder<> &B, CallInst *CI, GradientUtils &gutils,
              Value *&normalReturn, Value *&shadowReturn) -> bool {
@@ -374,7 +374,7 @@ void EnzymeRegisterFwdCallHandler(char *Name, CustomFunctionForward FwdHandle) {
   };
 }
 
-void EnzymeRegisterDiffUseCallHandler(char *Name,
+void RaptorRegisterDiffUseCallHandler(char *Name,
                                       CustomFunctionDiffUse Handle) {
   auto &pair = customDiffUseHandlers[Name];
   pair = [=](const CallInst *CI, const GradientUtils *gutils, const Value *arg,
@@ -387,40 +387,40 @@ void EnzymeRegisterDiffUseCallHandler(char *Name,
   };
 }
 
-uint8_t EnzymeGradientUtilsGetRuntimeActivity(GradientUtils *gutils) {
+uint8_t RaptorGradientUtilsGetRuntimeActivity(GradientUtils *gutils) {
   return gutils->runtimeActivity;
 }
 
-uint64_t EnzymeGradientUtilsGetWidth(GradientUtils *gutils) {
+uint64_t RaptorGradientUtilsGetWidth(GradientUtils *gutils) {
   return gutils->getWidth();
 }
 
-LLVMTypeRef EnzymeGradientUtilsGetShadowType(GradientUtils *gutils,
+LLVMTypeRef RaptorGradientUtilsGetShadowType(GradientUtils *gutils,
                                              LLVMTypeRef T) {
   return wrap(gutils->getShadowType(unwrap(T)));
 }
 
-LLVMTypeRef EnzymeGetShadowType(uint64_t width, LLVMTypeRef T) {
+LLVMTypeRef RaptorGetShadowType(uint64_t width, LLVMTypeRef T) {
   return wrap(GradientUtils::getShadowType(unwrap(T), width));
 }
 
-LLVMValueRef EnzymeGradientUtilsNewFromOriginal(GradientUtils *gutils,
+LLVMValueRef RaptorGradientUtilsNewFromOriginal(GradientUtils *gutils,
                                                 LLVMValueRef val) {
   return wrap(gutils->getNewFromOriginal(unwrap(val)));
 }
 
-CDerivativeMode EnzymeGradientUtilsGetMode(GradientUtils *gutils) {
+CDerivativeMode RaptorGradientUtilsGetMode(GradientUtils *gutils) {
   return (CDerivativeMode)gutils->mode;
 }
 
 CDIFFE_TYPE
-EnzymeGradientUtilsGetDiffeType(GradientUtils *G, LLVMValueRef oval,
+RaptorGradientUtilsGetDiffeType(GradientUtils *G, LLVMValueRef oval,
                                 uint8_t foreignFunction) {
   return (CDIFFE_TYPE)(G->getDiffeType(unwrap(oval), foreignFunction != 0));
 }
 
 CDIFFE_TYPE
-EnzymeGradientUtilsGetReturnDiffeType(GradientUtils *G, LLVMValueRef oval,
+RaptorGradientUtilsGetReturnDiffeType(GradientUtils *G, LLVMValueRef oval,
                                       uint8_t *needsPrimal,
                                       uint8_t *needsShadow,
                                       CDerivativeMode mode) {
@@ -435,7 +435,7 @@ EnzymeGradientUtilsGetReturnDiffeType(GradientUtils *G, LLVMValueRef oval,
   return res;
 }
 
-void EnzymeGradientUtilsSetDebugLocFromOriginal(GradientUtils *gutils,
+void RaptorGradientUtilsSetDebugLocFromOriginal(GradientUtils *gutils,
                                                 LLVMValueRef val,
                                                 LLVMValueRef orig) {
   return cast<Instruction>(unwrap(val))
@@ -443,36 +443,36 @@ void EnzymeGradientUtilsSetDebugLocFromOriginal(GradientUtils *gutils,
           cast<Instruction>(unwrap(orig))->getDebugLoc()));
 }
 
-LLVMValueRef EnzymeInsertValue(LLVMBuilderRef B, LLVMValueRef val,
+LLVMValueRef RaptorInsertValue(LLVMBuilderRef B, LLVMValueRef val,
                                LLVMValueRef val2, unsigned *sz, int64_t length,
                                const char *name) {
   return wrap(unwrap(B)->CreateInsertValue(
       unwrap(val), unwrap(val2), ArrayRef<unsigned>(sz, sz + length), name));
 }
 
-LLVMValueRef EnzymeGradientUtilsLookup(GradientUtils *gutils, LLVMValueRef val,
+LLVMValueRef RaptorGradientUtilsLookup(GradientUtils *gutils, LLVMValueRef val,
                                        LLVMBuilderRef B) {
   return wrap(gutils->lookupM(unwrap(val), *unwrap(B)));
 }
 
-LLVMValueRef EnzymeGradientUtilsInvertPointer(GradientUtils *gutils,
+LLVMValueRef RaptorGradientUtilsInvertPointer(GradientUtils *gutils,
                                               LLVMValueRef val,
                                               LLVMBuilderRef B) {
   return wrap(gutils->invertPointerM(unwrap(val), *unwrap(B)));
 }
 
-LLVMValueRef EnzymeGradientUtilsDiffe(DiffeGradientUtils *gutils,
+LLVMValueRef RaptorGradientUtilsDiffe(DiffeGradientUtils *gutils,
                                       LLVMValueRef val, LLVMBuilderRef B) {
   return wrap(gutils->diffe(unwrap(val), *unwrap(B)));
 }
 
-void EnzymeGradientUtilsAddToDiffe(DiffeGradientUtils *gutils, LLVMValueRef val,
+void RaptorGradientUtilsAddToDiffe(DiffeGradientUtils *gutils, LLVMValueRef val,
                                    LLVMValueRef diffe, LLVMBuilderRef B,
                                    LLVMTypeRef T) {
   gutils->addToDiffe(unwrap(val), unwrap(diffe), *unwrap(B), unwrap(T));
 }
 
-void EnzymeGradientUtilsAddToInvertedPointerDiffe(
+void RaptorGradientUtilsAddToInvertedPointerDiffe(
     DiffeGradientUtils *gutils, LLVMValueRef orig, LLVMValueRef origVal,
     LLVMTypeRef addingType, unsigned start, unsigned size, LLVMValueRef origptr,
     LLVMValueRef dif, LLVMBuilderRef BuilderM, unsigned align,
@@ -486,7 +486,7 @@ void EnzymeGradientUtilsAddToInvertedPointerDiffe(
                                 *unwrap(BuilderM), align2, unwrap(mask));
 }
 
-void EnzymeGradientUtilsAddToInvertedPointerDiffeTT(
+void RaptorGradientUtilsAddToInvertedPointerDiffeTT(
     DiffeGradientUtils *gutils, LLVMValueRef orig, LLVMValueRef origVal,
     CTypeTreeRef vd, unsigned LoadSize, LLVMValueRef origptr,
     LLVMValueRef prediff, LLVMBuilderRef BuilderM, unsigned align,
@@ -500,26 +500,26 @@ void EnzymeGradientUtilsAddToInvertedPointerDiffeTT(
                                 *unwrap(BuilderM), align2, unwrap(premask));
 }
 
-void EnzymeGradientUtilsSetDiffe(DiffeGradientUtils *gutils, LLVMValueRef val,
+void RaptorGradientUtilsSetDiffe(DiffeGradientUtils *gutils, LLVMValueRef val,
                                  LLVMValueRef diffe, LLVMBuilderRef B) {
   gutils->setDiffe(unwrap(val), unwrap(diffe), *unwrap(B));
 }
 
-uint8_t EnzymeGradientUtilsIsConstantValue(GradientUtils *gutils,
+uint8_t RaptorGradientUtilsIsConstantValue(GradientUtils *gutils,
                                            LLVMValueRef val) {
   return gutils->isConstantValue(unwrap(val));
 }
 
-uint8_t EnzymeGradientUtilsIsConstantInstruction(GradientUtils *gutils,
+uint8_t RaptorGradientUtilsIsConstantInstruction(GradientUtils *gutils,
                                                  LLVMValueRef val) {
   return gutils->isConstantInstruction(cast<Instruction>(unwrap(val)));
 }
 
-LLVMBasicBlockRef EnzymeGradientUtilsAllocationBlock(GradientUtils *gutils) {
+LLVMBasicBlockRef RaptorGradientUtilsAllocationBlock(GradientUtils *gutils) {
   return wrap(gutils->inversionAllocs);
 }
 
-uint8_t EnzymeGradientUtilsGetUncacheableArgs(GradientUtils *gutils,
+uint8_t RaptorGradientUtilsGetUncacheableArgs(GradientUtils *gutils,
                                               LLVMValueRef orig, uint8_t *data,
                                               uint64_t size) {
   if (gutils->mode == DerivativeMode::ForwardMode ||
@@ -558,7 +558,7 @@ uint8_t EnzymeGradientUtilsGetUncacheableArgs(GradientUtils *gutils,
   return 1;
 }
 
-CTypeTreeRef EnzymeGradientUtilsAllocAndGetTypeTree(GradientUtils *gutils,
+CTypeTreeRef RaptorGradientUtilsAllocAndGetTypeTree(GradientUtils *gutils,
                                                     LLVMValueRef val) {
   auto v = unwrap(val);
   TypeTree TT = gutils->TR.query(v);
@@ -566,11 +566,11 @@ CTypeTreeRef EnzymeGradientUtilsAllocAndGetTypeTree(GradientUtils *gutils,
   return (CTypeTreeRef)pTT;
 }
 
-void EnzymeGradientUtilsDumpTypeResults(GradientUtils *gutils) {
+void RaptorGradientUtilsDumpTypeResults(GradientUtils *gutils) {
   gutils->TR.dump();
 }
 
-void EnzymeGradientUtilsSubTransferHelper(
+void RaptorGradientUtilsSubTransferHelper(
     GradientUtils *gutils, CDerivativeMode mode, LLVMTypeRef secretty,
     uint64_t intrinsic, uint64_t dstAlign, uint64_t srcAlign, uint64_t offset,
     uint8_t dstConstant, LLVMValueRef shadow_dst, uint8_t srcConstant,
@@ -586,14 +586,14 @@ void EnzymeGradientUtilsSubTransferHelper(
                     (bool)allowForward, (bool)shadowsLookedUp);
 }
 
-LLVMValueRef EnzymeCreateForwardDiff(
-    EnzymeLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
+LLVMValueRef RaptorCreateForwardDiff(
+    RaptorLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
     LLVMValueRef todiff, CDIFFE_TYPE retType, CDIFFE_TYPE *constant_args,
-    size_t constant_args_size, EnzymeTypeAnalysisRef TA, uint8_t returnValue,
+    size_t constant_args_size, RaptorTypeAnalysisRef TA, uint8_t returnValue,
     CDerivativeMode mode, uint8_t freeMemory, uint8_t runtimeActivity,
     unsigned width, LLVMTypeRef additionalArg, CFnTypeInfo typeInfo,
     uint8_t *_overwritten_args, size_t overwritten_args_size,
-    EnzymeAugmentedReturnPtr augmented) {
+    RaptorAugmentedReturnPtr augmented) {
   SmallVector<DIFFE_TYPE, 4> nconstant_args((DIFFE_TYPE *)constant_args,
                                             (DIFFE_TYPE *)constant_args +
                                                 constant_args_size);
@@ -611,15 +611,15 @@ LLVMValueRef EnzymeCreateForwardDiff(
       eunwrap(typeInfo, cast<Function>(unwrap(todiff))), overwritten_args,
       eunwrap(augmented)));
 }
-LLVMValueRef EnzymeCreatePrimalAndGradient(
-    EnzymeLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
+LLVMValueRef RaptorCreatePrimalAndGradient(
+    RaptorLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
     LLVMValueRef todiff, CDIFFE_TYPE retType, CDIFFE_TYPE *constant_args,
-    size_t constant_args_size, EnzymeTypeAnalysisRef TA, uint8_t returnValue,
+    size_t constant_args_size, RaptorTypeAnalysisRef TA, uint8_t returnValue,
     uint8_t dretUsed, CDerivativeMode mode, uint8_t runtimeActivity,
     unsigned width, uint8_t freeMemory, LLVMTypeRef additionalArg,
     uint8_t forceAnonymousTape, CFnTypeInfo typeInfo,
     uint8_t *_overwritten_args, size_t overwritten_args_size,
-    EnzymeAugmentedReturnPtr augmented, uint8_t AtomicAdd) {
+    RaptorAugmentedReturnPtr augmented, uint8_t AtomicAdd) {
   std::vector<DIFFE_TYPE> nconstant_args((DIFFE_TYPE *)constant_args,
                                          (DIFFE_TYPE *)constant_args +
                                              constant_args_size);
@@ -648,10 +648,10 @@ LLVMValueRef EnzymeCreatePrimalAndGradient(
                         .runtimeActivity = (bool)runtimeActivity},
       eunwrap(TA), eunwrap(augmented)));
 }
-EnzymeAugmentedReturnPtr EnzymeCreateAugmentedPrimal(
-    EnzymeLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
+RaptorAugmentedReturnPtr RaptorCreateAugmentedPrimal(
+    RaptorLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
     LLVMValueRef todiff, CDIFFE_TYPE retType, CDIFFE_TYPE *constant_args,
-    size_t constant_args_size, EnzymeTypeAnalysisRef TA, uint8_t returnUsed,
+    size_t constant_args_size, RaptorTypeAnalysisRef TA, uint8_t returnUsed,
     uint8_t shadowReturnUsed, CFnTypeInfo typeInfo, uint8_t *_overwritten_args,
     size_t overwritten_args_size, uint8_t forceAnonymousTape,
     uint8_t runtimeActivity, unsigned width, uint8_t AtomicAdd) {
@@ -673,7 +673,7 @@ EnzymeAugmentedReturnPtr EnzymeCreateAugmentedPrimal(
       forceAnonymousTape, runtimeActivity, width, AtomicAdd));
 }
 
-LLVMValueRef EnzymeCreateBatch(EnzymeLogicRef Logic, LLVMValueRef request_req,
+LLVMValueRef RaptorCreateBatch(RaptorLogicRef Logic, LLVMValueRef request_req,
                                LLVMBuilderRef request_ip, LLVMValueRef tobatch,
                                unsigned width, CBATCH_TYPE *arg_types,
                                size_t arg_types_size, CBATCH_TYPE retType) {
@@ -687,13 +687,13 @@ LLVMValueRef EnzymeCreateBatch(EnzymeLogicRef Logic, LLVMValueRef request_req,
       (BATCH_TYPE)retType));
 }
 
-LLVMValueRef EnzymeCreateTrace(
-    EnzymeLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
+LLVMValueRef RaptorCreateTrace(
+    RaptorLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
     LLVMValueRef totrace, LLVMValueRef *sample_functions,
     size_t sample_functions_size, LLVMValueRef *observe_functions,
     size_t observe_functions_size, const char *active_random_variables[],
     size_t active_random_variables_size, CProbProgMode mode, uint8_t autodiff,
-    EnzymeTraceInterfaceRef interface) {
+    RaptorTraceInterfaceRef interface) {
 
   SmallPtrSet<Function *, 4> SampleFunctions;
   for (size_t i = 0; i < sample_functions_size; i++) {
@@ -719,19 +719,19 @@ LLVMValueRef EnzymeCreateTrace(
 }
 
 LLVMValueRef
-EnzymeExtractFunctionFromAugmentation(EnzymeAugmentedReturnPtr ret) {
+RaptorExtractFunctionFromAugmentation(RaptorAugmentedReturnPtr ret) {
   auto AR = (AugmentedReturn *)ret;
   return wrap(AR->fn);
 }
 
 LLVMTypeRef
-EnzymeExtractUnderlyingTapeTypeFromAugmentation(EnzymeAugmentedReturnPtr ret) {
+RaptorExtractUnderlyingTapeTypeFromAugmentation(RaptorAugmentedReturnPtr ret) {
   auto AR = (AugmentedReturn *)ret;
   return wrap(AR->tapeType);
 }
 
 LLVMTypeRef
-EnzymeExtractTapeTypeFromAugmentation(EnzymeAugmentedReturnPtr ret) {
+RaptorExtractTapeTypeFromAugmentation(RaptorAugmentedReturnPtr ret) {
   auto AR = (AugmentedReturn *)ret;
   auto found = AR->returns.find(AugmentedStruct::Tape);
   if (found == AR->returns.end()) {
@@ -743,7 +743,7 @@ EnzymeExtractTapeTypeFromAugmentation(EnzymeAugmentedReturnPtr ret) {
   return wrap(
       cast<StructType>(AR->fn->getReturnType())->getTypeAtIndex(found->second));
 }
-void EnzymeExtractReturnInfo(EnzymeAugmentedReturnPtr ret, int64_t *data,
+void RaptorExtractReturnInfo(RaptorAugmentedReturnPtr ret, int64_t *data,
                              uint8_t *existed, size_t len) {
   assert(len == 3);
   auto AR = (AugmentedReturn *)ret;
@@ -771,33 +771,33 @@ static MDNode *extractMDNode(MetadataAsValue *MAV) {
   return MDNode::get(MAV->getContext(), MD);
 }
 
-CTypeTreeRef EnzymeTypeTreeFromMD(LLVMValueRef Val) {
+CTypeTreeRef RaptorTypeTreeFromMD(LLVMValueRef Val) {
   TypeTree *Ret = new TypeTree();
   MDNode *N = Val ? extractMDNode(unwrap<MetadataAsValue>(Val)) : nullptr;
   Ret->insertFromMD(N);
   return (CTypeTreeRef)N;
 }
 
-LLVMValueRef EnzymeTypeTreeToMD(CTypeTreeRef CTR, LLVMContextRef ctx) {
+LLVMValueRef RaptorTypeTreeToMD(CTypeTreeRef CTR, LLVMContextRef ctx) {
   auto MD = ((TypeTree *)CTR)->toMD(*unwrap(ctx));
   return wrap(MetadataAsValue::get(MD->getContext(), MD));
 }
 
-CTypeTreeRef EnzymeNewTypeTree() { return (CTypeTreeRef)(new TypeTree()); }
-CTypeTreeRef EnzymeNewTypeTreeCT(CConcreteType CT, LLVMContextRef ctx) {
+CTypeTreeRef RaptorNewTypeTree() { return (CTypeTreeRef)(new TypeTree()); }
+CTypeTreeRef RaptorNewTypeTreeCT(CConcreteType CT, LLVMContextRef ctx) {
   return (CTypeTreeRef)(new TypeTree(eunwrap(CT, *unwrap(ctx))));
 }
-CTypeTreeRef EnzymeNewTypeTreeTR(CTypeTreeRef CTR) {
+CTypeTreeRef RaptorNewTypeTreeTR(CTypeTreeRef CTR) {
   return (CTypeTreeRef)(new TypeTree(*(TypeTree *)(CTR)));
 }
-void EnzymeFreeTypeTree(CTypeTreeRef CTT) { delete (TypeTree *)CTT; }
-uint8_t EnzymeSetTypeTree(CTypeTreeRef dst, CTypeTreeRef src) {
+void RaptorFreeTypeTree(CTypeTreeRef CTT) { delete (TypeTree *)CTT; }
+uint8_t RaptorSetTypeTree(CTypeTreeRef dst, CTypeTreeRef src) {
   return *(TypeTree *)dst = *(TypeTree *)src;
 }
-uint8_t EnzymeMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src) {
+uint8_t RaptorMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src) {
   return ((TypeTree *)dst)->orIn(*(TypeTree *)src, /*PointerIntSame*/ false);
 }
-uint8_t EnzymeCheckedMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src,
+uint8_t RaptorCheckedMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src,
                                    uint8_t *legalP) {
   bool legal = true;
   bool res =
@@ -807,34 +807,34 @@ uint8_t EnzymeCheckedMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src,
   return res;
 }
 
-void EnzymeTypeTreeOnlyEq(CTypeTreeRef CTT, int64_t x) {
+void RaptorTypeTreeOnlyEq(CTypeTreeRef CTT, int64_t x) {
   // TODO only inst
   *(TypeTree *)CTT = ((TypeTree *)CTT)->Only(x, nullptr);
 }
-void EnzymeTypeTreeData0Eq(CTypeTreeRef CTT) {
+void RaptorTypeTreeData0Eq(CTypeTreeRef CTT) {
   *(TypeTree *)CTT = ((TypeTree *)CTT)->Data0();
 }
 
-void EnzymeTypeTreeLookupEq(CTypeTreeRef CTT, int64_t size, const char *dl) {
+void RaptorTypeTreeLookupEq(CTypeTreeRef CTT, int64_t size, const char *dl) {
   *(TypeTree *)CTT = ((TypeTree *)CTT)->Lookup(size, DataLayout(dl));
 }
-void EnzymeTypeTreeCanonicalizeInPlace(CTypeTreeRef CTT, int64_t size,
+void RaptorTypeTreeCanonicalizeInPlace(CTypeTreeRef CTT, int64_t size,
                                        const char *dl) {
   ((TypeTree *)CTT)->CanonicalizeInPlace(size, DataLayout(dl));
 }
 
-CConcreteType EnzymeTypeTreeInner0(CTypeTreeRef CTT) {
+CConcreteType RaptorTypeTreeInner0(CTypeTreeRef CTT) {
   return ewrap(((TypeTree *)CTT)->Inner0());
 }
 
-void EnzymeTypeTreeShiftIndiciesEq(CTypeTreeRef CTT, const char *datalayout,
+void RaptorTypeTreeShiftIndiciesEq(CTypeTreeRef CTT, const char *datalayout,
                                    int64_t offset, int64_t maxSize,
                                    uint64_t addOffset) {
   DataLayout DL(datalayout);
   *(TypeTree *)CTT =
       ((TypeTree *)CTT)->ShiftIndices(DL, offset, maxSize, addOffset);
 }
-const char *EnzymeTypeTreeToString(CTypeTreeRef src) {
+const char *RaptorTypeTreeToString(CTypeTreeRef src) {
   std::string tmp = ((TypeTree *)src)->str();
   char *cstr = new char[tmp.length() + 1];
   std::strcpy(cstr, tmp.c_str());
@@ -843,9 +843,9 @@ const char *EnzymeTypeTreeToString(CTypeTreeRef src) {
 }
 
 // TODO deprecated
-void EnzymeTypeTreeToStringFree(const char *cstr) { delete[] cstr; }
+void RaptorTypeTreeToStringFree(const char *cstr) { delete[] cstr; }
 
-const char *EnzymeTypeAnalyzerToString(void *src) {
+const char *RaptorTypeAnalyzerToString(void *src) {
   auto TA = (TypeAnalyzer *)src;
   std::string str;
   raw_string_ostream ss(str);
@@ -856,7 +856,7 @@ const char *EnzymeTypeAnalyzerToString(void *src) {
   return cstr;
 }
 
-const char *EnzymeGradientUtilsInvertedPointersToString(GradientUtils *gutils,
+const char *RaptorGradientUtilsInvertedPointersToString(GradientUtils *gutils,
                                                         void *src) {
   std::string str;
   raw_string_ostream ss(str);
@@ -869,7 +869,7 @@ const char *EnzymeGradientUtilsInvertedPointersToString(GradientUtils *gutils,
   return cstr;
 }
 
-LLVMValueRef EnzymeGradientUtilsCallWithInvertedBundles(
+LLVMValueRef RaptorGradientUtilsCallWithInvertedBundles(
     GradientUtils *gutils, LLVMValueRef func, LLVMTypeRef funcTy,
     LLVMValueRef *args_vr, uint64_t args_size, LLVMValueRef orig_vr,
     CValueType *valTys, uint64_t valTys_size, LLVMBuilderRef B,
@@ -894,9 +894,9 @@ LLVMValueRef EnzymeGradientUtilsCallWithInvertedBundles(
   return wrap(res);
 }
 
-void EnzymeStringFree(const char *cstr) { delete[] cstr; }
+void RaptorStringFree(const char *cstr) { delete[] cstr; }
 
-void EnzymeMoveBefore(LLVMValueRef inst1, LLVMValueRef inst2,
+void RaptorMoveBefore(LLVMValueRef inst1, LLVMValueRef inst2,
                       LLVMBuilderRef B) {
   Instruction *I1 = cast<Instruction>(unwrap(inst1));
   Instruction *I2 = cast<Instruction>(unwrap(inst2));
@@ -914,7 +914,7 @@ void EnzymeMoveBefore(LLVMValueRef inst1, LLVMValueRef inst2,
   }
 }
 
-void EnzymeSetStringMD(LLVMValueRef Inst, const char *Kind, LLVMValueRef Val) {
+void RaptorSetStringMD(LLVMValueRef Inst, const char *Kind, LLVMValueRef Val) {
   MDNode *N = Val ? extractMDNode(unwrap<MetadataAsValue>(Val)) : nullptr;
   Value *V = unwrap(Inst);
   if (auto I = dyn_cast<Instruction>(V))
@@ -923,7 +923,7 @@ void EnzymeSetStringMD(LLVMValueRef Inst, const char *Kind, LLVMValueRef Val) {
     cast<GlobalVariable>(V)->setMetadata(Kind, N);
 }
 
-LLVMValueRef EnzymeGetStringMD(LLVMValueRef Inst, const char *Kind) {
+LLVMValueRef RaptorGetStringMD(LLVMValueRef Inst, const char *Kind) {
   auto *I = unwrap<Instruction>(Inst);
   assert(I && "Expected instruction");
   if (auto *MD = I->getMetadata(Kind))
@@ -931,17 +931,17 @@ LLVMValueRef EnzymeGetStringMD(LLVMValueRef Inst, const char *Kind) {
   return nullptr;
 }
 
-void EnzymeSetMustCache(LLVMValueRef inst1) {
+void RaptorSetMustCache(LLVMValueRef inst1) {
   Instruction *I1 = cast<Instruction>(unwrap(inst1));
-  I1->setMetadata("enzyme_mustcache", MDNode::get(I1->getContext(), {}));
+  I1->setMetadata("raptor_mustcache", MDNode::get(I1->getContext(), {}));
 }
 
-uint8_t EnzymeHasFromStack(LLVMValueRef inst1) {
+uint8_t RaptorHasFromStack(LLVMValueRef inst1) {
   Instruction *I1 = cast<Instruction>(unwrap(inst1));
-  return hasMetadata(I1, "enzyme_fromstack") != 0;
+  return hasMetadata(I1, "raptor_fromstack") != 0;
 }
 
-void EnzymeCloneFunctionDISubprogramInto(LLVMValueRef NF, LLVMValueRef F) {
+void RaptorCloneFunctionDISubprogramInto(LLVMValueRef NF, LLVMValueRef F) {
   auto &OldFunc = *cast<Function>(unwrap(F));
   auto &NewFunc = *cast<Function>(unwrap(NF));
   auto OldSP = OldFunc.getSubprogram();
@@ -961,11 +961,11 @@ void EnzymeCloneFunctionDISubprogramInto(LLVMValueRef NF, LLVMValueRef F) {
   return;
 }
 
-void EnzymeReplaceFunctionImplementation(LLVMModuleRef M) {
+void RaptorReplaceFunctionImplementation(LLVMModuleRef M) {
   ReplaceFunctionImplementation(*unwrap(M));
 }
 
-void EnzymeDumpModuleRef(LLVMModuleRef M) {
+void RaptorDumpModuleRef(LLVMModuleRef M) {
   llvm::errs() << *unwrap(M) << "\n";
 }
 
@@ -1023,11 +1023,11 @@ struct MyAttributorLegacyPass : public ModulePass {
   }
 };
 extern "C++" char MyAttributorLegacyPass::ID = 0;
-void EnzymeAddAttributorLegacyPass(LLVMPassManagerRef PM) {
+void RaptorAddAttributorLegacyPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(new MyAttributorLegacyPass());
 }
 
-LLVMMetadataRef EnzymeMakeNonConstTBAA(LLVMMetadataRef MD) {
+LLVMMetadataRef RaptorMakeNonConstTBAA(LLVMMetadataRef MD) {
   auto M = cast<MDNode>(unwrap(MD));
   if (M->getNumOperands() != 4)
     return MD;
@@ -1043,32 +1043,32 @@ LLVMMetadataRef EnzymeMakeNonConstTBAA(LLVMMetadataRef MD) {
       ConstantAsMetadata::get(ConstantInt::get(CAM->getValue()->getType(), 0));
   return wrap(MDNode::get(M->getContext(), MDs));
 }
-void EnzymeCopyMetadata(LLVMValueRef inst1, LLVMValueRef inst2) {
+void RaptorCopyMetadata(LLVMValueRef inst1, LLVMValueRef inst2) {
   cast<Instruction>(unwrap(inst1))
       ->copyMetadata(*cast<Instruction>(unwrap(inst2)));
 }
-LLVMMetadataRef EnzymeAnonymousAliasScopeDomain(const char *str,
+LLVMMetadataRef RaptorAnonymousAliasScopeDomain(const char *str,
                                                 LLVMContextRef ctx) {
   MDBuilder MDB(*unwrap(ctx));
   MDNode *scope = MDB.createAnonymousAliasScopeDomain(str);
   return wrap(scope);
 }
-LLVMMetadataRef EnzymeAnonymousAliasScope(LLVMMetadataRef domain,
+LLVMMetadataRef RaptorAnonymousAliasScope(LLVMMetadataRef domain,
                                           const char *str) {
   auto dom = cast<MDNode>(unwrap(domain));
   MDBuilder MDB(dom->getContext());
   MDNode *scope = MDB.createAnonymousAliasScope(dom, str);
   return wrap(scope);
 }
-uint8_t EnzymeLowerSparsification(LLVMValueRef F, uint8_t replaceAll) {
+uint8_t RaptorLowerSparsification(LLVMValueRef F, uint8_t replaceAll) {
   return LowerSparsification(cast<Function>(unwrap(F)), replaceAll != 0);
 }
 
-void EnzymeAttributeKnownFunctions(LLVMValueRef FC) {
+void RaptorAttributeKnownFunctions(LLVMValueRef FC) {
   attributeKnownFunctions(*cast<Function>(unwrap(FC)));
 }
 
-void EnzymeSetCalledFunction(LLVMValueRef C_CI, LLVMValueRef C_F,
+void RaptorSetCalledFunction(LLVMValueRef C_CI, LLVMValueRef C_F,
                              uint64_t *argrem, uint64_t num_argrem) {
   auto CI = cast<CallInst>(unwrap(C_CI));
   auto F = cast<Function>(unwrap(C_F));
@@ -1120,7 +1120,7 @@ void EnzymeSetCalledFunction(LLVMValueRef C_CI, LLVMValueRef C_F,
 }
 
 // clones a function to now miss the return or args
-LLVMValueRef EnzymeCloneFunctionWithoutReturnOrArgs(LLVMValueRef FC,
+LLVMValueRef RaptorCloneFunctionWithoutReturnOrArgs(LLVMValueRef FC,
                                                     uint8_t keepReturnU,
                                                     uint64_t *argrem,
                                                     uint64_t num_argrem) {
@@ -1206,13 +1206,13 @@ LLVMValueRef EnzymeCloneFunctionWithoutReturnOrArgs(LLVMValueRef FC,
   NewF->takeName(F);
   NewF->setCallingConv(F->getCallingConv());
   if (!keepReturn)
-    NewF->addFnAttr("enzyme_retremove", "");
+    NewF->addFnAttr("raptor_retremove", "");
 
   if (num_argrem) {
     SmallVector<uint64_t, 1> previdx;
-    if (Attrs.hasAttribute(AttributeList::FunctionIndex, "enzyme_parmremove")) {
+    if (Attrs.hasAttribute(AttributeList::FunctionIndex, "raptor_parmremove")) {
       auto attr =
-          Attrs.getAttribute(AttributeList::FunctionIndex, "enzyme_parmremove");
+          Attrs.getAttribute(AttributeList::FunctionIndex, "raptor_parmremove");
       auto prevstr = attr.getValueAsString();
       SmallVector<StringRef, 1> sub;
       prevstr.split(sub, ",");
@@ -1258,14 +1258,14 @@ LLVMValueRef EnzymeCloneFunctionWithoutReturnOrArgs(LLVMValueRef FC,
       remstr += std::to_string(arg);
     }
 
-    NewF->addFnAttr("enzyme_parmremove", remstr);
+    NewF->addFnAttr("raptor_parmremove", remstr);
   }
   return wrap(NewF);
 }
-LLVMTypeRef EnzymeAllocaType(LLVMValueRef V) {
+LLVMTypeRef RaptorAllocaType(LLVMValueRef V) {
   return wrap(cast<AllocaInst>(unwrap(V))->getAllocatedType());
 }
-LLVMValueRef EnzymeComputeByteOffsetOfGEP(LLVMBuilderRef B_r, LLVMValueRef V_r,
+LLVMValueRef RaptorComputeByteOffsetOfGEP(LLVMBuilderRef B_r, LLVMValueRef V_r,
                                           LLVMTypeRef T_r) {
   IRBuilder<> &B = *unwrap(B_r);
   auto T = cast<IntegerType>(unwrap(T_r));
@@ -1303,7 +1303,7 @@ static size_t num_rooting(llvm::Type *T, llvm::Function *F) {
 
 extern "C" {
 
-void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
+void RaptorFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
   auto F = cast<Function>(unwrap(F_C));
   if (F->empty())
     return;
@@ -1320,7 +1320,7 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
     bool sretv = false;
     for (auto attr : Attrs.getAttributes(AttributeList::FirstArgIndex + i)) {
       if (attr.isStringAttribute() &&
-          attr.getKindAsString() == "enzyme_sret_v") {
+          attr.getKindAsString() == "raptor_sret_v") {
         sretv = true;
       } else {
         NewAttrs = NewAttrs.addAttribute(
@@ -1335,7 +1335,7 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
             if (sretv) {
               NewAttrs = NewAttrs.addAttribute(
                   F->getContext(), AttributeList::FirstArgIndex + types.size(),
-                  Attribute::get(F->getContext(), "enzyme_sret"));
+                  Attribute::get(F->getContext(), "raptor_sret"));
             }
             types.push_back(PT);
           }
@@ -1434,7 +1434,7 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
             for (auto attr :
                  Attrs.getAttributes(AttributeList::FirstArgIndex + j)) {
               if (attr.isStringAttribute() &&
-                  attr.getKindAsString() == "enzyme_sret_v") {
+                  attr.getKindAsString() == "raptor_sret_v") {
                 sretv = true;
               }
             }
@@ -1442,7 +1442,7 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
               if (sretv)
                 NewAttrs = NewAttrs.addAttribute(
                     F->getContext(), AttributeList::FirstArgIndex + vals.size(),
-                    Attribute::get(F->getContext(), "enzyme_sret"));
+                    Attribute::get(F->getContext(), "raptor_sret"));
               vals.push_back(
                   GradientUtils::extractMeta(B, CI->getArgOperand(j), i));
             }
@@ -1453,10 +1453,10 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
 
       for (auto attr : Attrs.getAttributes(AttributeList::FirstArgIndex + j)) {
         if (attr.isStringAttribute() &&
-            attr.getKindAsString() == "enzyme_sret_v") {
+            attr.getKindAsString() == "raptor_sret_v") {
           NewAttrs = NewAttrs.addAttribute(
               F->getContext(), AttributeList::FirstArgIndex + vals.size(),
-              Attribute::get(F->getContext(), "enzyme_sret"));
+              Attribute::get(F->getContext(), "raptor_sret"));
         } else {
           NewAttrs = NewAttrs.addAttribute(
               F->getContext(), AttributeList::FirstArgIndex + vals.size(),
@@ -1501,14 +1501,14 @@ void EnzymeFixupBatchedJuliaCallingConvention(LLVMValueRef F_C) {
   F->eraseFromParent();
 }
 
-void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
+void RaptorFixupJuliaCallingConvention(LLVMValueRef F_C) {
   auto F = cast<Function>(unwrap(F_C));
   if (F->empty())
     return;
   auto RT = F->getReturnType();
   std::set<size_t> srets;
-  std::set<size_t> enzyme_srets;
-  std::set<size_t> enzyme_srets_v;
+  std::set<size_t> raptor_srets;
+  std::set<size_t> raptor_srets_v;
   std::set<size_t> rroots;
   std::set<size_t> rroots_v;
 
@@ -1518,22 +1518,22 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i,
                            Attribute::StructRet))
       srets.insert(i);
-    if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i, "enzyme_sret"))
-      enzyme_srets.insert(i);
-    if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i, "enzyme_sret_v"))
-      enzyme_srets_v.insert(i);
+    if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i, "raptor_sret"))
+      raptor_srets.insert(i);
+    if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i, "raptor_sret_v"))
+      raptor_srets_v.insert(i);
     if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i,
-                           "enzymejl_returnRoots"))
+                           "raptorjl_returnRoots"))
       rroots.insert(i);
     if (Attrs.hasAttribute(AttributeList::FirstArgIndex + i,
-                           "enzymejl_returnRoots_v"))
+                           "raptorjl_returnRoots_v"))
       rroots_v.insert(i);
   }
   // Regular julia function, needing no intervention
   if (srets.size() == 1) {
     assert(*srets.begin() == 0);
-    assert(enzyme_srets.size() == 0);
-    assert(enzyme_srets_v.size() == 0);
+    assert(raptor_srets.size() == 0);
+    assert(raptor_srets_v.size() == 0);
     assert(rroots_v.size() == 0);
     if (rroots.size()) {
       assert(rroots.size() == 1);
@@ -1542,8 +1542,8 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     return;
   }
   // No sret/rooting, no intervention needed.
-  if (srets.size() == 0 && enzyme_srets.size() == 0 &&
-      enzyme_srets_v.size() == 0 && rroots.size() == 0 &&
+  if (srets.size() == 0 && raptor_srets.size() == 0 &&
+      raptor_srets_v.size() == 0 && rroots.size() == 0 &&
       rroots_v.size() == 0) {
     return;
   }
@@ -1555,7 +1555,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     Types.push_back(RT);
   }
 
-  for (auto idx : enzyme_srets) {
+  for (auto idx : raptor_srets) {
     llvm::Type *T = nullptr;
 #if LLVM_VERSION_MAJOR >= 17
     (void)idx;
@@ -1567,7 +1567,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
 #endif
     Types.push_back(T);
   }
-  for (auto idx : enzyme_srets_v) {
+  for (auto idx : raptor_srets_v) {
     llvm::Type *T = nullptr;
     auto AT = cast<ArrayType>(FT->getParamType(idx));
 #if LLVM_VERSION_MAJOR >= 17
@@ -1609,7 +1609,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
   if (roots_AT) {
     NewAttrs = NewAttrs.addAttribute(F->getContext(),
                                      AttributeList::FirstArgIndex + nexti,
-                                     "enzymejl_returnRoots");
+                                     "raptorjl_returnRoots");
     NewAttrs = NewAttrs.addAttribute(F->getContext(),
                                      AttributeList::FirstArgIndex + nexti,
                                      Attribute::NoAlias);
@@ -1620,7 +1620,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     nexti++;
   }
   for (size_t i = 0, end = FT->getNumParams(); i < end; i++) {
-    if (enzyme_srets.count(i) || enzyme_srets_v.count(i) || rroots.count(i) ||
+    if (raptor_srets.count(i) || raptor_srets_v.count(i) || rroots.count(i) ||
         rroots_v.count(i))
       continue;
 
@@ -1662,7 +1662,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
   std::map<size_t, PHINode *> delArgMap;
   for (Argument &I : F->args()) {
     auto i = I.getArgNo();
-    if (enzyme_srets.count(i) || enzyme_srets_v.count(i) || rroots.count(i) ||
+    if (raptor_srets.count(i) || raptor_srets_v.count(i) || rroots.count(i) ||
         rroots_v.count(i)) {
       VMap[&I] = delArgMap[i] = PHINode::Create(I.getType(), 0);
       continue;
@@ -1746,7 +1746,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     sretCount++;
   }
 
-  for (auto i : enzyme_srets) {
+  for (auto i : raptor_srets) {
     auto arg = delArgMap[i];
     assert(arg);
     SmallVector<Instruction *, 1> uses;
@@ -1772,7 +1772,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
     sretCount++;
     delete arg;
   }
-  for (auto i : enzyme_srets_v) {
+  for (auto i : raptor_srets_v) {
     auto AT = cast<ArrayType>(FT->getParamType(i));
     auto arg = delArgMap[i];
     assert(arg);
@@ -1871,7 +1871,7 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
       NewAttrs = NewAttrs.addAttribute(
 
           F->getContext(), AttributeList::FirstArgIndex + nexti,
-          "enzymejl_returnRoots");
+          "raptorjl_returnRoots");
       nexti++;
     }
 
@@ -1885,11 +1885,11 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
       if (rroots.count(i) || rroots_v.count(i)) {
         continue;
       }
-      if (enzyme_srets.count(i)) {
+      if (raptor_srets.count(i)) {
         sret_vals.push_back(CI->getArgOperand(i));
         continue;
       }
-      if (enzyme_srets_v.count(i)) {
+      if (raptor_srets_v.count(i)) {
         sretv_vals.push_back(CI->getArgOperand(i));
         continue;
       }
@@ -2049,14 +2049,14 @@ void EnzymeFixupJuliaCallingConvention(LLVMValueRef F_C) {
   F->eraseFromParent();
 }
 
-LLVMValueRef EnzymeBuildExtractValue(LLVMBuilderRef B, LLVMValueRef AggVal,
+LLVMValueRef RaptorBuildExtractValue(LLVMBuilderRef B, LLVMValueRef AggVal,
                                      unsigned *Index, unsigned Size,
                                      const char *Name) {
   return wrap(unwrap(B)->CreateExtractValue(
       unwrap(AggVal), ArrayRef<unsigned>(Index, Size), Name));
 }
 
-LLVMValueRef EnzymeBuildInsertValue(LLVMBuilderRef B, LLVMValueRef AggVal,
+LLVMValueRef RaptorBuildInsertValue(LLVMBuilderRef B, LLVMValueRef AggVal,
                                     LLVMValueRef EltVal, unsigned *Index,
                                     unsigned Size, const char *Name) {
   return wrap(unwrap(B)->CreateInsertValue(

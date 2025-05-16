@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace enzyme {
+namespace raptor {
 
 // this is already in C++20, but we reimplement it here for older C++ versions
 template < typename T >
@@ -37,7 +37,7 @@ namespace impl {
     forward(std::remove_reference_t<_Tp>&& __t) noexcept
     {
       static_assert(!std::is_lvalue_reference<_Tp>::value,
-	  "enzyme::impl::forward must not be used to convert an rvalue to an lvalue");
+	  "raptor::impl::forward must not be used to convert an rvalue to an lvalue");
       return static_cast<_Tp&&>(__t);
     }
 

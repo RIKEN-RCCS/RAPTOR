@@ -1,13 +1,13 @@
 //===- FunctionUtils.h - Declaration of function utilities ---------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -22,8 +22,8 @@
 // AD process.
 //
 //===----------------------------------------------------------------------===//
-#ifndef ENZYME_FUNCTION_UTILS_H
-#define ENZYME_FUNCTION_UTILS_H
+#ifndef RAPTOR_FUNCTION_UTILS_H
+#define RAPTOR_FUNCTION_UTILS_H
 
 #include <deque>
 #include <set>
@@ -58,7 +58,7 @@
 //;
 
 extern "C" {
-extern llvm::cl::opt<bool> EnzymeAlwaysInlineDiff;
+extern llvm::cl::opt<bool> RaptorAlwaysInlineDiff;
 }
 
 class PreProcessCache {
@@ -400,7 +400,7 @@ llvm::FunctionType *getFunctionTypeForClone(
     llvm::Type *additionalArg, llvm::ArrayRef<DIFFE_TYPE> constant_args,
     bool diffeReturnArg, ReturnType returnValue, DIFFE_TYPE returnType);
 
-/// Lower __enzyme_todense, returning if changed.
+/// Lower __raptor_todense, returning if changed.
 bool LowerSparsification(llvm::Function *F, bool replaceAll = true);
 
 #endif

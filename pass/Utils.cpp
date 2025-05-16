@@ -1,13 +1,13 @@
 //===- Utils.cpp - Definition of miscellaneous utilities ------------------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -64,37 +64,37 @@ void (*CustomZero)(LLVMBuilderRef, LLVMTypeRef,
 LLVMValueRef (*CustomDeallocator)(LLVMBuilderRef, LLVMValueRef) = nullptr;
 void (*CustomRuntimeInactiveError)(LLVMBuilderRef, LLVMValueRef,
                                    LLVMValueRef) = nullptr;
-LLVMValueRef *(*EnzymePostCacheStore)(LLVMValueRef, LLVMBuilderRef,
+LLVMValueRef *(*RaptorPostCacheStore)(LLVMValueRef, LLVMBuilderRef,
                                       uint64_t *size) = nullptr;
-LLVMTypeRef (*EnzymeDefaultTapeType)(LLVMContextRef) = nullptr;
-LLVMValueRef (*EnzymeUndefinedValueForType)(LLVMModuleRef, LLVMTypeRef,
+LLVMTypeRef (*RaptorDefaultTapeType)(LLVMContextRef) = nullptr;
+LLVMValueRef (*RaptorUndefinedValueForType)(LLVMModuleRef, LLVMTypeRef,
                                             uint8_t) = nullptr;
 
-LLVMValueRef (*EnzymeSanitizeDerivatives)(LLVMValueRef, LLVMValueRef toset,
+LLVMValueRef (*RaptorSanitizeDerivatives)(LLVMValueRef, LLVMValueRef toset,
                                           LLVMBuilderRef,
                                           LLVMValueRef) = nullptr;
 
-extern llvm::cl::opt<bool> EnzymeZeroCache;
+extern llvm::cl::opt<bool> RaptorZeroCache;
 
 // default to false because lacpy is slow
 llvm::cl::opt<bool>
-    EnzymeLapackCopy("enzyme-lapack-copy", cl::init(false), cl::Hidden,
+    RaptorLapackCopy("raptor-lapack-copy", cl::init(false), cl::Hidden,
                      cl::desc("Use blas copy calls to cache matrices"));
 llvm::cl::opt<bool>
-    EnzymeBlasCopy("enzyme-blas-copy", cl::init(true), cl::Hidden,
+    RaptorBlasCopy("raptor-blas-copy", cl::init(true), cl::Hidden,
                    cl::desc("Use blas copy calls to cache vectors"));
 llvm::cl::opt<bool>
-    EnzymeFastMath("enzyme-fast-math", cl::init(true), cl::Hidden,
+    RaptorFastMath("raptor-fast-math", cl::init(true), cl::Hidden,
                    cl::desc("Use fast math on derivative compuation"));
 llvm::cl::opt<bool>
-    EnzymeStrongZero("enzyme-strong-zero", cl::init(false), cl::Hidden,
+    RaptorStrongZero("raptor-strong-zero", cl::init(false), cl::Hidden,
                      cl::desc("Use additional checks to ensure correct "
                               "behavior when handling functions with inf"));
-llvm::cl::opt<bool> EnzymeMemmoveWarning(
-    "enzyme-memmove-warning", cl::init(true), cl::Hidden,
+llvm::cl::opt<bool> RaptorMemmoveWarning(
+    "raptor-memmove-warning", cl::init(true), cl::Hidden,
     cl::desc("Warn if using memmove implementation as a fallback for memmove"));
-llvm::cl::opt<bool> EnzymeRuntimeError(
-    "enzyme-runtime-error", cl::init(false), cl::Hidden,
+llvm::cl::opt<bool> RaptorRuntimeError(
+    "raptor-runtime-error", cl::init(false), cl::Hidden,
     cl::desc("Emit Runtime errors instead of compile time ones"));
 }
 
@@ -110,9 +110,9 @@ void ZeroMemory(llvm::IRBuilder<> &Builder, llvm::Type *T, llvm::Value *obj,
 llvm::SmallVector<llvm::Instruction *, 2> PostCacheStore(llvm::StoreInst *SI,
                                                          llvm::IRBuilder<> &B) {
   SmallVector<llvm::Instruction *, 2> res;
-  if (EnzymePostCacheStore) {
+  if (RaptorPostCacheStore) {
     uint64_t size = 0;
-    auto ptr = EnzymePostCacheStore(wrap(SI), wrap(&B), &size);
+    auto ptr = RaptorPostCacheStore(wrap(SI), wrap(&B), &size);
     for (size_t i = 0; i < size; i++) {
       res.push_back(cast<Instruction>(unwrap(ptr[i])));
     }
@@ -122,8 +122,8 @@ llvm::SmallVector<llvm::Instruction *, 2> PostCacheStore(llvm::StoreInst *SI,
 }
 
 llvm::PointerType *getDefaultAnonymousTapeType(llvm::LLVMContext &C) {
-  if (EnzymeDefaultTapeType)
-    return cast<PointerType>(unwrap(EnzymeDefaultTapeType(wrap(&C))));
+  if (RaptorDefaultTapeType)
+    return cast<PointerType>(unwrap(RaptorDefaultTapeType(wrap(&C))));
   return getInt8PtrTy(C);
 }
 
@@ -148,7 +148,7 @@ Function *getOrInsertExponentialAllocator(Module &M, Function *newFunc,
 
   Type *types[] = {allocType, Type::getInt64Ty(M.getContext()),
                    Type::getInt64Ty(M.getContext())};
-  std::string name = "__enzyme_exponentialallocation";
+  std::string name = "__raptor_exponentialallocation";
   if (ZeroInit)
     name += "zero";
   if (custom)
@@ -449,12 +449,12 @@ CallInst *CreateDealloc(llvm::IRBuilder<> &Builder, llvm::Value *ToFree) {
   return res;
 }
 
-EnzymeFailure::EnzymeFailure(const llvm::Twine &RemarkName,
+RaptorFailure::RaptorFailure(const llvm::Twine &RemarkName,
                              const llvm::DiagnosticLocation &Loc,
                              const llvm::Instruction *CodeRegion)
-    : EnzymeFailure(RemarkName, Loc, CodeRegion->getParent()->getParent()) {}
+    : RaptorFailure(RemarkName, Loc, CodeRegion->getParent()->getParent()) {}
 
-EnzymeFailure::EnzymeFailure(const llvm::Twine &RemarkName,
+RaptorFailure::RaptorFailure(const llvm::Twine &RemarkName,
                              const llvm::DiagnosticLocation &Loc,
                              const llvm::Function *CodeRegion)
     : DiagnosticInfoUnsupported(*CodeRegion, RemarkName, Loc) {}
@@ -503,7 +503,7 @@ void ErrorIfRuntimeInactive(llvm::IRBuilder<> &B, llvm::Value *primal,
                             llvm::Value *shadow, const char *Message,
                             llvm::DebugLoc &&loc, llvm::Instruction *orig) {
   Module &M = *B.GetInsertBlock()->getParent()->getParent();
-  std::string name = "__enzyme_runtimeinactiveerr";
+  std::string name = "__raptor_runtimeinactiveerr";
   if (CustomRuntimeInactiveError) {
     static int count = 0;
     name += std::to_string(count);
@@ -600,7 +600,7 @@ Function *getOrInsertDifferentialFloatMemcpy(Module &M, Type *elementType,
                                              unsigned dstaddr, unsigned srcaddr,
                                              unsigned bitwidth) {
   assert(elementType->isFloatingPointTy());
-  std::string name = "__enzyme_memcpy";
+  std::string name = "__raptor_memcpy";
   if (bitwidth != 64)
     name += std::to_string(bitwidth);
   name += "add_" + tofltstr(elementType) + "da" + std::to_string(dstalign) +
@@ -782,7 +782,7 @@ void copy_lower_to_upper(llvm::IRBuilder<> &B, llvm::Type *fpType,
 
   llvm::Type *intType = N->getType();
   // add spmv diag update call if not already present
-  auto fnc_name = "__enzyme_copy_lower_to_upper" + blas.floatType +
+  auto fnc_name = "__raptor_copy_lower_to_upper" + blas.floatType +
                   blas.prefix + blas.suffix;
 
   SmallVector<Type *, 1> tys = {islower->getType(), A->getType(),
@@ -947,7 +947,7 @@ void callSPMVDiagUpdate(IRBuilder<> &B, Module &M, BlasInfo blas,
                         ArrayRef<OperandBundleDef> bundles, bool byRef,
                         bool julia_decl) {
   // add spmv diag update call if not already present
-  auto fnc_name = "__enzyme_spmv_diag" + blas.floatType + blas.suffix;
+  auto fnc_name = "__raptor_spmv_diag" + blas.floatType + blas.suffix;
 
   //  spmvDiagHelper(uplo, n, alpha, x, incx, ya, incy, APa)
   auto FDiagUpdateT = FunctionType::get(
@@ -1136,7 +1136,7 @@ getorInsertInnerProd(llvm::IRBuilder<> &B, llvm::Module &M, BlasInfo blas,
   assert(fpTy->isFloatingPointTy());
 
   // add inner_prod call if not already present
-  std::string prod_name = "__enzyme_inner_prod" + blas.floatType + blas.suffix;
+  std::string prod_name = "__raptor_inner_prod" + blas.floatType + blas.suffix;
   auto FInnerProdT =
       FunctionType::get(fpTy, {BlasIT, BlasIT, BlasPT, BlasIT, BlasPT}, false);
   Function *F =
@@ -1280,7 +1280,7 @@ Function *getOrInsertMemcpyStrided(Module &M, Type *elementType, PointerType *T,
                                    Type *IT, unsigned dstalign,
                                    unsigned srcalign) {
   assert(elementType->isFloatingPointTy());
-  std::string name = "__enzyme_memcpy_" + tofltstr(elementType) + "_" +
+  std::string name = "__raptor_memcpy_" + tofltstr(elementType) + "_" +
                      std::to_string(cast<IntegerType>(IT)->getBitWidth()) +
                      "_da" + std::to_string(dstalign) + "sa" +
                      std::to_string(srcalign) + "stride";
@@ -1394,7 +1394,7 @@ Function *getOrInsertMemcpyMat(Module &Mod, Type *elementType, PointerType *PT,
   }
 #endif
 #endif
-  std::string name = "__enzyme_memcpy_" + tofltstr(elementType) + "_mat_" +
+  std::string name = "__raptor_memcpy_" + tofltstr(elementType) + "_mat_" +
                      std::to_string(cast<IntegerType>(IT)->getBitWidth());
   FunctionType *FT = FunctionType::get(Type::getVoidTy(Mod.getContext()),
                                        {PT, PT, IT, IT, IT}, false);
@@ -1502,7 +1502,7 @@ Function *
 getOrInsertDifferentialFloatMemmove(Module &M, Type *T, unsigned dstalign,
                                     unsigned srcalign, unsigned dstaddr,
                                     unsigned srcaddr, unsigned bitwidth) {
-  if (EnzymeMemmoveWarning)
+  if (RaptorMemmoveWarning)
     llvm::errs()
         << "warning: didn't implement memmove, using memcpy as fallback "
            "which can result in errors\n";
@@ -1517,7 +1517,7 @@ Function *getOrInsertCheckedFree(Module &M, CallInst *call, Type *Ty,
   AttributeList FreeAttributes = call->getAttributes();
   CallingConv::ID CallingConvention = call->getCallingConv();
 
-  std::string name = "__enzyme_checked_free_" + std::to_string(width);
+  std::string name = "__raptor_checked_free_" + std::to_string(width);
 
   auto callname = getFuncNameFromCall(call);
   if (callname != "free")
@@ -1632,7 +1632,7 @@ llvm::Value *nextPowerOfTwo(llvm::IRBuilder<> &B, llvm::Value *V) {
 llvm::Function *getOrInsertDifferentialWaitallSave(llvm::Module &M,
                                                    ArrayRef<llvm::Type *> T,
                                                    PointerType *reqType) {
-  std::string name = "__enzyme_differential_waitall_save";
+  std::string name = "__raptor_differential_waitall_save";
   FunctionType *FT =
       FunctionType::get(PointerType::getUnqual(reqType), T, false);
   Function *F = cast<Function>(M.getOrInsertFunction(name, FT).getCallee());
@@ -1704,7 +1704,7 @@ llvm::Function *getOrInsertDifferentialMPI_Wait(llvm::Module &M,
                                                 Type *reqType) {
   llvm::SmallVector<llvm::Type *, 4> types(T.begin(), T.end());
   types.push_back(reqType);
-  std::string name = "__enzyme_differential_mpi_wait";
+  std::string name = "__raptor_differential_mpi_wait";
   FunctionType *FT =
       FunctionType::get(Type::getVoidTy(M.getContext()), types, false);
   Function *F = cast<Function>(M.getOrInsertFunction(name, FT).getCallee());
@@ -1809,7 +1809,7 @@ llvm::Function *getOrInsertDifferentialMPI_Wait(llvm::Module &M,
 llvm::Value *getOrInsertOpFloatSum(llvm::Module &M, llvm::Type *OpPtr,
                                    llvm::Type *OpType, ConcreteType CT,
                                    llvm::Type *intType, IRBuilder<> &B2) {
-  std::string name = "__enzyme_mpi_sum" + CT.str();
+  std::string name = "__raptor_mpi_sum" + CT.str();
   assert(CT.isFloat());
   auto FlT = CT.isFloat();
 
@@ -3010,10 +3010,10 @@ llvm::Optional<BlasInfo> extractBLAS(llvm::StringRef in)
 
 llvm::Constant *getUndefinedValueForType(llvm::Module &M, llvm::Type *T,
                                          bool forceZero) {
-  if (EnzymeUndefinedValueForType)
+  if (RaptorUndefinedValueForType)
     return cast<Constant>(
-        unwrap(EnzymeUndefinedValueForType(wrap(&M), wrap(T), forceZero)));
-  else if (EnzymeZeroCache || forceZero)
+        unwrap(RaptorUndefinedValueForType(wrap(&M), wrap(T), forceZero)));
+  else if (RaptorZeroCache || forceZero)
     return Constant::getNullValue(T);
   else
     return UndefValue::get(T);
@@ -3022,15 +3022,15 @@ llvm::Constant *getUndefinedValueForType(llvm::Module &M, llvm::Type *T,
 llvm::Value *SanitizeDerivatives(llvm::Value *val, llvm::Value *toset,
                                  llvm::IRBuilder<> &BuilderM,
                                  llvm::Value *mask) {
-  if (EnzymeSanitizeDerivatives)
-    return unwrap(EnzymeSanitizeDerivatives(wrap(val), wrap(toset),
+  if (RaptorSanitizeDerivatives)
+    return unwrap(RaptorSanitizeDerivatives(wrap(val), wrap(toset),
                                             wrap(&BuilderM), wrap(mask)));
   return toset;
 }
 
 llvm::FastMathFlags getFast() {
   llvm::FastMathFlags f;
-  if (EnzymeFastMath)
+  if (RaptorFastMath)
     f.set();
   return f;
 }
@@ -3593,7 +3593,7 @@ llvm::Value *EmitNoDerivativeError(const std::string &message,
     return unwrap(CustomErrorHandler(message.c_str(), wrap(&inst),
                                      ErrorType::NoDerivative, gutils, nullptr,
                                      wrap(&Builder2)));
-  } else if (EnzymeRuntimeError) {
+  } else if (RaptorRuntimeError) {
     auto &M = *inst.getParent()->getParent()->getParent();
     FunctionType *FT = FunctionType::get(Type::getInt32Ty(M.getContext()),
                                          {getInt8PtrTy(M.getContext())}, false);
@@ -3628,7 +3628,7 @@ bool EmitNoDerivativeError(const std::string &message, Value *todiff,
     CustomErrorHandler(message.c_str(), wrap(toshow), ErrorType::NoDerivative,
                        nullptr, wrap(todiff), wrap(context.ip));
     return true;
-  } else if (context.ip && EnzymeRuntimeError) {
+  } else if (context.ip && RaptorRuntimeError) {
     auto &M = *context.ip->GetInsertBlock()->getParent()->getParent();
     FunctionType *FT = FunctionType::get(Type::getInt32Ty(M.getContext()),
                                          {getInt8PtrTy(M.getContext())}, false);
@@ -3661,7 +3661,7 @@ void EmitNoTypeError(const std::string &message, llvm::Instruction &inst,
   if (CustomErrorHandler) {
     CustomErrorHandler(message.c_str(), wrap(&inst), ErrorType::NoType,
                        gutils->TR.analyzer, nullptr, wrap(&Builder2));
-  } else if (EnzymeRuntimeError) {
+  } else if (RaptorRuntimeError) {
     auto &M = *inst.getParent()->getParent()->getParent();
     FunctionType *FT = FunctionType::get(Type::getInt32Ty(M.getContext()),
                                          {getInt8PtrTy(M.getContext())}, false);

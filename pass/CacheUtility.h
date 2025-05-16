@@ -1,14 +1,14 @@
 //===- CacheUtility.h - Caching values in the forward pass for later use
 //---===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -24,8 +24,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ENZYME_CACHE_UTILITY_H
-#define ENZYME_CACHE_UTILITY_H
+#ifndef RAPTOR_CACHE_UTILITY_H
+#define RAPTOR_CACHE_UTILITY_H
 
 #include <llvm/Config/llvm-config.h>
 #if LLVM_VERSION_MAJOR >= 16
@@ -56,7 +56,7 @@ extern "C" {
 /// Pack 8 bools together in a single byte
 extern llvm::cl::opt<bool> EfficientBoolCache;
 
-extern llvm::cl::opt<bool> EnzymeZeroCache;
+extern llvm::cl::opt<bool> RaptorZeroCache;
 }
 
 /// Container for all loop information to synthesize gradients

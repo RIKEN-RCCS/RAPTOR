@@ -1,13 +1,13 @@
 //===- GradientUtils.h - Helper class and utilities for AD       ---------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -25,8 +25,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ENZYME_GUTILS_H_
-#define ENZYME_GUTILS_H_
+#ifndef RAPTOR_GUTILS_H_
+#define RAPTOR_GUTILS_H_
 
 #include <functional>
 #include <map>
@@ -67,7 +67,7 @@
 
 #include "ActivityAnalysis.h"
 #include "CacheUtility.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "Utils.h"
 
 #include "llvm-c/Core.h"
@@ -94,9 +94,9 @@ extern llvm::StringMap<
 constexpr int IndexMappingError = 0x0000fffd;
 
 extern "C" {
-extern llvm::cl::opt<bool> EnzymeInactiveDynamic;
-extern llvm::cl::opt<bool> EnzymeFreeInternalAllocations;
-extern llvm::cl::opt<bool> EnzymeRematerialize;
+extern llvm::cl::opt<bool> RaptorInactiveDynamic;
+extern llvm::cl::opt<bool> RaptorFreeInternalAllocations;
+extern llvm::cl::opt<bool> RaptorRematerialize;
 }
 extern llvm::SmallVector<unsigned int, 9> MD_ToCopy;
 
@@ -124,7 +124,7 @@ public:
 enum class AugmentedStruct;
 class GradientUtils : public CacheUtility {
 public:
-  EnzymeLogic &Logic;
+  RaptorLogic &Logic;
   bool AtomicAdd;
   DerivativeMode mode;
   llvm::Function *oldFunc;
@@ -382,7 +382,7 @@ public:
   llvm::ArrayRef<DIFFE_TYPE> ArgDiffeTypes;
 
 public:
-  GradientUtils(EnzymeLogic &Logic, llvm::Function *newFunc_,
+  GradientUtils(RaptorLogic &Logic, llvm::Function *newFunc_,
                 llvm::Function *oldFunc_, llvm::TargetLibraryInfo &TLI_,
                 TypeAnalysis &TA_, TypeResults TR_,
                 llvm::ValueToValueMapTy &invertedPointers_,
@@ -406,7 +406,7 @@ public:
                                 bool *shadowReturnUsedP) const;
 
   static GradientUtils *
-  CreateFromClone(EnzymeLogic &Logic, bool runtimeActivity, unsigned width,
+  CreateFromClone(RaptorLogic &Logic, bool runtimeActivity, unsigned width,
                   llvm::Function *todiff, llvm::TargetLibraryInfo &TLI,
                   TypeAnalysis &TA, FnTypeInfo &oldTypeInfo, DIFFE_TYPE retType,
                   llvm::ArrayRef<DIFFE_TYPE> constant_args, bool returnUsed,
@@ -509,12 +509,12 @@ public:
                               bool nullShadow = false);
 
   static llvm::Constant *GetOrCreateShadowConstant(
-      RequestContext context, EnzymeLogic &Logic, llvm::TargetLibraryInfo &TLI,
+      RequestContext context, RaptorLogic &Logic, llvm::TargetLibraryInfo &TLI,
       TypeAnalysis &TA, llvm::Constant *F, DerivativeMode mode,
       bool runtimeActivity, unsigned width, bool AtomicAdd);
 
   static llvm::Constant *GetOrCreateShadowFunction(
-      RequestContext context, EnzymeLogic &Logic, llvm::TargetLibraryInfo &TLI,
+      RequestContext context, RaptorLogic &Logic, llvm::TargetLibraryInfo &TLI,
       TypeAnalysis &TA, llvm::Function *F, DerivativeMode mode,
       bool runtimeActivity, unsigned width, bool AtomicAdd);
 

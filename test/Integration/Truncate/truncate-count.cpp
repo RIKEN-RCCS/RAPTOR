@@ -1,4 +1,4 @@
-// RUN: if [ %llvmver -ge 12 ] ; then %clang -O2 %s -o %s.a.out %newLoadClangEnzyme -mllvm --enzyme-truncate-count -lm && %s.a.out | FileCheck %s; fi
+// RUN: if [ %llvmver -ge 12 ] ; then %clang -O2 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-count -lm && %s.a.out | FileCheck %s; fi
 
 #include <cstdio>
 #include <cmath>
@@ -12,7 +12,7 @@
 // CHECK: FLOP!
 
 extern "C"
-void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
+void __raptor_fprt_64_52_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc) {
     puts("FLOP!");
 }

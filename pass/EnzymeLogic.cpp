@@ -1,13 +1,13 @@
-//===- EnzymeLogic.cpp - Implementation of forward and reverse pass generation//
+//===- RaptorLogic.cpp - Implementation of forward and reverse pass generation//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -27,10 +27,10 @@
 // primal pass.
 //
 //===----------------------------------------------------------------------===//
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "ActivityAnalysis.h"
 #include "AdjointGenerator.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "TypeAnalysis/TypeAnalysis.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
@@ -102,31 +102,31 @@ using namespace llvm;
 
 extern "C" {
 llvm::cl::opt<bool>
-    EnzymePrint("enzyme-print", cl::init(false), cl::Hidden,
+    RaptorPrint("raptor-print", cl::init(false), cl::Hidden,
                 cl::desc("Print before and after fns for autodiff"));
 
 llvm::cl::opt<bool>
-    EnzymePrintUnnecessary("enzyme-print-unnecessary", cl::init(false),
+    RaptorPrintUnnecessary("raptor-print-unnecessary", cl::init(false),
                            cl::Hidden,
                            cl::desc("Print unnecessary values in function"));
 
-cl::opt<bool> looseTypeAnalysis("enzyme-loose-types", cl::init(false),
+cl::opt<bool> looseTypeAnalysis("raptor-loose-types", cl::init(false),
                                 cl::Hidden,
                                 cl::desc("Allow looser use of types"));
 
 cl::opt<bool> nonmarkedglobals_inactiveloads(
-    "enzyme_nonmarkedglobals_inactiveloads", cl::init(true), cl::Hidden,
+    "raptor_nonmarkedglobals_inactiveloads", cl::init(true), cl::Hidden,
     cl::desc("Consider loads of nonmarked globals to be inactive"));
 
-cl::opt<bool> EnzymeJuliaAddrLoad(
-    "enzyme-julia-addr-load", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorJuliaAddrLoad(
+    "raptor-julia-addr-load", cl::init(false), cl::Hidden,
     cl::desc("Mark all loads resulting in an addr(13)* to be legal to redo"));
 
-cl::opt<bool> EnzymeAssumeUnknownNoFree(
-    "enzyme-assume-unknown-nofree", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorAssumeUnknownNoFree(
+    "raptor-assume-unknown-nofree", cl::init(false), cl::Hidden,
     cl::desc("Assume unknown instructions are nofree as needed"));
 
-LLVMValueRef (*EnzymeFixupReturn)(LLVMBuilderRef, LLVMValueRef) = nullptr;
+LLVMValueRef (*RaptorFixupReturn)(LLVMBuilderRef, LLVMValueRef) = nullptr;
 }
 
 struct CacheAnalysis {
@@ -274,7 +274,7 @@ struct CacheAnalysis {
       return false;
     }
 
-    if (EnzymeJuliaAddrLoad)
+    if (RaptorJuliaAddrLoad)
       if (auto PT = dyn_cast<PointerType>(li.getType()))
         if (PT->getAddressSpace() == 13)
           return false;
@@ -286,7 +286,7 @@ struct CacheAnalysis {
     // may change from a caller.
     bool checkFunction = true;
     if (li.hasMetadata(LLVMContext::MD_invariant_load)) {
-      if (!EnzymeJuliaAddrLoad || mode == DerivativeMode::ReverseModeCombined)
+      if (!RaptorJuliaAddrLoad || mode == DerivativeMode::ReverseModeCombined)
         return false;
       else
         checkFunction = false;
@@ -474,7 +474,7 @@ struct CacheAnalysis {
     if (funcName == "julia.safepoint")
       return {};
 
-    if (funcName == "enzyme_zerotype")
+    if (funcName == "raptor_zerotype")
       return {};
 
     if (isMemFreeLibMFunction(funcName)) {
@@ -490,7 +490,7 @@ struct CacheAnalysis {
     }
 
     if (startsWith(funcName, "MPI_") ||
-        startsWith(funcName, "enzyme_wrapmpi$$"))
+        startsWith(funcName, "raptor_wrapmpi$$"))
       return {};
 
     if (funcName == "__kmpc_for_static_init_4" ||
@@ -959,7 +959,7 @@ void calculateUnusedValuesInFunction(
               return UseReq::Need;
             return UseReq::Recur;
           }
-          if (hasMetadata(obj_op, "enzyme_zerostack")) {
+          if (hasMetadata(obj_op, "raptor_zerostack")) {
             if (unnecessaryValues.count(
                     getBaseObject(obj_op->getArgOperand(0)))) {
               return UseReq::Recur;
@@ -1104,7 +1104,7 @@ void calculateUnusedValuesInFunction(
         }
         return true;
       });
-  if (EnzymePrintUnnecessary) {
+  if (RaptorPrintUnnecessary) {
     llvm::errs() << " val use analysis of " << func.getName()
                  << ": mode=" << to_string(mode) << "\n";
     for (auto &BB : func)
@@ -1390,7 +1390,7 @@ bool legalCombinedForwardReverse(
     }
 
     if (sret) {
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [not implemented] pointer return for combined "
                           "forward/reverse "
@@ -1431,7 +1431,7 @@ bool legalCombinedForwardReverse(
 
     if (isa<BranchInst>(I) || isa<SwitchInst>(I)) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [bi] failed to replace function "
                        << (called->getName()) << " due to " << *I << "\n";
@@ -1473,7 +1473,7 @@ bool legalCombinedForwardReverse(
     }
     if (isa<PHINode>(I)) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [phi] failed to replace function "
                        << (called->getName()) << " due to " << *I << "\n";
@@ -1487,7 +1487,7 @@ bool legalCombinedForwardReverse(
         DifferentialUseAnalysis::is_value_needed_in_reverse<QueryType::Primal>(
             gutils, I, DerivativeMode::ReverseModeCombined, oldUnreachable)) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [nv] failed to replace function "
                        << (called->getName()) << " due to " << *I << "\n";
@@ -1502,7 +1502,7 @@ bool legalCombinedForwardReverse(
         DifferentialUseAnalysis::is_value_needed_in_reverse<QueryType::Shadow>(
             gutils, I, DerivativeMode::ReverseModeCombined, oldUnreachable)) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [ns] failed to replace function "
                        << (called->getName()) << " due to " << *I << "\n";
@@ -1514,7 +1514,7 @@ bool legalCombinedForwardReverse(
     }
     if (I != origop && !isa<IntrinsicInst>(I) && isa<CallInst>(I)) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [ci] failed to replace function "
                        << (called->getName()) << " due to " << *I << "\n";
@@ -1533,7 +1533,7 @@ bool legalCombinedForwardReverse(
           gutils->getNewFromOriginal(I)->getParent() !=
               gutils->getNewFromOriginal(I->getParent())) {
         legal = false;
-        if (EnzymePrintPerf) {
+        if (RaptorPrintPerf) {
           if (called)
             llvm::errs() << " [am] failed to replace function "
                          << (called->getName()) << " due to " << *I << "\n";
@@ -1594,7 +1594,7 @@ bool legalCombinedForwardReverse(
       if (writesToMemoryReadBy(&gutils->TR, *gutils->OrigAA, gutils->TLI,
                                /*maybeReader*/ inst,
                                /*maybeWriter*/ post)) {
-        if (EnzymePrintPerf) {
+        if (RaptorPrintPerf) {
           if (called)
             llvm::errs() << " [mem] failed to replace function "
                          << (called->getName()) << " due to " << *post
@@ -1629,7 +1629,7 @@ bool legalCombinedForwardReverse(
         noFree |= called->hasFnAttribute(Attribute::NoFree);
       }
       if (!noFree) {
-        if (EnzymePrintPerf) {
+        if (RaptorPrintPerf) {
           if (called)
             llvm::errs() << " [freeing] failed to replace function "
                          << (called->getName()) << " due to freeing " << *post
@@ -1663,7 +1663,7 @@ bool legalCombinedForwardReverse(
     if (inst->getParent() != origop->getParent()) {
       // Don't move a writing instruction (may change speculatable/etc things)
       if (inst->mayWriteToMemory()) {
-        if (EnzymePrintPerf) {
+        if (RaptorPrintPerf) {
           if (called)
             llvm::errs() << " [nonspec] failed to replace function "
                          << (called->getName()) << " due to " << *inst << "\n";
@@ -1679,7 +1679,7 @@ bool legalCombinedForwardReverse(
     if (isa<CallInst>(inst) &&
         gutils->originalToNewFn.find(inst) == gutils->originalToNewFn.end()) {
       legal = false;
-      if (EnzymePrintPerf) {
+      if (RaptorPrintPerf) {
         if (called)
           llvm::errs() << " [premove] failed to replace function "
                        << (called->getName()) << " due to " << *inst << "\n";
@@ -1697,7 +1697,7 @@ bool legalCombinedForwardReverse(
   if (!legal)
     return false;
 
-  if (EnzymePrintPerf) {
+  if (RaptorPrintPerf) {
     if (called)
       llvm::errs() << " choosing to replace function " << (called->getName())
                    << " and do both forward/reverse\n";
@@ -1737,7 +1737,7 @@ void clearFunctionAttributes(Function *f) {
       f->removeRetAttr(attr);
     }
   }
-  for (auto attr : {"enzyme_inactive", "enzyme_type"}) {
+  for (auto attr : {"raptor_inactive", "raptor_type"}) {
     if (f->getAttributes().hasRetAttr(attr)) {
       f->removeRetAttr(attr);
     }
@@ -1819,7 +1819,7 @@ void restoreCache(
     auto nexti = pair.second;
     for (auto V : unwrapToOrig[newi]) {
       ValueToValueMapTy available;
-      if (auto MD = hasMetadata(V, "enzyme_available")) {
+      if (auto MD = hasMetadata(V, "raptor_available")) {
         for (auto &pair : MD->operands()) {
           auto tup = cast<MDNode>(pair);
           auto val = cast<ValueAsMetadata>(tup->getOperand(1))->getValue();
@@ -1924,7 +1924,7 @@ void restoreCache(
 }
 
 //! return structtype if recursive function
-const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
+const AugmentedReturn &RaptorLogic::CreateAugmentedPrimal(
     RequestContext context, Function *todiff, DIFFE_TYPE retType,
     ArrayRef<DIFFE_TYPE> constant_args, TypeAnalysis &TA, bool returnUsed,
     bool shadowReturnUsed, const FnTypeInfo &oldTypeInfo_,
@@ -1985,7 +1985,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
 
   // TODO make default typing (not just constant)
 
-  if (auto md = hasMetadata(todiff, "enzyme_augment")) {
+  if (auto md = hasMetadata(todiff, "raptor_augment")) {
     if (!isa<MDTuple>(md)) {
       llvm::errs() << *todiff << "\n";
       llvm::errs() << *md << "\n";
@@ -2135,7 +2135,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
       bb.CreateRet(res);
 
       todiff->setMetadata(
-          "enzyme_augment",
+          "raptor_augment",
           llvm::MDTuple::get(todiff->getContext(),
                              {llvm::ValueAsMetadata::get(NewF)}));
       foundcalled = NewF;
@@ -2197,7 +2197,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
           bb.CreateRet(res);
 
           todiff->setMetadata(
-              "enzyme_augment",
+              "raptor_augment",
               llvm::MDTuple::get(todiff->getContext(),
                                  {llvm::ValueAsMetadata::get(NewF)}));
           foundcalled = NewF;
@@ -2262,7 +2262,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
           bb.CreateRet(res);
 
           todiff->setMetadata(
-              "enzyme_augment",
+              "raptor_augment",
               llvm::MDTuple::get(todiff->getContext(),
                                  {llvm::ValueAsMetadata::get(NewF)}));
           foundcalled = NewF;
@@ -2564,7 +2564,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
       gutils->newFunc->removeRetAttr(attr);
     }
   }
-  for (auto attr : {"enzyme_inactive", "enzyme_type"}) {
+  for (auto attr : {"raptor_inactive", "raptor_type"}) {
     if (gutils->newFunc->getAttributes().hasRetAttr(attr)) {
       gutils->newFunc->removeRetAttr(attr);
     }
@@ -2711,9 +2711,9 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
     if (nf->hasParamAttribute(attrIndex, Attribute::NoAlias)) {
       NewF->addParamAttr(attrIndex, Attribute::NoAlias);
     }
-    for (auto name : {"enzyme_sret", "enzyme_sret_v", "enzymejl_returnRoots",
-                      "enzymejl_returnRoots_v", "enzymejl_parmtype",
-                      "enzymejl_parmtype_ref", "enzyme_type"})
+    for (auto name : {"raptor_sret", "raptor_sret_v", "raptorjl_returnRoots",
+                      "raptorjl_returnRoots_v", "raptorjl_parmtype",
+                      "raptorjl_parmtype_ref", "raptor_type"})
       if (nf->getAttributes().hasParamAttr(attrIndex, name)) {
         NewF->addParamAttr(attrIndex,
                            nf->getAttributes().getParamAttr(attrIndex, name));
@@ -2725,7 +2725,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
     ++attrIndex;
   }
 
-  for (auto attr : {"enzyme_ta_norecur"})
+  for (auto attr : {"raptor_ta_norecur"})
     if (nf->getAttributes().hasAttributeAtIndex(AttributeList::FunctionIndex,
                                                 attr)) {
       NewF->addFnAttr(
@@ -2733,7 +2733,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
     }
 
   for (auto attr :
-       {"enzyme_type", "enzymejl_parmtype", "enzymejl_parmtype_ref"})
+       {"raptor_type", "raptorjl_parmtype", "raptorjl_parmtype_ref"})
     if (nf->getAttributes().hasAttributeAtIndex(AttributeList::ReturnIndex,
                                                 attr)) {
       NewF->addAttribute(
@@ -2761,7 +2761,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
         Instruction *zero = nullptr;
         tapeMemory = CreateAllocation(
             ib, tapeType, ConstantInt::get(i64, 1), "tapemem", &malloccall,
-            EnzymeZeroCache ? &zero : nullptr, /*isDefault*/ true);
+            RaptorZeroCache ? &zero : nullptr, /*isDefault*/ true);
         memory = malloccall;
       } else {
         memory = ConstantPointerNull::get(
@@ -2797,7 +2797,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
         tapeMemory = ib.CreateGEP(RetType, ret, Idxs, "");
         cast<GetElementPtrInst>(tapeMemory)->setIsInBounds(true);
       }
-      if (EnzymeZeroCache) {
+      if (RaptorZeroCache) {
         ZeroMemory(ib, tapeType, tapeMemory,
                    /*isTape*/ true);
       }
@@ -2868,8 +2868,8 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
       if (auto ggep = dyn_cast<GetElementPtrInst>(gep)) {
         ggep->setIsInBounds(true);
       }
-      if (EnzymeFixupReturn)
-        actualrv = unwrap(EnzymeFixupReturn(wrap(&ib), wrap(actualrv)));
+      if (RaptorFixupReturn)
+        actualrv = unwrap(RaptorFixupReturn(wrap(&ib), wrap(actualrv)));
       auto storeinst = ib.CreateStore(actualrv, gep);
       PostCacheStore(storeinst, ib);
     }
@@ -2897,8 +2897,8 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
           assert(found != VMap.end());
           shadowRV = found->second;
         }
-        if (EnzymeFixupReturn)
-          shadowRV = unwrap(EnzymeFixupReturn(wrap(&ib), wrap(shadowRV)));
+        if (RaptorFixupReturn)
+          shadowRV = unwrap(RaptorFixupReturn(wrap(&ib), wrap(shadowRV)));
         auto storeinst = ib.CreateStore(shadowRV, gep);
         PostCacheStore(storeinst, ib);
       }
@@ -2933,12 +2933,12 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
       if (auto CS = dyn_cast<ConstantStruct>(user)) {
         for (auto cuser : CS->users()) {
           if (auto G = dyn_cast<GlobalVariable>(cuser)) {
-            if (("_enzyme_reverse_" + todiff->getName() + "'").str() ==
+            if (("_raptor_reverse_" + todiff->getName() + "'").str() ==
                 G->getName()) {
               gfnusers.emplace_back(G, DerivativeMode::ReverseModeGradient);
               continue;
             }
-            if (("_enzyme_forwardsplit_" + todiff->getName() + "'").str() ==
+            if (("_raptor_forwardsplit_" + todiff->getName() + "'").str() ==
                 G->getName()) {
               gfnusers.emplace_back(G, DerivativeMode::ForwardModeSplit);
               continue;
@@ -3024,7 +3024,7 @@ const AugmentedReturn &EnzymeLogic::CreateAugmentedPrimal(
   // make the IR different to traverse, and thus impossible to find the allocs.
   if (PostOpt && !omp)
     PPC.optimizeIntermediate(NewF);
-  if (EnzymePrint)
+  if (RaptorPrint)
     llvm::errs() << *NewF << "\n";
   return AugmentedCachedFunctions.find(tup)->second;
 }
@@ -3556,7 +3556,7 @@ void createInvertedTerminator(DiffeGradientUtils *gutils,
   }
 }
 
-Function *EnzymeLogic::CreatePrimalAndGradient(
+Function *RaptorLogic::CreatePrimalAndGradient(
     RequestContext context, const ReverseCacheKey &&key, TypeAnalysis &TA,
     const AugmentedReturn *augmenteddata, bool omp) {
 
@@ -3576,7 +3576,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
   Function *prevFunction = nullptr;
   if (ReverseCachedFunctions.find(key) != ReverseCachedFunctions.end()) {
     prevFunction = ReverseCachedFunctions.find(key)->second;
-    if (!hasMetadata(prevFunction, "enzyme_placeholder"))
+    if (!hasMetadata(prevFunction, "raptor_placeholder"))
       return prevFunction;
     if (augmenteddata && !augmenteddata->isComplete)
       return prevFunction;
@@ -3597,7 +3597,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
     }
   }
 
-  if (hasMetadata(key.todiff, "enzyme_gradient")) {
+  if (hasMetadata(key.todiff, "raptor_gradient")) {
     std::set<llvm::Type *> seen;
 #ifndef NDEBUG
     DIFFE_TYPE subretType = whatType(key.todiff->getReturnType(),
@@ -3666,7 +3666,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
                       aug.tapeType,
                       cast<PointerType>(tape->getType())->getAddressSpace()));
         auto truetape = bb.CreateLoad(aug.tapeType, tapep, "tapeld");
-        truetape->setMetadata("enzyme_mustcache",
+        truetape->setMetadata("raptor_mustcache",
                               MDNode::get(truetape->getContext(), {}));
 
         if (key.freeMemory) {
@@ -3723,7 +3723,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
           ->second;
     }
 
-    auto md = key.todiff->getMetadata("enzyme_gradient");
+    auto md = key.todiff->getMetadata("raptor_gradient");
     if (!isa<MDTuple>(md)) {
       llvm::errs() << *key.todiff << "\n";
       llvm::errs() << *md << "\n";
@@ -4044,7 +4044,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
     auto nf = gutils->newFunc;
     delete gutils;
     assert(!prevFunction);
-    nf->setMetadata("enzyme_placeholder", MDTuple::get(nf->getContext(), {}));
+    nf->setMetadata("raptor_placeholder", MDTuple::get(nf->getContext(), {}));
     return nf;
   }
 
@@ -4122,7 +4122,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
                                  ->getAddressSpace()));
         LoadInst *truetape =
             BuilderZ.CreateLoad(augmenteddata->tapeType, tapep, "truetape");
-        truetape->setMetadata("enzyme_mustcache",
+        truetape->setMetadata("raptor_mustcache",
                               MDNode::get(truetape->getContext(), {}));
 
         if (!omp && gutils->FreeMemory) {
@@ -4316,7 +4316,7 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
   if (key.mode == DerivativeMode::ReverseModeCombined) {
     BasicBlock *sharedBlock = nullptr;
     for (auto &g : gutils->newFunc->getParent()->globals()) {
-      if (hasMetadata(&g, "enzyme_internalshadowglobal")) {
+      if (hasMetadata(&g, "raptor_internalshadowglobal")) {
         IRBuilder<> entryBuilder(gutils->inversionAllocs,
                                  gutils->inversionAllocs->begin());
 
@@ -4419,13 +4419,13 @@ Function *EnzymeLogic::CreatePrimalAndGradient(
   // make the IR different to traverse, and thus impossible to find the allocs.
   if (PostOpt && !omp)
     PPC.optimizeIntermediate(nf);
-  if (EnzymePrint) {
+  if (RaptorPrint) {
     llvm::errs() << *nf << "\n";
   }
   return nf;
 }
 
-Function *EnzymeLogic::CreateForwardDiff(
+Function *RaptorLogic::CreateForwardDiff(
     RequestContext context, Function *todiff, DIFFE_TYPE retType,
     ArrayRef<DIFFE_TYPE> constant_args, TypeAnalysis &TA, bool returnUsed,
     DerivativeMode mode, bool freeMemory, bool runtimeActivity, unsigned width,
@@ -4475,8 +4475,8 @@ Function *EnzymeLogic::CreateForwardDiff(
 
   if (auto md = hasMetadata(todiff, (mode == DerivativeMode::ForwardMode ||
                                      mode == DerivativeMode::ForwardModeError)
-                                        ? "enzyme_derivative"
-                                        : "enzyme_splitderivative")) {
+                                        ? "raptor_derivative"
+                                        : "raptor_splitderivative")) {
     if (!isa<MDTuple>(md)) {
       llvm::errs() << *todiff << "\n";
       llvm::errs() << *md << "\n";
@@ -4768,7 +4768,7 @@ Function *EnzymeLogic::CreateForwardDiff(
               additionalValue, PointerType::getUnqual(augmenteddata->tapeType));
           LoadInst *truetape =
               BuilderZ.CreateLoad(augmenteddata->tapeType, tapep, "truetape");
-          truetape->setMetadata("enzyme_mustcache",
+          truetape->setMetadata("raptor_mustcache",
                                 MDNode::get(truetape->getContext(), {}));
 
           if (!omp && gutils->FreeMemory) {
@@ -4868,7 +4868,7 @@ Function *EnzymeLogic::CreateForwardDiff(
 
   if (PostOpt)
     PPC.optimizeIntermediate(nf);
-  if (EnzymePrint) {
+  if (RaptorPrint) {
     llvm::errs() << *nf << "\n";
   }
   return nf;
@@ -4882,7 +4882,7 @@ static Value *floatValTruncate(IRBuilderBase &B, Value *v,
   Type *toTy = truncation.getToType(B.getContext());
   if (auto vty = dyn_cast<VectorType>(v->getType()))
     toTy = VectorType::get(toTy, vty->getElementCount());
-  return B.CreateFPTrunc(v, toTy, "enzyme_trunc");
+  return B.CreateFPTrunc(v, toTy, "raptor_trunc");
 }
 
 static Value *floatValExpand(IRBuilderBase &B, Value *v,
@@ -4893,7 +4893,7 @@ static Value *floatValExpand(IRBuilderBase &B, Value *v,
   Type *fromTy = truncation.getFromType(B.getContext());
   if (auto vty = dyn_cast<VectorType>(v->getType()))
     fromTy = VectorType::get(fromTy, vty->getElementCount());
-  return B.CreateFPExt(v, fromTy, "enzyme_exp");
+  return B.CreateFPExt(v, fromTy, "raptor_exp");
 }
 
 static Value *floatMemTruncate(IRBuilderBase &B, Value *v,
@@ -4921,17 +4921,17 @@ protected:
   Type *fromType;
   Type *toType;
   LLVMContext &ctx;
-  EnzymeLogic &Logic;
+  RaptorLogic &Logic;
   Value *UnknownLoc;
   Value *scratch = nullptr;
 
 private:
   std::string getOriginalFPRTName(std::string Name) {
-    return std::string(EnzymeFPRTOriginalPrefix) + truncation.mangleFrom() +
+    return std::string(RaptorFPRTOriginalPrefix) + truncation.mangleFrom() +
            "_" + Name;
   }
   std::string getFPRTName(std::string Name) {
-    return std::string(EnzymeFPRTPrefix) + truncation.mangleFrom() + "_" + Name;
+    return std::string(RaptorFPRTPrefix) + truncation.mangleFrom() + "_" + Name;
   }
 
   // Creates a function which contains the original floating point operation.
@@ -5006,7 +5006,7 @@ public:
     return CI;
   }
 
-  TruncateUtils(FloatTruncation truncation, Module *M, EnzymeLogic &Logic)
+  TruncateUtils(FloatTruncation truncation, Module *M, RaptorLogic &Logic)
       : truncation(truncation), M(M), ctx(M->getContext()), Logic(Logic) {
     fromType = truncation.getFromType(ctx);
     toType = truncation.getToType(ctx);
@@ -5123,13 +5123,13 @@ private:
   ValueToValueMapTy &originalToNewFn;
   FloatTruncation truncation;
   TruncateMode mode;
-  EnzymeLogic &Logic;
+  RaptorLogic &Logic;
   LLVMContext &ctx;
 
 public:
   TruncateGenerator(ValueToValueMapTy &originalToNewFn,
                     FloatTruncation truncation, Function *oldFunc,
-                    Function *newFunc, EnzymeLogic &Logic, bool root)
+                    Function *newFunc, RaptorLogic &Logic, bool root)
       : TruncateUtils(truncation, newFunc->getParent(), Logic),
         originalToNewFn(originalToNewFn), truncation(truncation),
         mode(truncation.getMode()), Logic(Logic), ctx(newFunc->getContext()) {
@@ -5641,10 +5641,10 @@ public:
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
       if (Func && !Func->empty()) {
-        bool truncOpIgnore = Func->getName().contains("enzyme_trunc_op_ignore");
+        bool truncOpIgnore = Func->getName().contains("raptor_trunc_op_ignore");
         bool truncMemIgnore =
-            Func->getName().contains("enzyme_trunc_mem_ignore");
-        bool truncIgnore = Func->getName().contains("enzyme_trunc_ignore");
+            Func->getName().contains("raptor_trunc_mem_ignore");
+        bool truncIgnore = Func->getName().contains("raptor_trunc_ignore");
         truncIgnore |= truncOpIgnore && mode == TruncOpMode;
         truncIgnore |= truncMemIgnore && mode == TruncMemMode;
         if (!truncIgnore) {
@@ -5729,7 +5729,7 @@ public:
   }
 };
 
-bool EnzymeLogic::CreateTruncateValue(RequestContext context, Value *v,
+bool RaptorLogic::CreateTruncateValue(RequestContext context, Value *v,
                                       FloatRepresentation from,
                                       FloatRepresentation to, bool isTruncate) {
   assert(context.req && context.ip);
@@ -5752,7 +5752,7 @@ bool EnzymeLogic::CreateTruncateValue(RequestContext context, Value *v,
   return true;
 }
 
-llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
+llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext context,
                                                 llvm::Function *totrunc,
                                                 FloatTruncation truncation,
                                                 TruncateMode mode, bool root) {
@@ -5777,7 +5777,7 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
 
   FunctionType *FTy = FunctionType::get(NewTy, params, totrunc->isVarArg());
   std::string truncName =
-      std::string("__enzyme_done_truncate_") + truncateModeStr(mode) +
+      std::string("__raptor_done_truncate_") + truncateModeStr(mode) +
       "_func_" + truncation.mangleTruncation() + "_" + totrunc->getName().str();
   Function *NewF = Function::Create(FTy, totrunc->getLinkage(), truncName,
                                     totrunc->getParent());
@@ -5846,7 +5846,7 @@ llvm::Function *EnzymeLogic::CreateTruncateFunc(RequestContext context,
   return NewF;
 }
 
-llvm::Function *EnzymeLogic::CreateBatch(RequestContext context,
+llvm::Function *RaptorLogic::CreateBatch(RequestContext context,
                                          Function *tobatch, unsigned width,
                                          ArrayRef<BATCH_TYPE> arg_types,
                                          BATCH_TYPE ret_type) {
@@ -6133,7 +6133,7 @@ llvm::Function *EnzymeLogic::CreateBatch(RequestContext context,
 };
 
 llvm::Function *
-EnzymeLogic::CreateTrace(RequestContext context, llvm::Function *totrace,
+RaptorLogic::CreateTrace(RequestContext context, llvm::Function *totrace,
                          const SmallPtrSetImpl<Function *> &sampleFunctions,
                          const SmallPtrSetImpl<Function *> &observeFunctions,
                          const StringSet<> &ActiveRandomVariables,
@@ -6225,7 +6225,7 @@ EnzymeLogic::CreateTrace(RequestContext context, llvm::Function *totrace,
 
     if (PostOpt)
       PPC.optimizeIntermediate(NewF);
-    if (EnzymePrint) {
+    if (RaptorPrint) {
       errs() << *NewF << "\n";
     }
   }
@@ -6233,7 +6233,7 @@ EnzymeLogic::CreateTrace(RequestContext context, llvm::Function *totrace,
   return TraceCachedFunctions[tup] = NewF;
 }
 
-llvm::Value *EnzymeLogic::CreateNoFree(RequestContext context,
+llvm::Value *RaptorLogic::CreateNoFree(RequestContext context,
                                        llvm::Value *todiff) {
   if (isa<InlineAsm>(todiff))
     return todiff;
@@ -6399,7 +6399,7 @@ llvm::Value *EnzymeLogic::CreateNoFree(RequestContext context,
     }
   }
 
-  if (EnzymeAssumeUnknownNoFree) {
+  if (RaptorAssumeUnknownNoFree) {
     return todiff;
   }
 
@@ -6438,7 +6438,7 @@ llvm::Value *EnzymeLogic::CreateNoFree(RequestContext context,
   llvm_unreachable("unhandled, create no free");
 }
 
-llvm::Function *EnzymeLogic::CreateNoFree(RequestContext context, Function *F) {
+llvm::Function *RaptorLogic::CreateNoFree(RequestContext context, Function *F) {
   if (NoFreeCachedFunctions.find(F) != NoFreeCachedFunctions.end()) {
     return NoFreeCachedFunctions.find(F)->second;
   }
@@ -6719,10 +6719,10 @@ llvm::Function *EnzymeLogic::CreateNoFree(RequestContext context, Function *F) {
   }
 
   if (F->empty()) {
-    if (EnzymeAssumeUnknownNoFree) {
+    if (RaptorAssumeUnknownNoFree) {
       return F;
     }
-    if (EnzymeEmptyFnInactive) {
+    if (RaptorEmptyFnInactive) {
       return F;
     }
     std::string s;
@@ -6825,7 +6825,7 @@ llvm::Function *EnzymeLogic::CreateNoFree(RequestContext context, Function *F) {
   return NewF;
 }
 
-void EnzymeLogic::clear() {
+void RaptorLogic::clear() {
   PPC.clear();
   AugmentedCachedFunctions.clear();
   ReverseCachedFunctions.clear();

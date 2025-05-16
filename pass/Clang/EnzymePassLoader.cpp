@@ -1,14 +1,14 @@
-//===- EnzymePassLoader.cpp - Automatic Differentiation Transformation
+//===- RaptorPassLoader.cpp - Automatic Differentiation Transformation
 // Pass---===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -19,7 +19,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains a clang plugin for Enzyme.
+// This file contains a clang plugin for Raptor.
 //
 //===----------------------------------------------------------------------===//
 
@@ -34,22 +34,22 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 
-#include "../Enzyme.h"
+#include "../Raptor.h"
 #include "../PreserveNVVM.h"
 
-extern llvm::cl::opt<bool> EnzymeEnable;
+extern llvm::cl::opt<bool> RaptorEnable;
 
 using namespace llvm;
 
 // This function is of type PassManagerBuilder::ExtensionFn
 static void loadPass(const PassManagerBuilder &Builder,
                      legacy::PassManagerBase &PM) {
-  if (!EnzymeEnable)
+  if (!RaptorEnable)
     return;
   PM.add(createPreserveNVVMPass(/*Begin=*/true));
   PM.add(createGVNPass());
   PM.add(createSROAPass());
-  PM.add(createEnzymePass(/*PostOpt*/ true));
+  PM.add(createRaptorPass(/*PostOpt*/ true));
   PM.add(createPreserveNVVMPass(/*Begin=*/false));
   PM.add(createGVNPass());
   PM.add(createSROAPass());
@@ -74,7 +74,7 @@ static RegisterStandardPasses
 
 static void loadLTOPass(const PassManagerBuilder &Builder,
                         legacy::PassManagerBase &PM) {
-  if (!EnzymeEnable)
+  if (!RaptorEnable)
     return;
   loadPass(Builder, PM);
   PassManagerBuilder Builder2 = Builder;

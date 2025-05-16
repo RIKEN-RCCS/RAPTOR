@@ -1,14 +1,14 @@
 //===- CacheUtility.cpp - Caching values in the forward pass for later use
 //-===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -32,19 +32,19 @@ using namespace llvm;
 /// Pack 8 bools together in a single byte
 extern "C" {
 llvm::cl::opt<bool>
-    EfficientBoolCache("enzyme-smallbool", cl::init(false), cl::Hidden,
+    EfficientBoolCache("raptor-smallbool", cl::init(false), cl::Hidden,
                        cl::desc("Place 8 bools together in a single byte"));
 
-llvm::cl::opt<bool> EnzymeZeroCache("enzyme-zero-cache", cl::init(false),
+llvm::cl::opt<bool> RaptorZeroCache("raptor-zero-cache", cl::init(false),
                                     cl::Hidden,
                                     cl::desc("Zero initialize the cache"));
 
 llvm::cl::opt<bool>
-    EnzymePrintPerf("enzyme-print-perf", cl::init(false), cl::Hidden,
-                    cl::desc("Enable Enzyme to print performance info"));
+    RaptorPrintPerf("raptor-print-perf", cl::init(false), cl::Hidden,
+                    cl::desc("Enable Raptor to print performance info"));
 
 llvm::cl::opt<bool> EfficientMaxCache(
-    "enzyme-max-cache", cl::init(false), cl::Hidden,
+    "raptor-max-cache", cl::init(false), cl::Hidden,
     cl::desc(
         "Avoid reallocs when possible by potentially overallocating cache"));
 }
@@ -247,7 +247,7 @@ void RemoveRedundantIVs(
     // This scope is necessary to ensure scevexpander cleans up before we erase
     // things
     SCEVExpander Exp(SE, Header->getParent()->getParent()->getDataLayout(),
-                     "enzyme");
+                     "raptor");
 
     // We place that at first non phi as it may produce a non-phi instruction
     // and must thus be expanded after all phi's
@@ -718,7 +718,7 @@ bool CacheUtility::getContext(BasicBlock *BB, LoopContext &loopContext,
       Limit = SE.getZeroExtendExpr(Limit, CanonicalIV->getType());
 
     SCEVExpander Exp(SE, BB->getParent()->getParent()->getDataLayout(),
-                     "enzyme");
+                     "raptor");
     LimitVar = Exp.expandCodeFor(Limit, CanonicalIV->getType(),
                                  loopContexts[L].preheader->getTerminator());
     loopContexts[L].dynamic = false;
@@ -755,7 +755,7 @@ bool CacheUtility::getContext(BasicBlock *BB, LoopContext &loopContext,
           SE.getZeroExtendExpr(MaxIterations, CanonicalIV->getType());
 
     SCEVExpander Exp(SE, BB->getParent()->getParent()->getDataLayout(),
-                     "enzyme");
+                     "raptor");
 
     loopContexts[L].maxLimit =
         Exp.expandCodeFor(MaxIterations, CanonicalIV->getType(),
@@ -886,7 +886,7 @@ AllocaInst *CacheUtility::createCacheForScope(LimitContext ctx, Type *T,
         Instruction *ZeroInst = nullptr;
         Value *firstallocation = CreateAllocation(
             allocationBuilder, myType, size, name + "_malloccache", &malloccall,
-            /*ZeroMem*/ EnzymeZeroCache ? &ZeroInst : nullptr);
+            /*ZeroMem*/ RaptorZeroCache ? &ZeroInst : nullptr);
 
         scopeInstructions[alloc].push_back(malloccall);
         if (firstallocation != malloccall)
@@ -895,7 +895,7 @@ AllocaInst *CacheUtility::createCacheForScope(LimitContext ctx, Type *T,
 
         for (auto &actx : sublimits[i].second) {
           if (actx.first.offset) {
-            malloccall->setMetadata("enzyme_ompfor",
+            malloccall->setMetadata("raptor_ompfor",
                                     MDNode::get(malloccall->getContext(), {}));
             break;
           }
@@ -953,7 +953,7 @@ AllocaInst *CacheUtility::createCacheForScope(LimitContext ctx, Type *T,
         CallInst *realloccall = nullptr;
         auto reallocation = CreateReAllocation(
             build, allocation, myType, containedloops.back().first.incvar, size,
-            name + "_realloccache", &realloccall, EnzymeZeroCache && i == 0);
+            name + "_realloccache", &realloccall, RaptorZeroCache && i == 0);
 
         scopeInstructions[alloc].push_back(cast<Instruction>(reallocation));
 
@@ -995,9 +995,9 @@ AllocaInst *CacheUtility::createCacheForScope(LimitContext ctx, Type *T,
           CachePointerInvariantGroups[std::make_pair((Value *)alloc, i)]);
       if (freecall && malloccall) {
         auto ident = MDNode::getDistinct(malloccall->getContext(), {});
-        malloccall->setMetadata("enzyme_cache_alloc",
+        malloccall->setMetadata("raptor_cache_alloc",
                                 MDNode::get(malloccall->getContext(), {ident}));
-        freecall->setMetadata("enzyme_cache_free",
+        freecall->setMetadata("raptor_cache_free",
                               MDNode::get(freecall->getContext(), {ident}));
       }
     }

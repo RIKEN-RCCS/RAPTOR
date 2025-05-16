@@ -1,14 +1,14 @@
 //===- TraceInterface.h - Interact with probabilistic programming traces
 //---===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -143,43 +143,43 @@ StaticTraceInterface::StaticTraceInterface(Module *M)
   for (auto &&F : M->functions()) {
     if (F.isIntrinsic())
       continue;
-    if (F.getName().contains("__enzyme_newtrace")) {
+    if (F.getName().contains("__raptor_newtrace")) {
       assert(F.getFunctionType() == newTraceTy());
       newTraceFunction = &F;
-    } else if (F.getName().contains("__enzyme_freetrace")) {
+    } else if (F.getName().contains("__raptor_freetrace")) {
       assert(F.getFunctionType() == freeTraceTy());
       freeTraceFunction = &F;
-    } else if (F.getName().contains("__enzyme_get_trace")) {
+    } else if (F.getName().contains("__raptor_get_trace")) {
       assert(F.getFunctionType() == getTraceTy());
       getTraceFunction = &F;
-    } else if (F.getName().contains("__enzyme_get_choice")) {
+    } else if (F.getName().contains("__raptor_get_choice")) {
       assert(F.getFunctionType() == getChoiceTy());
       getChoiceFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_call")) {
+    } else if (F.getName().contains("__raptor_insert_call")) {
       assert(F.getFunctionType() == insertCallTy());
       insertCallFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_choice")) {
+    } else if (F.getName().contains("__raptor_insert_choice")) {
       assert(F.getFunctionType() == insertChoiceTy());
       insertChoiceFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_argument")) {
+    } else if (F.getName().contains("__raptor_insert_argument")) {
       assert(F.getFunctionType() == insertArgumentTy());
       insertArgumentFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_return")) {
+    } else if (F.getName().contains("__raptor_insert_return")) {
       assert(F.getFunctionType() == insertReturnTy());
       insertReturnFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_function")) {
+    } else if (F.getName().contains("__raptor_insert_function")) {
       assert(F.getFunctionType() == insertFunctionTy());
       insertFunctionFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_gradient_choice")) {
+    } else if (F.getName().contains("__raptor_insert_gradient_choice")) {
       assert(F.getFunctionType() == insertChoiceGradientTy());
       insertChoiceGradientFunction = &F;
-    } else if (F.getName().contains("__enzyme_insert_gradient_argument")) {
+    } else if (F.getName().contains("__raptor_insert_gradient_argument")) {
       assert(F.getFunctionType() == insertArgumentGradientTy());
       insertArgumentGradientFunction = &F;
-    } else if (F.getName().contains("__enzyme_has_call")) {
+    } else if (F.getName().contains("__raptor_has_call")) {
       assert(F.getFunctionType() == hasCallTy());
       hasCallFunction = &F;
-    } else if (F.getName().contains("__enzyme_has_choice")) {
+    } else if (F.getName().contains("__raptor_has_choice")) {
       assert(F.getFunctionType() == hasChoiceTy());
       hasChoiceFunction = &F;
     }
@@ -202,33 +202,33 @@ StaticTraceInterface::StaticTraceInterface(Module *M)
   assert(hasCallFunction);
   assert(hasChoiceFunction);
 
-  newTraceFunction->addFnAttr("enzyme_notypeanalysis");
-  freeTraceFunction->addFnAttr("enzyme_notypeanalysis");
-  getTraceFunction->addFnAttr("enzyme_notypeanalysis");
-  getChoiceFunction->addFnAttr("enzyme_notypeanalysis");
-  insertCallFunction->addFnAttr("enzyme_notypeanalysis");
-  insertChoiceFunction->addFnAttr("enzyme_notypeanalysis");
-  insertArgumentFunction->addFnAttr("enzyme_notypeanalysis");
-  insertReturnFunction->addFnAttr("enzyme_notypeanalysis");
-  insertFunctionFunction->addFnAttr("enzyme_notypeanalysis");
-  insertChoiceGradientFunction->addFnAttr("enzyme_notypeanalysis");
-  insertArgumentGradientFunction->addFnAttr("enzyme_notypeanalysis");
-  hasCallFunction->addFnAttr("enzyme_notypeanalysis");
-  hasChoiceFunction->addFnAttr("enzyme_notypeanalysis");
+  newTraceFunction->addFnAttr("raptor_notypeanalysis");
+  freeTraceFunction->addFnAttr("raptor_notypeanalysis");
+  getTraceFunction->addFnAttr("raptor_notypeanalysis");
+  getChoiceFunction->addFnAttr("raptor_notypeanalysis");
+  insertCallFunction->addFnAttr("raptor_notypeanalysis");
+  insertChoiceFunction->addFnAttr("raptor_notypeanalysis");
+  insertArgumentFunction->addFnAttr("raptor_notypeanalysis");
+  insertReturnFunction->addFnAttr("raptor_notypeanalysis");
+  insertFunctionFunction->addFnAttr("raptor_notypeanalysis");
+  insertChoiceGradientFunction->addFnAttr("raptor_notypeanalysis");
+  insertArgumentGradientFunction->addFnAttr("raptor_notypeanalysis");
+  hasCallFunction->addFnAttr("raptor_notypeanalysis");
+  hasChoiceFunction->addFnAttr("raptor_notypeanalysis");
 
-  newTraceFunction->addFnAttr("enzyme_inactive");
-  freeTraceFunction->addFnAttr("enzyme_inactive");
-  getTraceFunction->addFnAttr("enzyme_inactive");
-  getChoiceFunction->addFnAttr("enzyme_inactive");
-  insertCallFunction->addFnAttr("enzyme_inactive");
-  insertChoiceFunction->addFnAttr("enzyme_inactive");
-  insertArgumentFunction->addFnAttr("enzyme_inactive");
-  insertReturnFunction->addFnAttr("enzyme_inactive");
-  insertFunctionFunction->addFnAttr("enzyme_inactive");
-  insertChoiceGradientFunction->addFnAttr("enzyme_inactive");
-  insertArgumentGradientFunction->addFnAttr("enzyme_inactive");
-  hasCallFunction->addFnAttr("enzyme_inactive");
-  hasChoiceFunction->addFnAttr("enzyme_inactive");
+  newTraceFunction->addFnAttr("raptor_inactive");
+  freeTraceFunction->addFnAttr("raptor_inactive");
+  getTraceFunction->addFnAttr("raptor_inactive");
+  getChoiceFunction->addFnAttr("raptor_inactive");
+  insertCallFunction->addFnAttr("raptor_inactive");
+  insertChoiceFunction->addFnAttr("raptor_inactive");
+  insertArgumentFunction->addFnAttr("raptor_inactive");
+  insertReturnFunction->addFnAttr("raptor_inactive");
+  insertFunctionFunction->addFnAttr("raptor_inactive");
+  insertChoiceGradientFunction->addFnAttr("raptor_inactive");
+  insertArgumentGradientFunction->addFnAttr("raptor_inactive");
+  hasCallFunction->addFnAttr("raptor_inactive");
+  hasChoiceFunction->addFnAttr("raptor_inactive");
 
   newTraceFunction->addFnAttr(Attribute::NoFree);
   getTraceFunction->addFnAttr(Attribute::NoFree);

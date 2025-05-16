@@ -1,14 +1,14 @@
 //===- DifferentialUseAnalysis.cpp - Determine values needed in reverse
 // pass-===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -85,7 +85,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       return false;
 
   if (!user) {
-    if (EnzymePrintDiffUse)
+    if (RaptorPrintDiffUse)
       llvm::errs() << " Need: of " << *val << " in reverse as nullptr user\n";
     return true;
   }
@@ -110,7 +110,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
                   F->getName() == "__kmpc_for_static_init_8u") {
                 if (CI->getArgOperand(4) == val ||
                     CI->getArgOperand(5) == val || CI->getArgOperand(6)) {
-                  if (EnzymePrintDiffUse)
+                  if (RaptorPrintDiffUse)
                     llvm::errs() << " Need direct primal of " << *val
                                  << " in reverse from omp " << *user << "\n";
                   return true;
@@ -172,7 +172,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
 
       if (!gutils->isConstantValue(
               const_cast<Value *>(SI->getPointerOperand()))) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: shadow of " << *val
                        << " in reverse as shadow store  " << *SI << "\n";
         return true;
@@ -190,7 +190,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
           auto ET = LI->getType();
           // It verbatim needs to replicate the same behavior as
           // adjointgenerator. From reverse mode type analysis
-          // (https://github.com/EnzymeAD/Enzyme/blob/194875cbccd73d63cacfefbfa85c1f583c2fa1fe/enzyme/Enzyme/AdjointGenerator.h#L556)
+          // (https://github.com/RaptorAD/Raptor/blob/194875cbccd73d63cacfefbfa85c1f583c2fa1fe/raptor/Raptor/AdjointGenerator.h#L556)
           if (looseTypeAnalysis || true) {
             vd = defaultTypeTreeForLLVM(ET, const_cast<LoadInst *>(LI));
           }
@@ -206,7 +206,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         }
         if (hasFloat && !gutils->isConstantInstruction(
                             const_cast<llvm::Instruction *>(user))) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need direct primal of " << *val
                          << " in reverse from runtime active load " << *user
                          << "\n";
@@ -223,7 +223,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       if (MTI->getArgOperand(1) == val || MTI->getArgOperand(2) == val) {
         for (auto pair : gutils->backwardsOnlyShadows)
           if (pair.second.stores.count(MTI)) {
-            if (EnzymePrintDiffUse)
+            if (RaptorPrintDiffUse)
               llvm::errs() << " Need direct primal of " << *val
                            << " in reverse from remat memtransfer " << *user
                            << "\n";
@@ -234,7 +234,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         return false;
       bool res = !gutils->isConstantValue(MTI->getArgOperand(0));
       if (res) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need direct primal of " << *val
                        << " in reverse from memtransfer " << *user << "\n";
       }
@@ -246,7 +246,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
 
       if (!gutils->isConstantValue(
               const_cast<Value *>(MTI->getArgOperand(0)))) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: shadow of " << *val
                        << " in reverse as shadow MTI  " << *MTI << "\n";
         return true;
@@ -262,14 +262,14 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       if (MS->getArgOperand(1) == val || MS->getArgOperand(2) == val) {
         for (auto pair : gutils->backwardsOnlyShadows)
           if (pair.second.stores.count(MS)) {
-            if (EnzymePrintDiffUse)
+            if (RaptorPrintDiffUse)
               llvm::errs() << " Need direct primal of " << *val
                            << " in reverse from remat memset " << *user << "\n";
             return true;
           }
         bool res = !gutils->isConstantValue(MS->getArgOperand(0));
         if (res) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need direct primal of " << *val
                          << " in reverse from memset " << *user << "\n";
         }
@@ -281,7 +281,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         return false;
 
       if (!gutils->isConstantValue(const_cast<Value *>(MS->getArgOperand(0)))) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: shadow of " << *val
                        << " in reverse as shadow MS  " << *MS << "\n";
         return true;
@@ -315,7 +315,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
               BaseType::Pointer)
         return false;
       // Otherwise, we need the value.
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need direct primal of " << *val
                      << " in reverse from non-pointer insertelem " << *user
                      << " "
@@ -338,7 +338,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
               BaseType::Pointer)
         return false;
       // Otherwise, we need the value.
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need direct primal of " << *val
                      << " in reverse from non-pointer extractelem " << *user
                      << " "
@@ -368,7 +368,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
               BaseType::Pointer)
         return false;
       // Otherwise, we need the value.
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need direct primal of " << *val
                      << " in reverse from non-pointer insertval " << *user
                      << " "
@@ -398,7 +398,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
               BaseType::Pointer)
         return false;
       // Otherwise, we need the value.
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need direct primal of " << *val
                      << " in reverse from non-pointer extractval " << *user
                      << " "
@@ -432,7 +432,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       // only need the condition if select is active
       bool needed = !gutils->isConstantValue(const_cast<SelectInst *>(si));
       if (needed) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need direct primal of " << *val
                        << " in reverse from select " << *user << "\n";
       }
@@ -464,7 +464,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         bool result = found->second(CI, gutils, val, shadow, mode, useDefault);
         if (!useDefault) {
           if (result) {
-            if (EnzymePrintDiffUse)
+            if (RaptorPrintDiffUse)
               llvm::errs() << " Need: " << to_string(qtype) << " of " << *val
                            << " from custom diff use handler of " << *CI
                            << "\n";
@@ -484,7 +484,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         (mode == DerivativeMode::ForwardMode ||
          mode == DerivativeMode::ForwardModeError) &&
         isDeallocationFunction(funcName, gutils->TLI)) {
-      if (EnzymePrintDiffUse)
+      if (RaptorPrintDiffUse)
         llvm::errs() << " Need: shadow of " << *val
                      << " in reverse as shadow free " << *CI << "\n";
       return true;
@@ -497,7 +497,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         return false;
 
       if (val == CI->getArgOperand(6)) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: " << to_string(qtype) << " request " << *val
                        << " in reverse for MPI " << *CI << "\n";
         return true;
@@ -506,14 +506,14 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         if ((funcName == "MPI_Irecv" || funcName == "PMPI_Irecv") &&
             mode != DerivativeMode::ReverseModeGradient) {
           // Need shadow buffer for forward pass of irecieve
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: shadow(" << to_string(qtype) << ") of "
                          << *val << " in reverse as shadow MPI " << *CI << "\n";
           return true;
         }
         if (funcName == "MPI_Isend" || funcName == "PMPI_Isend") {
           // Need shadow buffer for forward or reverse pass of isend
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: shadow(" << to_string(qtype) << ") of "
                          << *val << " in reverse as shadow MPI " << *CI << "\n";
           return true;
@@ -528,7 +528,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       // Need the primal request in reverse.
       if (funcName == "cuStreamSynchronize")
         if (val == CI->getArgOperand(0)) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: primal(" << to_string(qtype) << ") of "
                          << *val << " in reverse for cuda sync " << *CI << "\n";
           return true;
@@ -553,7 +553,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
         // Need shadow request in forward pass only
         if (mode != DerivativeMode::ReverseModeGradient)
           if (val == CI->getArgOperand(0)) {
-            if (EnzymePrintDiffUse)
+            if (RaptorPrintDiffUse)
               llvm::errs() << " Need: shadow of " << *val
                            << " in reverse as shadow MPI " << *CI << "\n";
             return true;
@@ -566,7 +566,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
     // we still need even if instruction is inactive
     if (!shadow)
       if (funcName == "__kmpc_barrier" || funcName == "MPI_Barrier") {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need direct primal of " << *val
                        << " in reverse from barrier " << *user << "\n";
         return true;
@@ -576,7 +576,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
     // we still need even if instruction is inactive
     if (!shadow)
       if (funcName == "llvm.julia.gc_preserve_begin") {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need direct primal of " << *val
                        << " in reverse from gc " << *CI << "\n";
         return true;
@@ -588,7 +588,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       // though the instruction is active.
       if (shadow && (mode != DerivativeMode::ReverseModeGradient &&
                      mode != DerivativeMode::ForwardModeSplit)) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: shadow of " << *val
                        << " in forward as shadow write_barrier " << *CI << "\n";
         return true;
@@ -609,7 +609,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
             }
 
         if (rematerialized) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs()
                 << " Need: shadow of " << *val
                 << " in rematerialized reverse as shadow write_barrier " << *CI
@@ -655,7 +655,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
       if (FV == val) {
         if (!gutils->isConstantInstruction(const_cast<Instruction *>(user)) ||
             !gutils->isConstantValue(const_cast<Value *>((Value *)user))) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: shadow of " << *val
                          << " in reverse as shadow call " << *CI << "\n";
           return true;
@@ -673,7 +673,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
 
         if ((qtype == QueryType::ShadowByConstPrimal && inst_cv) ||
             (qtype == QueryType::Shadow && !inst_cv)) {
-          if (EnzymePrintDiffUse)
+          if (RaptorPrintDiffUse)
             llvm::errs() << " Need: shadow(qtype=" << (int)qtype
                          << ",cv=" << inst_cv << ") of " << *val
                          << " in reverse as shadow return " << *user << "\n";
@@ -697,7 +697,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
 
       if (!inst_cv &&
           !gutils->isConstantInstruction(const_cast<Instruction *>(user))) {
-        if (EnzymePrintDiffUse)
+        if (RaptorPrintDiffUse)
           llvm::errs() << " Need: shadow of " << *val
                        << " in reverse as shadow inst " << *user << "\n";
         return true;
@@ -730,7 +730,7 @@ bool DifferentialUseAnalysis::is_use_directly_needed_in_reverse(
                !gutils->isConstantValue(const_cast<Instruction *>(user));
   }
   if (neededFB) {
-    if (EnzymePrintDiffUse)
+    if (RaptorPrintDiffUse)
       llvm::errs() << " Need direct primal of " << *val
                    << " in reverse from fallback " << *user << "\n";
   }
@@ -1038,7 +1038,7 @@ bool DifferentialUseAnalysis::callShouldNotUseDerivative(
     bool escapingNeededAllocation = false;
 
     if (!isNoEscapingAllocation(&call)) {
-      escapingNeededAllocation = EnzymeGlobalActivity;
+      escapingNeededAllocation = RaptorGlobalActivity;
 
       std::map<UsageKey, bool> CacheResults;
       for (auto pair : gutils->knownRecomputeHeuristic) {
@@ -1049,7 +1049,7 @@ bool DifferentialUseAnalysis::callShouldNotUseDerivative(
       }
 
       if (!escapingNeededAllocation &&
-          !(EnzymeJuliaAddrLoad && isSpecialPtr(call.getType()))) {
+          !(RaptorJuliaAddrLoad && isSpecialPtr(call.getType()))) {
         if (gutils->TR.anyPointer(&call)) {
           auto found = gutils->knownRecomputeHeuristic.find(&call);
           if (found != gutils->knownRecomputeHeuristic.end()) {
@@ -1077,7 +1077,7 @@ bool DifferentialUseAnalysis::callShouldNotUseDerivative(
         for (unsigned i = 0; i < call.arg_size(); ++i) {
           Value *a = call.getOperand(i);
 
-          if (EnzymeJuliaAddrLoad && isSpecialPtr(a->getType()))
+          if (RaptorJuliaAddrLoad && isSpecialPtr(a->getType()))
             continue;
 
           if (!gutils->TR.anyPointer(a))
@@ -1093,7 +1093,7 @@ bool DifferentialUseAnalysis::callShouldNotUseDerivative(
 
           // An allocation could only be needed in the reverse pass if it
           // escapes into an argument. However, is the parameter by which it
-          // escapes could capture the pointer, the rest of Enzyme's caching
+          // escapes could capture the pointer, the rest of Raptor's caching
           // mechanisms cannot assume that the allocation itself is
           // reloadable, since it may have been captured and overwritten
           // elsewhere.

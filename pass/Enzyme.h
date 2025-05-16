@@ -1,13 +1,13 @@
-//===- Enzyme.h - Automatic Differentiation Transformation Pass    -------===//
+//===- Raptor.h - Automatic Differentiation Transformation Pass    -------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -18,8 +18,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares Enzyme, a transformation pass that takes replaces calls
-// to function calls to *__enzyme_autodiff* with a call to the derivative of
+// This file declares Raptor, a transformation pass that takes replaces calls
+// to function calls to *__raptor_autodiff* with a call to the derivative of
 // the function passed as the first argument.
 //
 //===----------------------------------------------------------------------===//
@@ -27,5 +27,5 @@
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 
-llvm::ModulePass *createEnzymePass(bool PostOpt = false);
+llvm::ModulePass *createRaptorPass(bool PostOpt = false);
 void augmentPassBuilder(llvm::PassBuilder &PB);

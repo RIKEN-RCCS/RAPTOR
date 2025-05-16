@@ -1,13 +1,13 @@
 //===- FunctionUtils.cpp - Implementation of function utilities -----------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -25,7 +25,7 @@
 #include "FunctionUtils.h"
 
 #include "DiffeGradientUtils.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "GradientUtils.h"
 #include "LibraryFuncs.h"
 
@@ -119,57 +119,57 @@
 #define getAttribute getAttributeAtIndex
 #define hasAttribute hasAttributeAtIndex
 
-#define DEBUG_TYPE "enzyme"
+#define DEBUG_TYPE "raptor"
 using namespace llvm;
 
 extern "C" {
-cl::opt<bool> EnzymePreopt("enzyme-preopt", cl::init(true), cl::Hidden,
-                           cl::desc("Run enzyme preprocessing optimizations"));
+cl::opt<bool> RaptorPreopt("raptor-preopt", cl::init(true), cl::Hidden,
+                           cl::desc("Run raptor preprocessing optimizations"));
 
-cl::opt<bool> EnzymeInline("enzyme-inline", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorInline("raptor-inline", cl::init(false), cl::Hidden,
                            cl::desc("Force inlining of autodiff"));
 
-cl::opt<bool> EnzymeNoAlias("enzyme-noalias", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorNoAlias("raptor-noalias", cl::init(false), cl::Hidden,
                             cl::desc("Force noalias of autodiff"));
 #if LLVM_VERSION_MAJOR < 16
 cl::opt<bool>
-    EnzymeAggressiveAA("enzyme-aggressive-aa", cl::init(false), cl::Hidden,
+    RaptorAggressiveAA("raptor-aggressive-aa", cl::init(false), cl::Hidden,
                        cl::desc("Use more unstable but aggressive LLVM AA"));
 #endif
-cl::opt<bool> EnzymeLowerGlobals(
-    "enzyme-lower-globals", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorLowerGlobals(
+    "raptor-lower-globals", cl::init(false), cl::Hidden,
     cl::desc("Lower globals to locals assuming the global values are not "
              "needed outside of this gradient"));
 
 cl::opt<int>
-    EnzymeInlineCount("enzyme-inline-count", cl::init(10000), cl::Hidden,
+    RaptorInlineCount("raptor-inline-count", cl::init(10000), cl::Hidden,
                       cl::desc("Limit of number of functions to inline"));
 
-cl::opt<bool> EnzymeCoalese("enzyme-coalese", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorCoalese("raptor-coalese", cl::init(false), cl::Hidden,
                             cl::desc("Whether to coalese memory allocations"));
 
-static cl::opt<bool> EnzymePHIRestructure(
-    "enzyme-phi-restructure", cl::init(false), cl::Hidden,
+static cl::opt<bool> RaptorPHIRestructure(
+    "raptor-phi-restructure", cl::init(false), cl::Hidden,
     cl::desc("Whether to restructure phi's to have better unwrap behavior"));
 
 cl::opt<bool>
-    EnzymeNameInstructions("enzyme-name-instructions", cl::init(false),
+    RaptorNameInstructions("raptor-name-instructions", cl::init(false),
                            cl::Hidden,
-                           cl::desc("Have enzyme name all instructions"));
+                           cl::desc("Have raptor name all instructions"));
 
-cl::opt<bool> EnzymeSelectOpt("enzyme-select-opt", cl::init(true), cl::Hidden,
-                              cl::desc("Run Enzyme select optimization"));
+cl::opt<bool> RaptorSelectOpt("raptor-select-opt", cl::init(true), cl::Hidden,
+                              cl::desc("Run Raptor select optimization"));
 
-cl::opt<bool> EnzymeAutoSparsity("enzyme-auto-sparsity", cl::init(false),
+cl::opt<bool> RaptorAutoSparsity("raptor-auto-sparsity", cl::init(false),
                                  cl::Hidden,
-                                 cl::desc("Run Enzyme auto sparsity"));
+                                 cl::desc("Run Raptor auto sparsity"));
 
-cl::opt<int> EnzymePostOptLevel(
-    "enzyme-post-opt-level", cl::init(0), cl::Hidden,
-    cl::desc("Post optimization level within Enzyme differentiated function"));
+cl::opt<int> RaptorPostOptLevel(
+    "raptor-post-opt-level", cl::init(0), cl::Hidden,
+    cl::desc("Post optimization level within Raptor differentiated function"));
 
-cl::opt<bool> EnzymeAlwaysInlineDiff(
-    "enzyme-always-inline", cl::init(false), cl::Hidden,
+cl::opt<bool> RaptorAlwaysInlineDiff(
+    "raptor-always-inline", cl::init(false), cl::Hidden,
     cl::desc("Mark generated functions as always-inline"));
 }
 
@@ -501,24 +501,24 @@ UpgradeAllocasToMallocs(Function *NewF, DerivativeMode mode,
     Instruction *ZeroInst = nullptr;
     auto rep = CreateAllocation(
         B, AI->getAllocatedType(), B.CreateZExtOrTrunc(AI->getArraySize(), i64),
-        nam, &CI, /*ZeroMem*/ EnzymeZeroCache ? &ZeroInst : nullptr);
+        nam, &CI, /*ZeroMem*/ RaptorZeroCache ? &ZeroInst : nullptr);
     auto align = AI->getAlign().value();
     CI->setMetadata(
-        "enzyme_fromstack",
+        "raptor_fromstack",
         MDNode::get(CI->getContext(),
                     {ConstantAsMetadata::get(ConstantInt::get(
                         IntegerType::get(AI->getContext(), 64), align))}));
 
-    for (auto MD : {"enzyme_active", "enzyme_inactive", "enzyme_type"})
+    for (auto MD : {"raptor_active", "raptor_inactive", "raptor_type"})
       if (auto M = AI->getMetadata(MD))
         CI->setMetadata(MD, M);
 
     if (rep != CI) {
-      cast<Instruction>(rep)->setMetadata("enzyme_caststack",
+      cast<Instruction>(rep)->setMetadata("raptor_caststack",
                                           MDNode::get(CI->getContext(), {}));
     }
     if (ZeroInst) {
-      ZeroInst->setMetadata("enzyme_zerostack",
+      ZeroInst->setMetadata("raptor_zerostack",
                             MDNode::get(CI->getContext(), {}));
     }
 
@@ -721,7 +721,7 @@ void PreProcessCache::AlwaysInline(Function *NewF) {
   // values with the same bound.
   for (auto &BB : *NewF) {
     for (auto &I : make_early_inc_range(BB)) {
-      if (hasMetadata(&I, "enzyme_zerostack")) {
+      if (hasMetadata(&I, "raptor_zerostack")) {
         if (isa<AllocaInst>(getBaseObject(I.getOperand(0)))) {
           I.eraseFromParent();
           continue;
@@ -801,10 +801,10 @@ void PreProcessCache::LowerAllocAddr(Function *NewF) {
   SmallVector<Instruction *, 1> Todo;
   for (auto &BB : *NewF) {
     for (auto &I : BB) {
-      if (hasMetadata(&I, "enzyme_backstack")) {
+      if (hasMetadata(&I, "raptor_backstack")) {
         Todo.push_back(&I);
         // TODO
-        // I.eraseMetadata("enzyme_backstack");
+        // I.eraseMetadata("raptor_backstack");
       }
     }
   }
@@ -942,7 +942,7 @@ void PreProcessCache::ReplaceReallocs(Function *NewF, bool mem2reg) {
 }
 
 Function *CreateMPIWrapper(Function *F) {
-  std::string name = ("enzyme_wrapmpi$$" + F->getName() + "#").str();
+  std::string name = ("raptor_wrapmpi$$" + F->getName() + "#").str();
   if (auto W = F->getParent()->getFunction(name))
     return W;
   Type *types = {F->getFunctionType()->getParamType(0)};
@@ -971,7 +971,7 @@ Function *CreateMPIWrapper(Function *F) {
   W->setOnlyAccessesInaccessibleMemory();
   W->setOnlyReadsMemory();
 #endif
-  W->addFnAttr(Attribute::get(F->getContext(), "enzyme_inactive"));
+  W->addFnAttr(Attribute::get(F->getContext(), "raptor_inactive"));
   BasicBlock *entry = BasicBlock::Create(W->getContext(), "entry", W);
   IRBuilder<> B(entry);
   auto alloc = B.CreateAlloca(F->getReturnType());
@@ -1125,7 +1125,7 @@ static void ForceRecursiveInlining(Function *NewF, size_t Limit) {
           if (startsWith(CI->getCalledFunction()->getName(), "_ZN4core3fmt"))
             continue;
           if (startsWith(CI->getCalledFunction()->getName(),
-                         "enzyme_wrapmpi$$"))
+                         "raptor_wrapmpi$$"))
             continue;
           if (CI->getCalledFunction()->hasFnAttribute(
                   Attribute::ReturnsTwice) ||
@@ -1241,7 +1241,7 @@ PreProcessCache::PreProcessCache() {
   // FAM.registerPass([] { return SCEVAA(); });
 
 #if LLVM_VERSION_MAJOR < 16
-  if (EnzymeAggressiveAA)
+  if (RaptorAggressiveAA)
     FAM.registerPass([] { return CFLSteensAA(); });
 #endif
 
@@ -1262,7 +1262,7 @@ PreProcessCache::PreProcessCache() {
     // AM.registerFunctionAnalysis<SCEVAA>();
 
 #if LLVM_VERSION_MAJOR < 16
-    if (EnzymeAggressiveAA)
+    if (RaptorAggressiveAA)
       AM.registerFunctionAnalysis<CFLSteensAA>();
 #endif
 
@@ -1390,7 +1390,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
   for (auto i = F->arg_begin(), j = NewF->arg_begin(); i != F->arg_end();) {
     VMap[i] = j;
     j->setName(i->getName());
-    if (EnzymeNoAlias && j->getType()->isPointerTy()) {
+    if (RaptorNoAlias && j->getType()->isPointerTy()) {
       j->addAttr(Attribute::NoAlias);
     }
     ++i;
@@ -1407,7 +1407,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
   }
   CloneOrigin[NewF] = F;
   NewF->setAttributes(F->getAttributes());
-  if (EnzymeNoAlias)
+  if (RaptorNoAlias)
     for (auto j = NewF->arg_begin(); j != NewF->arg_end(); j++) {
       if (j->getType()->isPointerTy()) {
         j->addAttr(Attribute::NoAlias);
@@ -1417,9 +1417,9 @@ Function *PreProcessCache::preprocessForClone(Function *F,
   NewF->addFnAttr(Attribute::MustProgress);
   setFullWillReturn(NewF);
 
-  if (EnzymePreopt) {
-    if (EnzymeInline) {
-      ForceRecursiveInlining(NewF, /*Limit*/ EnzymeInlineCount);
+  if (RaptorPreopt) {
+    if (RaptorInline) {
+      ForceRecursiveInlining(NewF, /*Limit*/ RaptorInlineCount);
       setFullWillReturn(NewF);
       PreservedAnalyses PA;
       FAM.invalidate(*NewF, PA);
@@ -1441,7 +1441,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
             }
           }
 
-          if (called && called->getName() == "__enzyme_iter") {
+          if (called && called->getName() == "__raptor_iter") {
             ItersToErase.push_back(CI);
           }
         }
@@ -1494,7 +1494,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
     FAM.invalidate(*NewF, PA);
   }
 
-  if (EnzymeLowerGlobals) {
+  if (RaptorLowerGlobals) {
     SmallVector<CallInst *, 4> Calls;
     SmallVector<ReturnInst *, 4> Returns;
     for (BasicBlock &BB : *NewF) {
@@ -1557,16 +1557,16 @@ Function *PreProcessCache::preprocessForClone(Function *F,
           if (F && isMemFreeLibMFunction(F->getName())) {
             continue;
           }
-          if (F && F->getName().contains("__enzyme_integer")) {
+          if (F && F->getName().contains("__raptor_integer")) {
             continue;
           }
-          if (F && F->getName().contains("__enzyme_pointer")) {
+          if (F && F->getName().contains("__raptor_pointer")) {
             continue;
           }
-          if (F && F->getName().contains("__enzyme_float")) {
+          if (F && F->getName().contains("__raptor_float")) {
             continue;
           }
-          if (F && F->getName().contains("__enzyme_double")) {
+          if (F && F->getName().contains("__raptor_double")) {
             continue;
           }
           if (F && (startsWith(F->getName(), "f90io") ||
@@ -1617,16 +1617,16 @@ Function *PreProcessCache::preprocessForClone(Function *F,
                 if (F && isMemFreeLibMFunction(F->getName())) {
                   continue;
                 }
-                if (F && F->getName().contains("__enzyme_integer")) {
+                if (F && F->getName().contains("__raptor_integer")) {
                   continue;
                 }
-                if (F && F->getName().contains("__enzyme_pointer")) {
+                if (F && F->getName().contains("__raptor_pointer")) {
                   continue;
                 }
-                if (F && F->getName().contains("__enzyme_float")) {
+                if (F && F->getName().contains("__raptor_float")) {
                   continue;
                 }
-                if (F && F->getName().contains("__enzyme_double")) {
+                if (F && F->getName().contains("__raptor_double")) {
                   continue;
                 }
                 if (F && (startsWith(F->getName(), "f90io") ||
@@ -1761,7 +1761,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
     FAM.invalidate(*F, PA);
   }
 
-  if (EnzymePreopt) {
+  if (RaptorPreopt) {
     {
       auto PA = LowerInvokePass().run(*NewF, FAM);
       FAM.invalidate(*NewF, PA);
@@ -1872,7 +1872,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
 
     FAM.invalidate(*NewF, PA);
 
-    if (EnzymeNameInstructions) {
+    if (RaptorNameInstructions) {
       for (auto &Arg : NewF->args()) {
         if (!Arg.hasName())
           Arg.setName("arg");
@@ -1889,7 +1889,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
     }
   }
 
-  if (EnzymePHIRestructure) {
+  if (RaptorPHIRestructure) {
     if (false) {
     reset:;
       PreservedAnalyses PA;
@@ -2011,7 +2011,7 @@ Function *PreProcessCache::preprocessForClone(Function *F,
     }
   }
 
-  if (EnzymePrint)
+  if (RaptorPrint)
     llvm::errs() << "after simplification :\n" << *NewF << "\n";
 
   if (llvm::verifyFunction(*NewF, &llvm::errs())) {
@@ -2184,7 +2184,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
     VMapO->getMDMap() = VMap.getMDMap();
   }
 
-  for (auto attr : {"enzyme_ta_norecur", "frame-pointer"})
+  for (auto attr : {"raptor_ta_norecur", "frame-pointer"})
     if (F->getAttributes().hasAttribute(AttributeList::FunctionIndex, attr)) {
       NewF->addAttribute(
           AttributeList::FunctionIndex,
@@ -2192,7 +2192,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
     }
 
   for (auto attr :
-       {"enzyme_type", "enzymejl_parmtype", "enzymejl_parmtype_ref"})
+       {"raptor_type", "raptorjl_parmtype", "raptorjl_parmtype_ref"})
     if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex, attr)) {
       NewF->addAttribute(
           AttributeList::ReturnIndex,
@@ -2204,7 +2204,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
 
   for (auto i = F->arg_begin(), j = NewF->arg_begin(); i != F->arg_end();) {
     if (F->hasParamAttribute(ii, Attribute::StructRet)) {
-      NewF->addParamAttr(jj, Attribute::get(F->getContext(), "enzyme_sret"));
+      NewF->addParamAttr(jj, Attribute::get(F->getContext(), "raptor_sret"));
       // TODO
       // NewF->addParamAttr(
       //    jj,
@@ -2213,15 +2213,15 @@ Function *PreProcessCache::CloneFunctionWithReturns(
       //        F->getParamAttribute(ii,
       //        Attribute::StructRet).getValueAsType()));
     }
-    if (F->getAttributes().hasParamAttr(ii, "enzymejl_returnRoots")) {
+    if (F->getAttributes().hasParamAttr(ii, "raptorjl_returnRoots")) {
       NewF->addParamAttr(
-          jj, F->getAttributes().getParamAttr(ii, "enzymejl_returnRoots"));
+          jj, F->getAttributes().getParamAttr(ii, "raptorjl_returnRoots"));
       // TODO
       // NewF->addParamAttr(jj, F->getParamAttribute(ii,
       // Attribute::ElementType));
     }
     for (auto attr :
-         {"enzymejl_parmtype", "enzymejl_parmtype_ref", "enzyme_type"})
+         {"raptorjl_parmtype", "raptorjl_parmtype_ref", "raptor_type"})
       if (F->getAttributes().hasParamAttr(ii, attr)) {
         NewF->addParamAttr(jj, F->getAttributes().getParamAttr(ii, attr));
         for (auto ty : PrimalParamAttrsToPreserve)
@@ -2233,12 +2233,12 @@ Function *PreProcessCache::CloneFunctionWithReturns(
     if (constant_args[ii] == DIFFE_TYPE::CONSTANT) {
       if (!i->hasByValAttr())
         constants.insert(i);
-      if (EnzymePrintActivity)
+      if (RaptorPrintActivity)
         llvm::errs() << "in new function " << NewF->getName()
                      << " constant arg " << *j << "\n";
     } else {
       nonconstant.insert(i);
-      if (EnzymePrintActivity)
+      if (RaptorPrintActivity)
         llvm::errs() << "in new function " << NewF->getName()
                      << " nonconstant arg " << *j << "\n";
     }
@@ -2268,20 +2268,20 @@ Function *PreProcessCache::CloneFunctionWithReturns(
           }
 
       for (auto attr :
-           {"enzymejl_parmtype", "enzymejl_parmtype_ref", "enzyme_type"})
+           {"raptorjl_parmtype", "raptorjl_parmtype_ref", "raptor_type"})
         if (F->getAttributes().hasParamAttr(ii, attr)) {
           if (width == 1)
             NewF->addParamAttr(jj + 1,
                                F->getAttributes().getParamAttr(ii, attr));
         }
 
-      if (F->getAttributes().hasParamAttr(ii, "enzymejl_returnRoots")) {
+      if (F->getAttributes().hasParamAttr(ii, "raptorjl_returnRoots")) {
         if (width == 1) {
           NewF->addParamAttr(jj + 1, F->getAttributes().getParamAttr(
-                                         ii, "enzymejl_returnRoots"));
+                                         ii, "raptorjl_returnRoots"));
         } else {
           NewF->addParamAttr(jj + 1, Attribute::get(F->getContext(),
-                                                    "enzymejl_returnRoots_v"));
+                                                    "raptorjl_returnRoots_v"));
         }
         // TODO
         // NewF->addParamAttr(jj + 1,
@@ -2292,7 +2292,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
       if (F->hasParamAttribute(ii, Attribute::StructRet)) {
         if (width == 1) {
           NewF->addParamAttr(jj + 1,
-                             Attribute::get(F->getContext(), "enzyme_sret"));
+                             Attribute::get(F->getContext(), "raptor_sret"));
           // TODO
           // NewF->addParamAttr(
           //     jj + 1,
@@ -2303,7 +2303,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
           //                        .getValueAsType()));
         } else {
           NewF->addParamAttr(jj + 1,
-                             Attribute::get(F->getContext(), "enzyme_sret_v"));
+                             Attribute::get(F->getContext(), "raptor_sret_v"));
           // TODO
           // NewF->addParamAttr(
           //     jj + 1,
@@ -2353,7 +2353,7 @@ Function *PreProcessCache::CloneFunctionWithReturns(
 #endif
   }
   NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
-  if (EnzymeAlwaysInlineDiff)
+  if (RaptorAlwaysInlineDiff)
     NewF->addFnAttr(Attribute::AlwaysInline);
   assert(NewF->hasLocalLinkage());
 
@@ -2370,7 +2370,7 @@ void CoaleseTrivialMallocs(Function &F, DominatorTree &DT) {
       if (auto CI = dyn_cast<CallInst>(&I)) {
         if (auto F2 = CI->getCalledFunction()) {
           if (F2->getName() == "free") {
-            if (auto MD = hasMetadata(CI, "enzyme_cache_free")) {
+            if (auto MD = hasMetadata(CI, "raptor_cache_free")) {
               Metadata *op = MD->getOperand(0);
               frees[op].push_back(CI);
             }
@@ -2399,7 +2399,7 @@ void CoaleseTrivialMallocs(Function &F, DominatorTree &DT) {
               }
             }
             if (!freeCall) {
-              if (auto MD = hasMetadata(CI, "enzyme_cache_alloc")) {
+              if (auto MD = hasMetadata(CI, "raptor_cache_alloc")) {
                 Metadata *op = MD->getOperand(0);
                 if (frees[op].size() == 1)
                   freeCall = frees[op][0];
@@ -2448,8 +2448,8 @@ void CoaleseTrivialMallocs(Function &F, DominatorTree &DT) {
     auto NewMalloc =
         cast<CallInst>(B.CreateCall(First->getCalledFunction(), Size));
     NewMalloc->copyIRFlags(First);
-    NewMalloc->setMetadata("enzyme_cache_alloc",
-                           hasMetadata(First, "enzyme_cache_alloc"));
+    NewMalloc->setMetadata("raptor_cache_alloc",
+                           hasMetadata(First, "raptor_cache_alloc"));
     First->replaceAllUsesWith(NewMalloc);
     First->eraseFromParent();
   }
@@ -2539,7 +2539,7 @@ void PreProcessCache::optimizeIntermediate(Function *F) {
 #endif
   FAM.invalidate(*F, PA);
 
-  if (EnzymeSelectOpt) {
+  if (RaptorSelectOpt) {
     SimplifyCFGOptions scfgo;
     PA = SimplifyCFGPass(scfgo).run(*F, FAM);
     FAM.invalidate(*F, PA);
@@ -2549,7 +2549,7 @@ void PreProcessCache::optimizeIntermediate(Function *F) {
   }
   // EarlyCSEPass(/*memoryssa*/ true).run(*F, FAM);
 
-  if (EnzymeCoalese)
+  if (RaptorCoalese)
     CoaleseTrivialMallocs(*F, FAM.getResult<DominatorTreeAnalysis>(*F));
 
   ReplaceFunctionImplementation(*F->getParent());
@@ -2561,7 +2561,7 @@ void PreProcessCache::optimizeIntermediate(Function *F) {
 
   OptimizationLevel Level = OptimizationLevel::O0;
 
-  switch (EnzymePostOptLevel) {
+  switch (RaptorPostOptLevel) {
   default:
   case 0:
     Level = OptimizationLevel::O0;
@@ -2703,7 +2703,7 @@ bool directlySparse(Value *z) {
 typedef DominatorOrderSet QueueType;
 
 Function *getProductIntrinsic(llvm::Module &M, llvm::Type *T) {
-  std::string name = "__enzyme_product.";
+  std::string name = "__raptor_product.";
   if (T->isFloatTy())
     name += "f32";
   else if (T->isDoubleTy())
@@ -2728,7 +2728,7 @@ Function *getProductIntrinsic(llvm::Module &M, llvm::Type *T) {
 }
 
 Function *getSumIntrinsic(llvm::Module &M, llvm::Type *T) {
-  std::string name = "__enzyme_sum.";
+  std::string name = "__raptor_sum.";
   if (T->isFloatTy())
     name += "f32";
   else if (T->isDoubleTy())
@@ -2755,7 +2755,7 @@ Function *getSumIntrinsic(llvm::Module &M, llvm::Type *T) {
 CallInst *isProduct(llvm::Value *v) {
   if (auto prod = dyn_cast<CallInst>(v))
     if (auto F = getFunctionFromCall(prod))
-      if (startsWith(F->getName(), "__enzyme_product"))
+      if (startsWith(F->getName(), "__raptor_product"))
         return prod;
   return nullptr;
 }
@@ -2763,7 +2763,7 @@ CallInst *isProduct(llvm::Value *v) {
 CallInst *isSum(llvm::Value *v) {
   if (auto prod = dyn_cast<CallInst>(v))
     if (auto F = getFunctionFromCall(prod))
-      if (startsWith(F->getName(), "__enzyme_sum"))
+      if (startsWith(F->getName(), "__raptor_sum"))
         return prod;
   return nullptr;
 }
@@ -5386,7 +5386,7 @@ std::optional<std::string> fixSparse_inner(Instruction *cur, llvm::Function &F,
       };
 
       // fmul (sitofp a), b -> select (a == 0), 0 [noprop fmul ( sitofp a), b]
-      if (true || !contains(hasMetadata(cur, "enzyme_fmulnoprop"), prelhs))
+      if (true || !contains(hasMetadata(cur, "raptor_fmulnoprop"), prelhs))
         if (auto ext = dyn_cast<CastInst>(prelhs)) {
           if (ext->getOpcode() == Instruction::UIToFP ||
               ext->getOpcode() == Instruction::SIToFP) {
@@ -5400,13 +5400,13 @@ std::optional<std::string> fixSparse_inner(Instruction *cur, llvm::Function &F,
             Value *fmul = pushcse(B.CreateFMulFMF(ext, b, cur));
             if (auto I = dyn_cast<Instruction>(fmul)) {
               SmallVector<Metadata *, 1> nodes;
-              if (auto MD = hasMetadata(cur, "enzyme_fmulnoprop")) {
+              if (auto MD = hasMetadata(cur, "raptor_fmulnoprop")) {
                 for (auto &M : MD->operands()) {
                   nodes.push_back(M.get());
                 }
               }
               nodes.push_back(ValueAsMetadata::get(ext));
-              I->setMetadata("enzyme_fmulnoprop",
+              I->setMetadata("raptor_fmulnoprop",
                              MDNode::get(I->getContext(), nodes));
             }
 
@@ -5545,7 +5545,7 @@ std::optional<std::string> fixSparse_inner(Instruction *cur, llvm::Function &F,
 
         Value *newIV = nullptr;
         {
-          SCEVExpander Exp(SE, DL, "sparseenzyme");
+          SCEVExpander Exp(SE, DL, "sparseraptor");
           // We place that at first non phi as it may produce a non-phi
           // instruction and must thus be expanded after all phi's
           newIV = Exp.expandCodeFor(S, tmp->getType(), point);
@@ -7330,7 +7330,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
                 for (auto &I : *blk) {
                   if (auto CI = dyn_cast<CallInst>(&I)) {
                     if (auto F = CI->getCalledFunction()) {
-                      if (F->hasFnAttribute("enzyme_sparse_accumulate")) {
+                      if (F->hasFnAttribute("raptor_sparse_accumulate")) {
                         countSparse++;
                       }
                     }
@@ -7350,7 +7350,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
                 for (auto &I : *blk) {
                   if (auto CI = dyn_cast<CallInst>(&I)) {
                     if (auto F = CI->getCalledFunction()) {
-                      if (F->hasFnAttribute("enzyme_sparse_accumulate")) {
+                      if (F->hasFnAttribute("raptor_sparse_accumulate")) {
                         continue;
                       }
                     }
@@ -7501,7 +7501,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
 
       IRBuilder<> B(L->getHeader()->getFirstNonPHI());
       {
-        SCEVExpander Exp(SE, DL, "sparseenzyme");
+        SCEVExpander Exp(SE, DL, "sparseraptor");
         auto LoopCountS = SE.getBackedgeTakenCount(L);
         LoopCount = B.CreateAdd(
             ConstantInt::get(idx->getType(), 1),
@@ -7512,7 +7512,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
           B.CreateICmpSGE(idx, ConstantInt::get(idx->getType(), 0)));
       Value *args[] = {inbounds, forSparsification[L].first.second};
       B.CreateCall(F.getParent()->getOrInsertFunction(
-                       "enzyme.sparse.inbounds", B.getVoidTy(),
+                       "raptor.sparse.inbounds", B.getVoidTy(),
                        inbounds->getType(), idx->getType()),
                    args);
     }
@@ -7598,7 +7598,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
           for (auto &I : *B)
             if (auto CI = dyn_cast<CallInst>(&I))
               if (auto F = CI->getCalledFunction()) {
-                if (F->hasFnAttribute("enzyme_sparse_accumulate")) {
+                if (F->hasFnAttribute("raptor_sparse_accumulate")) {
                   toErase.push_back(CI);
                   continue;
                 }
@@ -7630,7 +7630,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
         for (auto &I : *B)
           if (auto CI = dyn_cast<CallInst>(&I))
             if (auto F = CI->getCalledFunction()) {
-              if (F->hasFnAttribute("enzyme_sparse_accumulate")) {
+              if (F->hasFnAttribute("raptor_sparse_accumulate")) {
                 toErase.push_back(CI);
                 continue;
               }
@@ -7662,7 +7662,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
       auto off = en.index();
       auto &solutions = en.value().second;
       ConstraintContext ctx(SE, L, Assumptions, DT);
-      SCEVExpander Exp(SE, DL, "sparseenzyme", /*preservelcssa*/ false);
+      SCEVExpander Exp(SE, DL, "sparseraptor", /*preservelcssa*/ false);
       auto sols = solutions->allSolutions(Exp, idxty, phterm, ctx, B);
       SmallVector<Value *, 1> prevSols;
       for (auto [sol, condition] : sols) {
@@ -7701,7 +7701,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
       auto BF = boundsCheck->getCalledFunction();
       if (!BF)
         continue;
-      if (BF->getName() != "enzyme.sparse.inbounds")
+      if (BF->getName() != "raptor.sparse.inbounds")
         continue;
 
       auto boundsCond = boundsCheck->getArgOperand(0);
@@ -7728,7 +7728,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
   }
 
   for (auto &F2 : F.getParent()->functions()) {
-    if (startsWith(F2.getName(), "__enzyme_product")) {
+    if (startsWith(F2.getName(), "__raptor_product")) {
       SmallVector<Instruction *, 1> toErase;
       for (llvm::User *I : F2.users()) {
         auto CB = cast<CallBase>(I);
@@ -7747,7 +7747,7 @@ void fixSparseIndices(llvm::Function &F, llvm::FunctionAnalysisManager &FAM,
       }
       for (auto CB : toErase)
         CB->eraseFromParent();
-    } else if (startsWith(F2.getName(), "__enzyme_sum")) {
+    } else if (startsWith(F2.getName(), "__raptor_sum")) {
       SmallVector<Instruction *, 1> toErase;
       for (llvm::User *I : F2.users()) {
         auto CB = cast<CallBase>(I);
@@ -8049,7 +8049,7 @@ bool LowerSparsification(llvm::Function *F, bool replaceAll) {
   for (auto &BB : *F) {
     for (auto &I : BB) {
       if (auto CI = dyn_cast<CallInst>(&I)) {
-        if (getFuncNameFromCall(CI).contains("__enzyme_todense")) {
+        if (getFuncNameFromCall(CI).contains("__raptor_todense")) {
           todo.push_back(CI);
           toDenseBlocks.insert(&BB);
         }
@@ -8062,7 +8062,7 @@ bool LowerSparsification(llvm::Function *F, bool replaceAll) {
   }
   todo.clear();
 
-  if (changed && EnzymeAutoSparsity) {
+  if (changed && RaptorAutoSparsity) {
     PassBuilder PB;
     LoopAnalysisManager LAM;
     FunctionAnalysisManager FAM;
@@ -8084,7 +8084,7 @@ bool LowerSparsification(llvm::Function *F, bool replaceAll) {
   for (auto &BB : *F) {
     for (auto &I : BB) {
       if (auto CI = dyn_cast<CallInst>(&I)) {
-        if (getFuncNameFromCall(CI).contains("__enzyme_post_sparse_todense")) {
+        if (getFuncNameFromCall(CI).contains("__raptor_post_sparse_todense")) {
           todo.push_back(CI);
         }
       }

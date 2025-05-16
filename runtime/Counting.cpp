@@ -1,6 +1,6 @@
 
-#include <enzyme/fprt/fprt.h>
-#include <enzyme/fprt/mpfr.h>
+#include <raptor/fprt/fprt.h>
+#include <raptor/fprt/mpfr.h>
 
 #include <vector>
 #include <algorithm>
@@ -22,8 +22,8 @@ std::atomic<long long> original_store_counter = 0;
 // TODO this needs to be thread local
 std::atomic<bool> global_is_truncating = false;
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_trunc_flop_count() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_trunc_flop_count() {
   if (trunc_flop_counter < 0) {
     puts("ERROR: FLOP Counter Overflow!");
     exit(0);
@@ -32,8 +32,8 @@ long long __enzyme_get_trunc_flop_count() {
   return trunc_flop_counter;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_double_flop_count() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_double_flop_count() {
   if (trunc_flop_counter < 0) {
     puts("ERROR: FLOP Counter Overflow!");
     exit(0);
@@ -42,8 +42,8 @@ long long __enzyme_get_double_flop_count() {
   return double_flop_counter;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_float_flop_count() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_float_flop_count() {
   if (trunc_flop_counter < 0) {
     puts("ERROR: FLOP Counter Overflow!");
     exit(0);
@@ -52,8 +52,8 @@ long long __enzyme_get_float_flop_count() {
   return float_flop_counter;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_half_flop_count() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_half_flop_count() {
   if (trunc_flop_counter < 0) {
     puts("ERROR: FLOP Counter Overflow!");
     exit(0);
@@ -62,72 +62,72 @@ long long __enzyme_get_half_flop_count() {
   return half_flop_counter;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_trunc_flop_count() {
-  return __enzyme_get_trunc_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_trunc_flop_count() {
+  return __raptor_get_trunc_flop_count();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_double_flop_count() {
-  return __enzyme_get_double_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_double_flop_count() {
+  return __raptor_get_double_flop_count();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_float_flop_count() {
-  return __enzyme_get_float_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_float_flop_count() {
+  return __raptor_get_float_flop_count();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_half_flop_count() {
-  return __enzyme_get_half_flop_count();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_half_flop_count() {
+  return __raptor_get_half_flop_count();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_trunc_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_trunc_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
-#ifndef ENZYME_FPRT_DISABLE_TRUNC_FLOP_COUNT
+#ifndef RAPTOR_FPRT_DISABLE_TRUNC_FLOP_COUNT
   trunc_flop_counter.fetch_add(1,  std::memory_order_relaxed);
 #endif
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
   double_flop_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_32_23_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_32_23_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
   float_flop_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_16_10_count(int64_t exponent, int64_t significand,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_16_10_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
   half_flop_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_reset_shadow_trace() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_reset_shadow_trace() {
   long long ret = shadow_err_counter;
   shadow_err_counter = 0;
   return ret;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_reset_shadow_trace() {
-  return __enzyme_reset_shadow_trace();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_reset_shadow_trace() {
+  return __raptor_reset_shadow_trace();
 }
 
 
-bool __op_dump_cmp(std::pair<const char *, __enzyme_op>& a,
-                   std::pair<const char *, __enzyme_op>& b) {
+bool __op_dump_cmp(std::pair<const char *, __raptor_op>& a,
+                   std::pair<const char *, __raptor_op>& b) {
   return a.second.count_thresh > b.second.count_thresh;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void enzyme_fprt_op_dump_status(int num) {
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_op_dump_status(int num) {
   // int size, rank;
   // MPI_Comm_size(MPI_COMM_WORLD, &size);
   // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -145,7 +145,7 @@ void enzyme_fprt_op_dump_status(int num) {
   // std::vector<char> key_chars;
   // std::vector<char> key_sizes;
 
-  std::vector<std::pair<const char *, struct __enzyme_op>> od_vec;
+  std::vector<std::pair<const char *, struct __raptor_op>> od_vec;
   std::vector<double> l1_vec;
   std::vector<long long> ct_vec, c_vec;
 
@@ -200,7 +200,7 @@ void enzyme_fprt_op_dump_status(int num) {
 
   // // Make sure every key is represented in local opdata map
   // for (auto& key : keys) {
-  //   opdata.insert(key, struct __enzyme_op{"FILL", 0, 0, 0});
+  //   opdata.insert(key, struct __raptor_op{"FILL", 0, 0, 0});
   // }
 
   // The order of iteration over keys will be the same on all processes.
@@ -241,40 +241,40 @@ void enzyme_fprt_op_dump_status(int num) {
   // }
 }
 
-long long __enzyme_get_memory_access_trunc_store() {
+long long __raptor_get_memory_access_trunc_store() {
   return trunc_store_counter;
 }
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_trunc_load() { return trunc_load_counter; }
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_trunc_load() { return trunc_load_counter; }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_original_store() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_original_store() {
   return original_store_counter;
 }
-__ENZYME_MPFR_ATTRIBUTES
-long long __enzyme_get_memory_access_original_load() {
+__RAPTOR_MPFR_ATTRIBUTES
+long long __raptor_get_memory_access_original_load() {
   return original_load_counter;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_trunc_store() {
-  return __enzyme_get_memory_access_trunc_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_trunc_store() {
+  return __raptor_get_memory_access_trunc_store();
 }
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_trunc_load() {
-  return __enzyme_get_memory_access_trunc_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_trunc_load() {
+  return __raptor_get_memory_access_trunc_load();
 }
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_original_store() {
-  return __enzyme_get_memory_access_original_store();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_original_store() {
+  return __raptor_get_memory_access_original_store();
 }
-__ENZYME_MPFR_ATTRIBUTES
-long long f_enzyme_get_memory_access_original_load() {
-  return __enzyme_get_memory_access_original_load();
+__RAPTOR_MPFR_ATTRIBUTES
+long long f_raptor_get_memory_access_original_load() {
+  return __raptor_get_memory_access_original_load();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
   if (global_is_truncating) {
     if (is_store)
       trunc_store_counter.fetch_add(size, std::memory_order_relaxed);
@@ -288,13 +288,13 @@ void __enzyme_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
   }
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void enzyme_fprt_op_clear() {
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_op_clear() {
   opdata.clear();
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_trunc_change(int64_t is_truncating,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_trunc_change(int64_t is_truncating,
                                 int64_t to_e,
                                 int64_t to_m,
                                 int64_t mode) {
@@ -304,7 +304,7 @@ void __enzyme_fprt_trunc_change(int64_t is_truncating,
   // Can't do it for mem mode currently because we may have truncated variables
   // with unsupported exponent lengths, and those would result in undefined
   // behaviour.
-  if (is_truncating && __enzyme_fprt_is_op_mode(mode)) {
+  if (is_truncating && __raptor_fprt_is_op_mode(mode)) {
     // TODO we need a stack if we want to support nested truncations
     // int64_t max_e = 1 << (to_e - 1);
     // int64_t min_e = -max_e - to_m;
@@ -317,8 +317,8 @@ void __enzyme_fprt_trunc_change(int64_t is_truncating,
   }
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void *__enzyme_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+__RAPTOR_MPFR_ATTRIBUTES
+void *__raptor_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
                                       const char *loc, void *scratch) {
   mpfr_t *mem = (mpfr_t *)malloc(sizeof(mem[0]) * MAX_MPFR_OPERANDS);
   for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)
@@ -326,8 +326,8 @@ void *__enzyme_fprt_64_52_get_scratch(int64_t to_e, int64_t to_m, int64_t mode,
   return mem;
 }
 
-__ENZYME_MPFR_ATTRIBUTES
-void __enzyme_fprt_64_52_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_64_52_free_scratch(int64_t to_e, int64_t to_m, int64_t mode,
                                       const char *loc, void *scratch) {
   mpfr_t *mem = (mpfr_t *)scratch;
   for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)

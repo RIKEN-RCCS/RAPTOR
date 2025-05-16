@@ -6,7 +6,7 @@
 
 // why reinvent the wheel and implement a tuple class?
 //  - ensure data is laid out in the same order the types are specified
-//        see: https://github.com/EnzymeAD/Enzyme/issues/1191#issuecomment-1556239213
+//        see: https://github.com/RaptorAD/Raptor/issues/1191#issuecomment-1556239213
 //  - CUDA compatibility: std::tuple has some compatibility issues when used
 //        in a __device__ context (this may get better in c++20 with the improved
 //        constexpr support for std::tuple). Owning the implementation lets
@@ -15,10 +15,10 @@
 #include <cstddef> // for std::size_t
 #include <utility> // for std::integer_sequence
 
-#include <enzyme/type_traits>
+#include <raptor/type_traits>
 
 #define _NOEXCEPT noexcept
-namespace enzyme {
+namespace raptor {
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-braces"
@@ -103,14 +103,14 @@ template <typename FWD_INDEX_SEQ, typename TUPLE_INDEX_SEQ>
 struct concat_with_fwd_tuple;
 
 template < typename Tuple >
-using iseq = std::make_index_sequence<tuple_size_v< enzyme::remove_cvref_t< Tuple > > >;
+using iseq = std::make_index_sequence<tuple_size_v< raptor::remove_cvref_t< Tuple > > >;
 
 template <std::size_t... fwd_indices, std::size_t... indices>
 struct concat_with_fwd_tuple<std::index_sequence<fwd_indices...>, std::index_sequence<indices...>> {
   template <typename FWD_TUPLE, typename TUPLE>
   __attribute__((always_inline))
   static constexpr auto f(FWD_TUPLE&& fwd, TUPLE&& t) {
-    return enzyme::forward_as_tuple(get<fwd_indices>(impl::forward<FWD_TUPLE>(fwd))..., get<indices>(impl::forward<TUPLE>(t))...);
+    return raptor::forward_as_tuple(get<fwd_indices>(impl::forward<FWD_TUPLE>(fwd))..., get<indices>(impl::forward<TUPLE>(t))...);
   }
 };
 
@@ -136,5 +136,5 @@ constexpr auto tuple_cat(Tuples&&... tuples) {
 
 #pragma clang diagnostic pop
 
-} // namespace enzyme
+} // namespace raptor
 #undef _NOEXCEPT

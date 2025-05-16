@@ -1,13 +1,13 @@
-//===- CApi.h - Enzyme API exported to C for external use      -----------===//
+//===- CApi.h - Raptor API exported to C for external use      -----------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -18,11 +18,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares various utility functions of Enzyme for access via C
+// This file declares various utility functions of Raptor for access via C
 //
 //===----------------------------------------------------------------------===//
-#ifndef ENZYME_CAPI_H
-#define ENZYME_CAPI_H
+#ifndef RAPTOR_CAPI_H
+#define RAPTOR_CAPI_H
 
 #include "llvm-c/Core.h"
 #include "llvm-c/DataTypes.h"
@@ -34,17 +34,17 @@
 extern "C" {
 #endif
 
-struct EnzymeOpaqueTypeAnalysis;
-typedef struct EnzymeOpaqueTypeAnalysis *EnzymeTypeAnalysisRef;
+struct RaptorOpaqueTypeAnalysis;
+typedef struct RaptorOpaqueTypeAnalysis *RaptorTypeAnalysisRef;
 
-struct EnzymeOpaqueLogic;
-typedef struct EnzymeOpaqueLogic *EnzymeLogicRef;
+struct RaptorOpaqueLogic;
+typedef struct RaptorOpaqueLogic *RaptorLogicRef;
 
-struct EnzymeOpaqueAugmentedReturn;
-typedef struct EnzymeOpaqueAugmentedReturn *EnzymeAugmentedReturnPtr;
+struct RaptorOpaqueAugmentedReturn;
+typedef struct RaptorOpaqueAugmentedReturn *RaptorAugmentedReturnPtr;
 
-struct EnzymeOpaqueTraceInterface;
-typedef struct EnzymeOpaqueTraceInterface *EnzymeTraceInterfaceRef;
+struct RaptorOpaqueTraceInterface;
+typedef struct RaptorOpaqueTraceInterface *RaptorTraceInterfaceRef;
 
 struct IntList {
   int64_t *data;
@@ -82,24 +82,24 @@ typedef enum {
   VT_Both = VT_Primal | VT_Shadow,
 } CValueType;
 
-struct EnzymeTypeTree;
-typedef struct EnzymeTypeTree *CTypeTreeRef;
-CTypeTreeRef EnzymeNewTypeTree();
-CTypeTreeRef EnzymeNewTypeTreeCT(CConcreteType, LLVMContextRef ctx);
-CTypeTreeRef EnzymeNewTypeTreeTR(CTypeTreeRef);
-void EnzymeFreeTypeTree(CTypeTreeRef CTT);
-uint8_t EnzymeSetTypeTree(CTypeTreeRef dst, CTypeTreeRef src);
-uint8_t EnzymeMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src);
-void EnzymeTypeTreeOnlyEq(CTypeTreeRef dst, int64_t x);
-void EnzymeTypeTreeData0Eq(CTypeTreeRef dst);
-void EnzymeTypeTreeShiftIndiciesEq(CTypeTreeRef dst, const char *datalayout,
+struct RaptorTypeTree;
+typedef struct RaptorTypeTree *CTypeTreeRef;
+CTypeTreeRef RaptorNewTypeTree();
+CTypeTreeRef RaptorNewTypeTreeCT(CConcreteType, LLVMContextRef ctx);
+CTypeTreeRef RaptorNewTypeTreeTR(CTypeTreeRef);
+void RaptorFreeTypeTree(CTypeTreeRef CTT);
+uint8_t RaptorSetTypeTree(CTypeTreeRef dst, CTypeTreeRef src);
+uint8_t RaptorMergeTypeTree(CTypeTreeRef dst, CTypeTreeRef src);
+void RaptorTypeTreeOnlyEq(CTypeTreeRef dst, int64_t x);
+void RaptorTypeTreeData0Eq(CTypeTreeRef dst);
+void RaptorTypeTreeShiftIndiciesEq(CTypeTreeRef dst, const char *datalayout,
                                    int64_t offset, int64_t maxSize,
                                    uint64_t addOffset);
-const char *EnzymeTypeTreeToString(CTypeTreeRef src);
-void EnzymeTypeTreeToStringFree(const char *cstr);
+const char *RaptorTypeTreeToString(CTypeTreeRef src);
+void RaptorTypeTreeToStringFree(const char *cstr);
 
-void EnzymeSetCLBool(void *, uint8_t);
-void EnzymeSetCLInteger(void *, int64_t);
+void RaptorSetCLBool(void *, uint8_t);
+void RaptorSetCLInteger(void *, int64_t);
 
 struct CFnTypeInfo {
   /// Types of arguments, assumed of size len(Arguments)
@@ -145,15 +145,15 @@ typedef uint8_t (*CustomRuleType)(int /*direction*/, CTypeTreeRef /*return*/,
                                   struct IntList * /*knownValues*/,
                                   size_t /*numArgs*/, LLVMValueRef,
                                   void * /*TA*/);
-EnzymeTypeAnalysisRef CreateTypeAnalysis(EnzymeLogicRef Log,
+RaptorTypeAnalysisRef CreateTypeAnalysis(RaptorLogicRef Log,
                                          char **customRuleNames,
                                          CustomRuleType *customRules,
                                          size_t numRules);
-void ClearTypeAnalysis(EnzymeTypeAnalysisRef);
-void FreeTypeAnalysis(EnzymeTypeAnalysisRef);
+void ClearTypeAnalysis(RaptorTypeAnalysisRef);
+void FreeTypeAnalysis(RaptorTypeAnalysisRef);
 
-EnzymeTraceInterfaceRef FindEnzymeStaticTraceInterface(LLVMModuleRef M);
-EnzymeTraceInterfaceRef CreateEnzymeStaticTraceInterface(
+RaptorTraceInterfaceRef FindRaptorStaticTraceInterface(LLVMModuleRef M);
+RaptorTraceInterfaceRef CreateRaptorStaticTraceInterface(
     LLVMContextRef C, LLVMValueRef getTraceFunction,
     LLVMValueRef getChoiceFunction, LLVMValueRef insertCallFunction,
     LLVMValueRef insertChoiceFunction, LLVMValueRef insertArgumentFunction,
@@ -162,18 +162,18 @@ EnzymeTraceInterfaceRef CreateEnzymeStaticTraceInterface(
     LLVMValueRef insertArgumentGradientFunction, LLVMValueRef newTraceFunction,
     LLVMValueRef freeTraceFunction, LLVMValueRef hasCallFunction,
     LLVMValueRef hasChoiceFunction);
-EnzymeTraceInterfaceRef
-CreateEnzymeDynamicTraceInterface(LLVMValueRef interface, LLVMValueRef F);
-EnzymeLogicRef CreateEnzymeLogic(uint8_t PostOpt);
-void ClearEnzymeLogic(EnzymeLogicRef);
-void FreeEnzymeLogic(EnzymeLogicRef);
+RaptorTraceInterfaceRef
+CreateRaptorDynamicTraceInterface(LLVMValueRef interface, LLVMValueRef F);
+RaptorLogicRef CreateRaptorLogic(uint8_t PostOpt);
+void ClearRaptorLogic(RaptorLogicRef);
+void FreeRaptorLogic(RaptorLogicRef);
 
-void EnzymeExtractReturnInfo(EnzymeAugmentedReturnPtr ret, int64_t *data,
+void RaptorExtractReturnInfo(RaptorAugmentedReturnPtr ret, int64_t *data,
                              uint8_t *existed, size_t len);
 
 LLVMValueRef
-EnzymeExtractFunctionFromAugmentation(EnzymeAugmentedReturnPtr ret);
-LLVMTypeRef EnzymeExtractTapeTypeFromAugmentation(EnzymeAugmentedReturnPtr ret);
+RaptorExtractFunctionFromAugmentation(RaptorAugmentedReturnPtr ret);
+LLVMTypeRef RaptorExtractTapeTypeFromAugmentation(RaptorAugmentedReturnPtr ret);
 
 class GradientUtils;
 class DiffeGradientUtils;
@@ -183,7 +183,7 @@ typedef LLVMValueRef (*CustomShadowAlloc)(LLVMBuilderRef, LLVMValueRef,
                                           GradientUtils *);
 typedef LLVMValueRef (*CustomShadowFree)(LLVMBuilderRef, LLVMValueRef);
 
-void EnzymeRegisterAllocationHandler(char *Name, CustomShadowAlloc AHandle,
+void RaptorRegisterAllocationHandler(char *Name, CustomShadowAlloc AHandle,
                                      CustomShadowFree FHandle);
 
 typedef uint8_t (*CustomFunctionForward)(LLVMBuilderRef, LLVMValueRef,
@@ -203,14 +203,14 @@ typedef uint8_t (*CustomAugmentedFunctionForward)(LLVMBuilderRef, LLVMValueRef,
 typedef void (*CustomFunctionReverse)(LLVMBuilderRef, LLVMValueRef,
                                       DiffeGradientUtils *, LLVMValueRef);
 
-LLVMValueRef EnzymeCreateForwardDiff(
-    EnzymeLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
+LLVMValueRef RaptorCreateForwardDiff(
+    RaptorLogicRef Logic, LLVMValueRef request_req, LLVMBuilderRef request_ip,
     LLVMValueRef todiff, CDIFFE_TYPE retType, CDIFFE_TYPE *constant_args,
-    size_t constant_args_size, EnzymeTypeAnalysisRef TA, uint8_t returnValue,
+    size_t constant_args_size, RaptorTypeAnalysisRef TA, uint8_t returnValue,
     CDerivativeMode mode, uint8_t freeMemory, uint8_t runtimeActivity,
     unsigned width, LLVMTypeRef additionalArg, CFnTypeInfo typeInfo,
     uint8_t *_overwritten_args, size_t overwritten_args_size,
-    EnzymeAugmentedReturnPtr augmented);
+    RaptorAugmentedReturnPtr augmented);
 
 #ifdef __cplusplus
 }

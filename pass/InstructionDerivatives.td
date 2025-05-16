@@ -208,7 +208,7 @@ class ArgAsRetTypesFunc<string name_> {
 }
 
 // Specify that a given argument is inactive, aka not differentiable
-// By default this argument tells Enzyme that it must always be inactive
+// By default this argument tells Raptor that it must always be inactive
 // from the function semantics.
 // One can alternatively pass the asserting=1 flag, causing an assertion
 // error to be thrown if the value is actually active.
@@ -986,7 +986,7 @@ def : IntrPattern<(Op $x, $y),
                   [["powi"]],
                   [
                     (Select 
-                      (Or (ICmpEQ $y, (ConstantInt<0> $y) ), (And (GlobalExpr</*needsprimal*/0, /*needsshadow*/0, "ConstantInt::get(Type::getInt1Ty(gutils->newFunc->getContext()), EnzymeStrongZero)">), (FCmpOEQ (DiffeRet), (ConstantFP<"0"> $x) ) ) ),
+                      (Or (ICmpEQ $y, (ConstantInt<0> $y) ), (And (GlobalExpr</*needsprimal*/0, /*needsshadow*/0, "ConstantInt::get(Type::getInt1Ty(gutils->newFunc->getContext()), RaptorStrongZero)">), (FCmpOEQ (DiffeRet), (ConstantFP<"0"> $x) ) ) ),
                       (ConstantFP<"0"> $x),
                       (FMul (DiffeRet),
                         (FMul (SIToFP $y, (TypeOf $x)), (Call<(SameFunc)> $x, (ISub $y, (ConstantInt<1> $y))))

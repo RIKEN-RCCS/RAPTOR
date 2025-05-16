@@ -1,13 +1,13 @@
-//===- EnzymeClang.cpp - Automatic Differentiation Transformation Pass ----===//
+//===- RaptorClang.cpp - Automatic Differentiation Transformation Pass ----===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -18,7 +18,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains a clang plugin for Enzyme.
+// This file contains a clang plugin for Raptor.
 //
 //===----------------------------------------------------------------------===//
 
@@ -48,7 +48,7 @@ constexpr auto StructKind = clang::TagTypeKind::TTK_Struct;
 #endif
 
 template <typename ConsumerType>
-class EnzymeAction final : public clang::PluginASTAction {
+class RaptorAction final : public clang::PluginASTAction {
 protected:
   std::unique_ptr<clang::ASTConsumer>
   CreateASTConsumer(clang::CompilerInstance &CI,
@@ -81,18 +81,18 @@ struct Visitor : public RecursiveASTVisitor<Visitor> {
 };
 
 #if LLVM_VERSION_MAJOR >= 18
-void registerEnzyme(llvm::PassBuilder &PB);
+void registerRaptor(llvm::PassBuilder &PB);
 #endif
 
-class EnzymePlugin final : public clang::ASTConsumer {
+class RaptorPlugin final : public clang::ASTConsumer {
   clang::CompilerInstance &CI;
 
 public:
-  EnzymePlugin(clang::CompilerInstance &CI) : CI(CI) {
+  RaptorPlugin(clang::CompilerInstance &CI) : CI(CI) {
 
     FrontendOptions &Opts = CI.getFrontendOpts();
     CodeGenOptions &CGOpts = CI.getCodeGenOpts();
-    auto PluginName = "ClangEnzyme-" + std::to_string(LLVM_VERSION_MAJOR);
+    auto PluginName = "ClangRaptor-" + std::to_string(LLVM_VERSION_MAJOR);
     bool contains = false;
 #if LLVM_VERSION_MAJOR < 18
     std::string pluginPath;
@@ -112,24 +112,24 @@ public:
 
     if (!contains) {
 #if LLVM_VERSION_MAJOR >= 18
-      CGOpts.PassBuilderCallbacks.push_back(registerEnzyme);
+      CGOpts.PassBuilderCallbacks.push_back(registerRaptor);
 #else
       CGOpts.PassPlugins.push_back(pluginPath);
 #endif
     }
-    CI.getPreprocessorOpts().Includes.push_back("/enzyme/enzyme/version");
+    CI.getPreprocessorOpts().Includes.push_back("/raptor/raptor/version");
 
     std::string PredefineBuffer;
     PredefineBuffer.reserve(4080);
     llvm::raw_string_ostream Predefines(PredefineBuffer);
     Predefines << CI.getPreprocessor().getPredefines();
     MacroBuilder Builder(Predefines);
-    Builder.defineMacro("ENZYME_VERSION_MAJOR",
-                        std::to_string(ENZYME_VERSION_MAJOR));
-    Builder.defineMacro("ENZYME_VERSION_MINOR",
-                        std::to_string(ENZYME_VERSION_MINOR));
-    Builder.defineMacro("ENZYME_VERSION_PATCH",
-                        std::to_string(ENZYME_VERSION_PATCH));
+    Builder.defineMacro("RAPTOR_VERSION_MAJOR",
+                        std::to_string(RAPTOR_VERSION_MAJOR));
+    Builder.defineMacro("RAPTOR_VERSION_MINOR",
+                        std::to_string(RAPTOR_VERSION_MINOR));
+    Builder.defineMacro("RAPTOR_VERSION_PATCH",
+                        std::to_string(RAPTOR_VERSION_PATCH));
     CI.getPreprocessor().setPredefines(Predefines.str());
 
     auto baseFS = &CI.getFileManager().getVirtualFileSystem();
@@ -158,14 +158,14 @@ public:
     fuseFS->pushOverlay(baseFS);
     CI.getFileManager().setVirtualFileSystem(fuseFS);
 
-    auto DE = CI.getFileManager().getDirectoryRef("/enzymeroot");
+    auto DE = CI.getFileManager().getDirectoryRef("/raptorroot");
     assert(DE);
     auto DL = DirectoryLookup(*DE, SrcMgr::C_User,
                               /*isFramework=*/false);
     CI.getPreprocessor().getHeaderSearchInfo().AddSearchPath(DL,
                                                              /*isAngled=*/true);
   }
-  ~EnzymePlugin() {}
+  ~RaptorPlugin() {}
   void HandleTranslationUnit(ASTContext &context) override {}
   bool HandleTopLevelDecl(clang::DeclGroupRef dg) override {
     using namespace clang;
@@ -197,14 +197,14 @@ public:
     if (!V->getIdentifier())
       return;
     auto name = V->getName();
-    if (!(name.contains("__enzyme_inactive_global") ||
-          name.contains("__enzyme_inactivefn") ||
-          name.contains("__enzyme_shouldrecompute") ||
-          name.contains("__enzyme_function_like") ||
-          name.contains("__enzyme_allocation_like") ||
-          name.contains("__enzyme_register_gradient") ||
-          name.contains("__enzyme_register_derivative") ||
-          name.contains("__enzyme_register_splitderivative")))
+    if (!(name.contains("__raptor_inactive_global") ||
+          name.contains("__raptor_inactivefn") ||
+          name.contains("__raptor_shouldrecompute") ||
+          name.contains("__raptor_function_like") ||
+          name.contains("__raptor_allocation_like") ||
+          name.contains("__raptor_register_gradient") ||
+          name.contains("__raptor_register_derivative") ||
+          name.contains("__raptor_register_splitderivative")))
       return;
 
     V->addAttr(clang::UsedAttr::CreateImplicit(CI.getASTContext()));
@@ -213,26 +213,26 @@ public:
 };
 
 // register the PluginASTAction in the registry.
-static clang::FrontendPluginRegistry::Add<EnzymeAction<EnzymePlugin>>
-    X("enzyme", "Enzyme Plugin");
+static clang::FrontendPluginRegistry::Add<RaptorAction<RaptorPlugin>>
+    X("raptor", "Raptor Plugin");
 
 #if LLVM_VERSION_MAJOR > 10
 namespace {
 
-struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
-  EnzymeFunctionLikeAttrInfo() {
+struct RaptorFunctionLikeAttrInfo : public ParsedAttrInfo {
+  RaptorFunctionLikeAttrInfo() {
     OptArgs = 1;
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "enzyme_function_like"},
+      {ParsedAttr::AS_GNU, "raptor_function_like"},
 #if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "enzyme_function_like"},
+      {ParsedAttr::AS_C23, "raptor_function_like"},
 #else
-      {ParsedAttr::AS_C2x, "enzyme_function_like"},
+      {ParsedAttr::AS_C2x, "raptor_function_like"},
 #endif
-      {ParsedAttr::AS_CXX11, "enzyme_function_like"},
-      {ParsedAttr::AS_CXX11, "enzyme::function_like"}
+      {ParsedAttr::AS_CXX11, "raptor_function_like"},
+      {ParsedAttr::AS_CXX11, "raptor::function_like"}
     };
     Spellings = S;
   }
@@ -253,7 +253,7 @@ struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
     if (Attr.getNumArgs() != 1) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "'enzyme_function' attribute requires a single string argument");
+          "'raptor_function' attribute requires a single string argument");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
@@ -261,14 +261,14 @@ struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
     StringLiteral *Literal = dyn_cast<StringLiteral>(Arg0->IgnoreParenCasts());
     if (!Literal) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
-          DiagnosticsEngine::Error, "first argument to 'enzyme_function_like' "
+          DiagnosticsEngine::Error, "first argument to 'raptor_function_like' "
                                     "attribute must be a string literal");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
 #if LLVM_VERSION_MAJOR >= 12
     D->addAttr(AnnotateAttr::Create(
-        S.Context, ("enzyme_function_like=" + Literal->getString()).str(),
+        S.Context, ("raptor_function_like=" + Literal->getString()).str(),
         nullptr, 0, Attr.getRange()));
     return AttributeApplied;
 #else
@@ -308,7 +308,7 @@ struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
     RD->addDecl(FD1);
     RD->completeDefinition();
     assert(RD->getDefinition());
-    auto &Id = AST.Idents.get("__enzyme_function_like_autoreg_" +
+    auto &Id = AST.Idents.get("__raptor_function_like_autoreg_" +
                               FD->getNameAsString());
     auto T = AST.getRecordType(RD);
     auto V = VarDecl::Create(AST, declCtx, loc, loc, &Id, T, Tinfo, SC_None);
@@ -335,7 +335,7 @@ struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
     IL->setType(T);
     if (IL->isValueDependent()) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
-          DiagnosticsEngine::Error, "use of attribute 'enzyme_function_like' "
+          DiagnosticsEngine::Error, "use of attribute 'raptor_function_like' "
                                     "in a templated context not yet supported");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
@@ -347,21 +347,21 @@ struct EnzymeFunctionLikeAttrInfo : public ParsedAttrInfo {
   }
 };
 
-static ParsedAttrInfoRegistry::Add<EnzymeFunctionLikeAttrInfo>
-    X3("enzyme_function_like", "");
+static ParsedAttrInfoRegistry::Add<RaptorFunctionLikeAttrInfo>
+    X3("raptor_function_like", "");
 
-struct EnzymeShouldRecomputeAttrInfo : public ParsedAttrInfo {
-  EnzymeShouldRecomputeAttrInfo() {
+struct RaptorShouldRecomputeAttrInfo : public ParsedAttrInfo {
+  RaptorShouldRecomputeAttrInfo() {
     OptArgs = 1;
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "enzyme_shouldrecompute"},
+      {ParsedAttr::AS_GNU, "raptor_shouldrecompute"},
 #if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "enzyme_shouldrecompute"},
+      {ParsedAttr::AS_C23, "raptor_shouldrecompute"},
 #else
-      {ParsedAttr::AS_C2x, "enzyme_shouldrecompute"},
+      {ParsedAttr::AS_C2x, "raptor_shouldrecompute"},
 #endif
-      {ParsedAttr::AS_CXX11, "enzyme_shouldrecompute"},
-      {ParsedAttr::AS_CXX11, "enzyme::shouldrecompute"}
+      {ParsedAttr::AS_CXX11, "raptor_shouldrecompute"},
+      {ParsedAttr::AS_CXX11, "raptor::shouldrecompute"}
     };
     Spellings = S;
   }
@@ -385,33 +385,33 @@ struct EnzymeShouldRecomputeAttrInfo : public ParsedAttrInfo {
     if (Attr.getNumArgs() != 0) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "'enzyme_inactive' attribute requires zero arguments");
+          "'raptor_inactive' attribute requires zero arguments");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
-    D->addAttr(AnnotateAttr::Create(S.Context, "enzyme_shouldrecompute",
+    D->addAttr(AnnotateAttr::Create(S.Context, "raptor_shouldrecompute",
                                     nullptr, 0, Attr.getRange()));
     return AttributeApplied;
   }
 };
 
-static ParsedAttrInfoRegistry::Add<EnzymeShouldRecomputeAttrInfo>
-    ESR("enzyme_shouldrecompute", "");
+static ParsedAttrInfoRegistry::Add<RaptorShouldRecomputeAttrInfo>
+    ESR("raptor_shouldrecompute", "");
 
-struct EnzymeInactiveAttrInfo : public ParsedAttrInfo {
-  EnzymeInactiveAttrInfo() {
+struct RaptorInactiveAttrInfo : public ParsedAttrInfo {
+  RaptorInactiveAttrInfo() {
     OptArgs = 1;
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "enzyme_inactive"},
+      {ParsedAttr::AS_GNU, "raptor_inactive"},
 #if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "enzyme_inactive"},
+      {ParsedAttr::AS_C23, "raptor_inactive"},
 #else
-      {ParsedAttr::AS_C2x, "enzyme_inactive"},
+      {ParsedAttr::AS_C2x, "raptor_inactive"},
 #endif
-      {ParsedAttr::AS_CXX11, "enzyme_inactive"},
-      {ParsedAttr::AS_CXX11, "enzyme::inactive"}
+      {ParsedAttr::AS_CXX11, "raptor_inactive"},
+      {ParsedAttr::AS_CXX11, "raptor::inactive"}
     };
     Spellings = S;
   }
@@ -435,7 +435,7 @@ struct EnzymeInactiveAttrInfo : public ParsedAttrInfo {
     if (Attr.getNumArgs() != 0) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "'enzyme_inactive' attribute requires zero arguments");
+          "'raptor_inactive' attribute requires zero arguments");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
@@ -465,7 +465,7 @@ struct EnzymeInactiveAttrInfo : public ParsedAttrInfo {
     auto FT = AST.getPointerType(T);
     auto subname = isa<FunctionDecl>(D) ? "inactivefn" : "inactive_global";
     auto &Id = AST.Idents.get(
-        (StringRef("__enzyme_") + subname + "_autoreg_" + Name).str());
+        (StringRef("__raptor_") + subname + "_autoreg_" + Name).str());
     auto V = VarDecl::Create(AST, declCtx, loc, loc, &Id, FT, nullptr, SC_None);
     V->setStorageClass(SC_PrivateExtern);
     V->addAttr(clang::UsedAttr::CreateImplicit(AST));
@@ -488,7 +488,7 @@ struct EnzymeInactiveAttrInfo : public ParsedAttrInfo {
 
     if (expr->isValueDependent()) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
-          DiagnosticsEngine::Error, "use of attribute 'enzyme_inactive' "
+          DiagnosticsEngine::Error, "use of attribute 'raptor_inactive' "
                                     "in a templated context not yet supported");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
@@ -500,23 +500,23 @@ struct EnzymeInactiveAttrInfo : public ParsedAttrInfo {
   }
 };
 
-static ParsedAttrInfoRegistry::Add<EnzymeInactiveAttrInfo> X4("enzyme_inactive",
+static ParsedAttrInfoRegistry::Add<RaptorInactiveAttrInfo> X4("raptor_inactive",
                                                               "");
 
-struct EnzymeNoFreeAttrInfo : public ParsedAttrInfo {
-  EnzymeNoFreeAttrInfo() {
+struct RaptorNoFreeAttrInfo : public ParsedAttrInfo {
+  RaptorNoFreeAttrInfo() {
     OptArgs = 1;
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "enzyme_nofree"},
+      {ParsedAttr::AS_GNU, "raptor_nofree"},
 #if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "enzyme_nofree"},
+      {ParsedAttr::AS_C23, "raptor_nofree"},
 #else
-      {ParsedAttr::AS_C2x, "enzyme_nofree"},
+      {ParsedAttr::AS_C2x, "raptor_nofree"},
 #endif
-      {ParsedAttr::AS_CXX11, "enzyme_nofree"},
-      {ParsedAttr::AS_CXX11, "enzyme::nofree"}
+      {ParsedAttr::AS_CXX11, "raptor_nofree"},
+      {ParsedAttr::AS_CXX11, "raptor::nofree"}
     };
     Spellings = S;
   }
@@ -540,7 +540,7 @@ struct EnzymeNoFreeAttrInfo : public ParsedAttrInfo {
     if (Attr.getNumArgs() != 0) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "'enzyme_nofree' attribute requires zero arguments");
+          "'raptor_nofree' attribute requires zero arguments");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
@@ -569,7 +569,7 @@ struct EnzymeNoFreeAttrInfo : public ParsedAttrInfo {
                                      : cast<VarDecl>(D)->getNameAsString();
     auto FT = AST.getPointerType(T);
     auto &Id = AST.Idents.get(
-        (StringRef("__enzyme_nofree") + "_autoreg_" + Name).str());
+        (StringRef("__raptor_nofree") + "_autoreg_" + Name).str());
     auto V = VarDecl::Create(AST, declCtx, loc, loc, &Id, FT, nullptr, SC_None);
     V->setStorageClass(SC_PrivateExtern);
     V->addAttr(clang::UsedAttr::CreateImplicit(AST));
@@ -592,7 +592,7 @@ struct EnzymeNoFreeAttrInfo : public ParsedAttrInfo {
 
     if (expr->isValueDependent()) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
-          DiagnosticsEngine::Error, "use of attribute 'enzyme_nofree' "
+          DiagnosticsEngine::Error, "use of attribute 'raptor_nofree' "
                                     "in a templated context not yet supported");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
@@ -604,23 +604,23 @@ struct EnzymeNoFreeAttrInfo : public ParsedAttrInfo {
   }
 };
 
-static ParsedAttrInfoRegistry::Add<EnzymeNoFreeAttrInfo> X5("enzyme_nofree",
+static ParsedAttrInfoRegistry::Add<RaptorNoFreeAttrInfo> X5("raptor_nofree",
                                                             "");
 
-struct EnzymeSparseAccumulateAttrInfo : public ParsedAttrInfo {
-  EnzymeSparseAccumulateAttrInfo() {
+struct RaptorSparseAccumulateAttrInfo : public ParsedAttrInfo {
+  RaptorSparseAccumulateAttrInfo() {
     OptArgs = 1;
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "enzyme_sparse_accumulate"},
+      {ParsedAttr::AS_GNU, "raptor_sparse_accumulate"},
 #if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "enzyme_sparse_accumulate"},
+      {ParsedAttr::AS_C23, "raptor_sparse_accumulate"},
 #else
-      {ParsedAttr::AS_C2x, "enzyme_sparse_accumulate"},
+      {ParsedAttr::AS_C2x, "raptor_sparse_accumulate"},
 #endif
-      {ParsedAttr::AS_CXX11, "enzyme_sparse_accumulate"},
-      {ParsedAttr::AS_CXX11, "enzyme::sparse_accumulate"}
+      {ParsedAttr::AS_CXX11, "raptor_sparse_accumulate"},
+      {ParsedAttr::AS_CXX11, "raptor::sparse_accumulate"}
     };
     Spellings = S;
   }
@@ -640,7 +640,7 @@ struct EnzymeSparseAccumulateAttrInfo : public ParsedAttrInfo {
     if (Attr.getNumArgs() != 0) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "'enzyme_sparse_accumulate' attribute requires zero arguments");
+          "'raptor_sparse_accumulate' attribute requires zero arguments");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
@@ -667,7 +667,7 @@ struct EnzymeSparseAccumulateAttrInfo : public ParsedAttrInfo {
     auto Name = cast<FunctionDecl>(D)->getNameAsString();
     auto FT = AST.getPointerType(T);
     auto &Id = AST.Idents.get(
-        (StringRef("__enzyme_sparse_accumulate") + "_autoreg_" + Name).str());
+        (StringRef("__raptor_sparse_accumulate") + "_autoreg_" + Name).str());
     auto V = VarDecl::Create(AST, declCtx, loc, loc, &Id, FT, nullptr, SC_None);
     V->setStorageClass(SC_PrivateExtern);
     V->addAttr(clang::UsedAttr::CreateImplicit(AST));
@@ -684,7 +684,7 @@ struct EnzymeSparseAccumulateAttrInfo : public ParsedAttrInfo {
     if (expr->isValueDependent()) {
       unsigned ID = S.getDiagnostics().getCustomDiagID(
           DiagnosticsEngine::Error,
-          "use of attribute 'enzyme_sparse_accumulate' "
+          "use of attribute 'raptor_sparse_accumulate' "
           "in a templated context not yet supported");
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
@@ -696,8 +696,8 @@ struct EnzymeSparseAccumulateAttrInfo : public ParsedAttrInfo {
   }
 };
 
-static ParsedAttrInfoRegistry::Add<EnzymeSparseAccumulateAttrInfo>
-    SparseX("enzyme_sparse_accumulate", "");
+static ParsedAttrInfoRegistry::Add<RaptorSparseAccumulateAttrInfo>
+    SparseX("raptor_sparse_accumulate", "");
 } // namespace
 
 #endif

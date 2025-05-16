@@ -1,13 +1,13 @@
 //===- LibraryFuncs.h - Utilities for handling library functions ---------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 // Automatically Synthesize Fast Gradients}, author = {Moses, William S. and
 // Churavy, Valentin}, booktitle = {Advances in Neural Information Processing
@@ -45,7 +45,7 @@ extern llvm::StringMap<
 /// For updating below one should read MemoryBuiltins.cpp, TargetLibraryInfo.cpp
 static inline bool isAllocationFunction(const llvm::StringRef name,
                                         const llvm::TargetLibraryInfo &TLI) {
-  if (name == "enzyme_allocator")
+  if (name == "raptor_allocator")
     return true;
   if (name == "calloc" || name == "malloc")
     return true;
@@ -213,7 +213,7 @@ static inline void zeroKnownAllocation(llvm::IRBuilder<> &bb,
       funcName == "ijl_gc_alloc_typed") {
     allocSize = argValues[1];
   }
-  if (funcName == "enzyme_allocator") {
+  if (funcName == "raptor_allocator") {
     auto index = getAllocationIndexFromCall(orig);
     allocSize = argValues[*index];
   }

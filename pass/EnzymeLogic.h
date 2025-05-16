@@ -1,13 +1,13 @@
-//===- EnzymeLogic.h - Implementation of forward and reverse pass generation==//
+//===- RaptorLogic.h - Implementation of forward and reverse pass generation==//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -27,8 +27,8 @@
 // forward pass.
 //
 //===----------------------------------------------------------------------===//
-#ifndef ENZYME_LOGIC_H
-#define ENZYME_LOGIC_H
+#ifndef RAPTOR_LOGIC_H
+#define RAPTOR_LOGIC_H
 
 #include <algorithm>
 #include <map>
@@ -52,12 +52,12 @@
 #include "Utils.h"
 
 extern "C" {
-extern llvm::cl::opt<bool> EnzymePrint;
-extern llvm::cl::opt<bool> EnzymeJuliaAddrLoad;
+extern llvm::cl::opt<bool> RaptorPrint;
+extern llvm::cl::opt<bool> RaptorJuliaAddrLoad;
 }
 
-constexpr char EnzymeFPRTPrefix[] = "__enzyme_fprt_";
-constexpr char EnzymeFPRTOriginalPrefix[] = "__enzyme_fprt_original_";
+constexpr char RaptorFPRTPrefix[] = "__raptor_fprt_";
+constexpr char RaptorFPRTOriginalPrefix[] = "__raptor_fprt_original_";
 
 enum class AugmentedStruct { Tape, Return, DifferentialReturn };
 
@@ -429,7 +429,7 @@ typedef std::map<std::tuple<std::string, unsigned, unsigned>,
                  llvm::GlobalValue *>
     UniqDebugLocStrsTy;
 
-class EnzymeLogic {
+class RaptorLogic {
 public:
   PreProcessCache PPC;
   UniqDebugLocStrsTy UniqDebugLocStrs;
@@ -438,7 +438,7 @@ public:
   ///  optimization of the function after synthesis
   bool PostOpt;
 
-  EnzymeLogic(bool PostOpt) : PostOpt(PostOpt) {}
+  RaptorLogic(bool PostOpt) : PostOpt(PostOpt) {}
 
   struct AugmentedCacheKey {
     llvm::Function *fn;

@@ -2,8 +2,8 @@
 #  set(LLVM_LINK_COMPONENTS Core Support)
 #endif()
 
-if ("${Enzyme_TABLEGEN_EXE}" STREQUAL "")
-  set(Enzyme_TABLEGEN_EXE enzyme-tblgen)
+if ("${Raptor_TABLEGEN_EXE}" STREQUAL "")
+  set(Raptor_TABLEGEN_EXE raptor-tblgen)
 endif()
 
 get_target_property(TBL_LINKED_LIBS LLVMSupport INTERFACE_LINK_LIBRARIES)
@@ -13,21 +13,21 @@ list(REMOVE_ITEM TBL_LINKED_LIBS "ZLIB::ZLIB")
 set_property(TARGET LLVMSupport PROPERTY INTERFACE_LINK_LIBRARIES ${TBL_LINKED_LIBS})
 endif()
 
-function(enzyme_tablegen ofn)
-  tablegen(Enzyme ${ARGV})
+function(raptor_tablegen ofn)
+  tablegen(Raptor ${ARGV})
   set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
       PARENT_SCOPE)
 endfunction()
 
 set(LLVM_TARGET_DEFINITIONS InstructionDerivatives.td)
-enzyme_tablegen(BinopDerivatives.inc -gen-binop-derivatives)
-enzyme_tablegen(IntrinsicDerivatives.inc -gen-intr-derivatives)
-enzyme_tablegen(CallDerivatives.inc -gen-call-derivatives)
-enzyme_tablegen(InstructionDerivatives.inc -gen-inst-derivatives)
-enzyme_tablegen(BlasDerivatives.inc -gen-blas-derivatives)
-enzyme_tablegen(BlasAttributor.inc -update-blas-declarations)
-enzyme_tablegen(BlasTA.inc -gen-blas-typeanalysis)
-enzyme_tablegen(BlasDiffUse.inc -gen-blas-diffuseanalysis)
+raptor_tablegen(BinopDerivatives.inc -gen-binop-derivatives)
+raptor_tablegen(IntrinsicDerivatives.inc -gen-intr-derivatives)
+raptor_tablegen(CallDerivatives.inc -gen-call-derivatives)
+raptor_tablegen(InstructionDerivatives.inc -gen-inst-derivatives)
+raptor_tablegen(BlasDerivatives.inc -gen-blas-derivatives)
+raptor_tablegen(BlasAttributor.inc -update-blas-declarations)
+raptor_tablegen(BlasTA.inc -gen-blas-typeanalysis)
+raptor_tablegen(BlasDiffUse.inc -gen-blas-diffuseanalysis)
 add_public_tablegen_target(BinopDerivativesIncGen)
 add_public_tablegen_target(IntrinsicDerivativesIncGen)
 add_public_tablegen_target(CallDerivativesIncGen)
@@ -41,19 +41,19 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 set(LLVM_LINK_COMPONENTS Demangle)
 
-file(GLOB ENZYME_SRC CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+file(GLOB RAPTOR_SRC CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     "*.cpp"
 )
-list(REMOVE_ITEM ENZYME_SRC "eopt.cpp")
+list(REMOVE_ITEM RAPTOR_SRC "eopt.cpp")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-list(APPEND ENZYME_SRC TypeAnalysis/TypeTree.cpp TypeAnalysis/TypeAnalysis.cpp TypeAnalysis/TypeAnalysisPrinter.cpp TypeAnalysis/RustDebugInfo.cpp)
+list(APPEND RAPTOR_SRC TypeAnalysis/TypeTree.cpp TypeAnalysis/TypeAnalysis.cpp TypeAnalysis/TypeAnalysisPrinter.cpp TypeAnalysis/RustDebugInfo.cpp)
 
 # on windows `PLUGIN_TOOL` doesn't link against LLVM.dll
 if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)
-    add_llvm_library( LLVMEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC}
+    add_llvm_library( LLVMRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -62,9 +62,9 @@ if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)
 	LLVM
     )
 if (${Clang_FOUND})
-    add_llvm_library( ClangEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC} Clang/EnzymeClang.cpp
-        Clang/EnzymePassLoader.cpp
+    add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC} Clang/RaptorClang.cpp
+        Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -72,10 +72,10 @@ if (${Clang_FOUND})
 	LINK_COMPONENTS
 	LLVM
     )
-target_compile_definitions(ClangEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
+target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 endif()
-        add_llvm_library( LLDEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC} Clang/EnzymePassLoader.cpp
+        add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC} Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -83,10 +83,10 @@ endif()
 	LINK_COMPONENTS
 	LLVM
     )
-target_compile_definitions(LLDEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
+target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 else()
-    add_llvm_library( LLVMEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC}
+    add_llvm_library( LLVMRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -94,11 +94,11 @@ else()
         PLUGIN_TOOL
         opt
       )
-target_compile_definitions(LLVMEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
+target_compile_definitions(LLVMRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 if (${Clang_FOUND})
-    add_llvm_library( ClangEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC} Clang/EnzymeClang.cpp
-        Clang/EnzymePassLoader.cpp
+    add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC} Clang/RaptorClang.cpp
+        Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -106,10 +106,10 @@ if (${Clang_FOUND})
         PLUGIN_TOOL
         clang
     )
-target_compile_definitions(ClangEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
+target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 endif()
-    add_llvm_library( LLDEnzyme-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC} Clang/EnzymePassLoader.cpp
+    add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC} Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -117,12 +117,12 @@ endif()
         PLUGIN_TOOL
         opt
     )
-target_compile_definitions(LLDEnzyme-${LLVM_VERSION_MAJOR} PUBLIC ENZYME_RUNPASS)
+target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 endif()
 
-if (${ENZYME_STATIC_LIB})
-    add_llvm_library( EnzymeStatic-${LLVM_VERSION_MAJOR}
-        ${ENZYME_SRC}
+if (${RAPTOR_STATIC_LIB})
+    add_llvm_library( RaptorStatic-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         STATIC
         DEPENDS
@@ -130,100 +130,100 @@ if (${ENZYME_STATIC_LIB})
     )
 endif()
 
-if (${ENZYME_EXTERNAL_SHARED_LIB})
-    add_library( Enzyme-${LLVM_VERSION_MAJOR}
+if (${RAPTOR_EXTERNAL_SHARED_LIB})
+    add_library( Raptor-${LLVM_VERSION_MAJOR}
         SHARED
-        ${ENZYME_SRC}
+        ${RAPTOR_SRC}
     )
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} intrinsics_gen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} BinopDerivativesIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} IntrinsicDerivativesIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} CallDerivativesIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} InstructionDerivativesIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} BlasDerivativesIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} BlasDeclarationsIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} BlasTAIncGen)
-    add_dependencies(Enzyme-${LLVM_VERSION_MAJOR} BlasDiffUseIncGen)
-    target_link_libraries(Enzyme-${LLVM_VERSION_MAJOR} LLVM)
-    install(TARGETS Enzyme-${LLVM_VERSION_MAJOR}
-        EXPORT EnzymeTargets
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} intrinsics_gen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} BinopDerivativesIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} IntrinsicDerivativesIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} CallDerivativesIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} InstructionDerivativesIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} BlasDerivativesIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} BlasDeclarationsIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} BlasTAIncGen)
+    add_dependencies(Raptor-${LLVM_VERSION_MAJOR} BlasDiffUseIncGen)
+    target_link_libraries(Raptor-${LLVM_VERSION_MAJOR} LLVM)
+    install(TARGETS Raptor-${LLVM_VERSION_MAJOR}
+        EXPORT RaptorTargets
         LIBRARY DESTINATION lib COMPONENT shlib
-        PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Enzyme"
+        PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
         COMPONENT dev)
 endif()
 
 if (APPLE)
 # Darwin-specific linker flags for loadable modules.
-set_target_properties(LLVMEnzyme-${LLVM_VERSION_MAJOR} PROPERTIES
+set_target_properties(LLVMRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
     LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 if (${Clang_FOUND})
-set_target_properties(ClangEnzyme-${LLVM_VERSION_MAJOR} PROPERTIES
+set_target_properties(ClangRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
         LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif()
-set_target_properties(LLDEnzyme-${LLVM_VERSION_MAJOR} PROPERTIES
+set_target_properties(LLDRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
         LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif()
 
-add_library(LLDEnzymeFlags INTERFACE)
-target_compile_options(LLDEnzymeFlags INTERFACE -flto)
-target_link_options(LLDEnzymeFlags INTERFACE "SHELL: -fuse-ld=lld")
+add_library(LLDRaptorFlags INTERFACE)
+target_compile_options(LLDRaptorFlags INTERFACE -flto)
+target_link_options(LLDRaptorFlags INTERFACE "SHELL: -fuse-ld=lld")
 
-target_link_options(LLDEnzymeFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-load=$<TARGET_FILE:LLDEnzyme-${LLVM_VERSION_MAJOR}>")
-target_link_options(LLDEnzymeFlags INTERFACE "SHELL: -Wl,--load-pass-plugin=$<TARGET_FILE:LLDEnzyme-${LLVM_VERSION_MAJOR}>")
+target_link_options(LLDRaptorFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-load=$<TARGET_FILE:LLDRaptor-${LLVM_VERSION_MAJOR}>")
+target_link_options(LLDRaptorFlags INTERFACE "SHELL: -Wl,--load-pass-plugin=$<TARGET_FILE:LLDRaptor-${LLVM_VERSION_MAJOR}>")
 
-add_library(LLDEnzymeAssumeUnknownNoFree INTERFACE)
-target_link_options(LLDEnzymeAssumeUnknownNoFree INTERFACE "SHELL: -Wl,-mllvm -Wl,-enzyme-assume-unknown-nofree=1")
+add_library(LLDRaptorAssumeUnknownNoFree INTERFACE)
+target_link_options(LLDRaptorAssumeUnknownNoFree INTERFACE "SHELL: -Wl,-mllvm -Wl,-raptor-assume-unknown-nofree=1")
 
-add_library(LLDEnzymeLooseTypeFlags INTERFACE)
-target_link_options(LLDEnzymeLooseTypeFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-enzyme-loose-types=1")
+add_library(LLDRaptorLooseTypeFlags INTERFACE)
+target_link_options(LLDRaptorLooseTypeFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-raptor-loose-types=1")
 
-add_library(LLDEnzymePrintTypeFlags INTERFACE)
-target_link_options(LLDEnzymePrintTypeFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-enzyme-print-type=1")
+add_library(LLDRaptorPrintTypeFlags INTERFACE)
+target_link_options(LLDRaptorPrintTypeFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-raptor-print-type=1")
 
-add_library(LLDEnzymePrintFlags INTERFACE)
-target_link_options(LLDEnzymePrintFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-enzyme-print=1")
+add_library(LLDRaptorPrintFlags INTERFACE)
+target_link_options(LLDRaptorPrintFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-raptor-print=1")
 
-add_library(LLDEnzymeNoStrictAliasingFlags INTERFACE)
-target_link_options(LLDEnzymeNoStrictAliasingFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-enzyme-strict-aliasing=0")
-
-# this custom target exists to prevent CMake from incorrectly assuming that 
-# targets that link depend on LLDEnzyme-XX can be built at the same time or 
-# before LLDEnzyme-XX has finished.
-add_custom_target(LLDEnzymeDummy "" DEPENDS LLDEnzyme-${LLVM_VERSION_MAJOR})
-add_dependencies(LLDEnzymeFlags LLDEnzymeDummy)
-
-add_library(ClangEnzymeFlags INTERFACE)
-target_compile_options(ClangEnzymeFlags INTERFACE "-fplugin=$<TARGET_FILE:ClangEnzyme-${LLVM_VERSION_MAJOR}>")
+add_library(LLDRaptorNoStrictAliasingFlags INTERFACE)
+target_link_options(LLDRaptorNoStrictAliasingFlags INTERFACE "SHELL: -Wl,-mllvm -Wl,-raptor-strict-aliasing=0")
 
 # this custom target exists to prevent CMake from incorrectly assuming that 
-# targets that link depend on ClangEnzyme-XX can be built at the same time or 
-# before ClangEnzyme-XX has finished.
-add_custom_target(ClangEnzymeDummy "" DEPENDS ClangEnzyme-${LLVM_VERSION_MAJOR})
-add_dependencies(ClangEnzymeFlags ClangEnzymeDummy)
+# targets that link depend on LLDRaptor-XX can be built at the same time or 
+# before LLDRaptor-XX has finished.
+add_custom_target(LLDRaptorDummy "" DEPENDS LLDRaptor-${LLVM_VERSION_MAJOR})
+add_dependencies(LLDRaptorFlags LLDRaptorDummy)
 
-install(TARGETS LLDEnzymeFlags EXPORT EnzymeTargets)
-install(TARGETS ClangEnzymeFlags EXPORT EnzymeTargets)
+add_library(ClangRaptorFlags INTERFACE)
+target_compile_options(ClangRaptorFlags INTERFACE "-fplugin=$<TARGET_FILE:ClangRaptor-${LLVM_VERSION_MAJOR}>")
 
-install(TARGETS LLVMEnzyme-${LLVM_VERSION_MAJOR}
-    EXPORT EnzymeTargets
+# this custom target exists to prevent CMake from incorrectly assuming that 
+# targets that link depend on ClangRaptor-XX can be built at the same time or 
+# before ClangRaptor-XX has finished.
+add_custom_target(ClangRaptorDummy "" DEPENDS ClangRaptor-${LLVM_VERSION_MAJOR})
+add_dependencies(ClangRaptorFlags ClangRaptorDummy)
+
+install(TARGETS LLDRaptorFlags EXPORT RaptorTargets)
+install(TARGETS ClangRaptorFlags EXPORT RaptorTargets)
+
+install(TARGETS LLVMRaptor-${LLVM_VERSION_MAJOR}
+    EXPORT RaptorTargets
     LIBRARY DESTINATION lib COMPONENT shlib
-    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Enzyme"
+    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
     COMPONENT dev)
 
 if (${Clang_FOUND})
-install(TARGETS ClangEnzyme-${LLVM_VERSION_MAJOR}
-    EXPORT EnzymeTargets
+install(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
+    EXPORT RaptorTargets
     LIBRARY DESTINATION lib COMPONENT shlib
-    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Enzyme"
+    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
     COMPONENT dev)
 endif()
-install(TARGETS LLDEnzyme-${LLVM_VERSION_MAJOR}
-    EXPORT EnzymeTargets
+install(TARGETS LLDRaptor-${LLVM_VERSION_MAJOR}
+    EXPORT RaptorTargets
     LIBRARY DESTINATION lib COMPONENT shlib
-    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Enzyme"
+    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
     COMPONENT dev)
 
-if (ENZYME_MLIR)
+if (RAPTOR_MLIR)
     add_subdirectory(MLIR)
 endif()
 

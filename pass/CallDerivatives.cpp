@@ -1,13 +1,13 @@
 //===- CallDerivatives.cpp - Implementation of known call derivatives --===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -29,7 +29,7 @@
 using namespace llvm;
 
 extern "C" {
-void (*EnzymeShadowAllocRewrite)(LLVMValueRef, void *) = nullptr;
+void (*RaptorShadowAllocRewrite)(LLVMValueRef, void *) = nullptr;
 }
 
 void AdjointGenerator::handleMPI(llvm::CallInst &call, llvm::Function *called,
@@ -2253,10 +2253,10 @@ bool AdjointGenerator::handleKnownCallDerivatives(
     }
     return true;
   }
-  if (called && (called->getName().contains("__enzyme_float") ||
-                 called->getName().contains("__enzyme_double") ||
-                 called->getName().contains("__enzyme_integer") ||
-                 called->getName().contains("__enzyme_pointer"))) {
+  if (called && (called->getName().contains("__raptor_float") ||
+                 called->getName().contains("__raptor_double") ||
+                 called->getName().contains("__raptor_integer") ||
+                 called->getName().contains("__raptor_pointer"))) {
     eraseIfUnused(call, /*erase*/ true, /*check*/ false);
     return true;
   }
@@ -2978,7 +2978,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
             } else if (inLoop) {
               gutils->rematerializedPrimalOrShadowAllocations.push_back(
                   placeholder);
-              if (hasMetadata(&call, "enzyme_fromstack"))
+              if (hasMetadata(&call, "raptor_fromstack"))
                 isAlloca = true;
               goto endAnti;
             }
@@ -3058,8 +3058,8 @@ bool AdjointGenerator::handleKnownCallDerivatives(
                 if (funcName == "julia.gc_alloc_obj" ||
                     funcName == "jl_gc_alloc_typed" ||
                     funcName == "ijl_gc_alloc_typed") {
-                  if (EnzymeShadowAllocRewrite)
-                    EnzymeShadowAllocRewrite(wrap(anti), gutils);
+                  if (RaptorShadowAllocRewrite)
+                    RaptorShadowAllocRewrite(wrap(anti), gutils);
                 }
               }
               if (Mode == DerivativeMode::ReverseModeCombined ||
@@ -3090,7 +3090,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
               anti = gutils->cacheForReverse(
                   bb, anti, getIndex(&call, CacheType::Shadow, BuilderZ));
             else {
-              if (auto MD = hasMetadata(&call, "enzyme_fromstack")) {
+              if (auto MD = hasMetadata(&call, "raptor_fromstack")) {
                 isAlloca = true;
                 bb.SetInsertPoint(cast<Instruction>(anti));
                 Value *Size;
@@ -3108,7 +3108,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
 #if LLVM_VERSION_MAJOR < 17
                 if (call.getContext().supportsTypedPointers()) {
                   for (auto U : call.users()) {
-                    if (hasMetadata(cast<Instruction>(U), "enzyme_caststack")) {
+                    if (hasMetadata(cast<Instruction>(U), "raptor_caststack")) {
                       elTy = U->getType()->getPointerElementType();
                       Value *tsize = ConstantInt::get(
                           Size->getType(), (gutils->newFunc->getParent()
@@ -3165,7 +3165,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
                     replacement = bb.CreateAddrSpaceCast(replacement, PT);
                     cast<Instruction>(replacement)
                         ->setMetadata(
-                            "enzyme_backstack",
+                            "raptor_backstack",
                             MDNode::get(replacement->getContext(), {}));
                   }
                   gutils->replaceAWithB(cast<Instruction>(anti), replacement);
@@ -3296,7 +3296,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
 #if LLVM_VERSION_MAJOR < 17
       if (call.getContext().supportsTypedPointers()) {
         for (auto U : call.users()) {
-          if (hasMetadata(cast<Instruction>(U), "enzyme_caststack")) {
+          if (hasMetadata(cast<Instruction>(U), "raptor_caststack")) {
             elTy = U->getType()->getPointerElementType();
             Value *tsize = ConstantInt::get(Size->getType(),
                                             (gutils->newFunc->getParent()
@@ -3347,7 +3347,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
 #endif
         replacement = B.CreateAddrSpaceCast(replacement, PT);
         cast<Instruction>(replacement)
-            ->setMetadata("enzyme_backstack",
+            ->setMetadata("raptor_backstack",
                           MDNode::get(replacement->getContext(), {}));
       }
       gutils->replaceAWithB(newCall, replacement);
@@ -3375,7 +3375,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
           // allocation (but not always the other way around.
           if (AllocationLoop)
             assert(found->second.LI);
-          if (auto MD = hasMetadata(&call, "enzyme_fromstack")) {
+          if (auto MD = hasMetadata(&call, "raptor_fromstack")) {
             if (Mode == DerivativeMode::ReverseModeGradient && AllocationLoop) {
               gutils->rematerializedPrimalOrShadowAllocations.push_back(
                   newCall);
@@ -3428,7 +3428,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
           // reverse pass we should not recreate this allocation.
           if (Mode == DerivativeMode::ReverseModeGradient)
             eraseIfUnused(call, /*erase*/ true, /*check*/ false);
-          else if (auto MD = hasMetadata(&call, "enzyme_fromstack")) {
+          else if (auto MD = hasMetadata(&call, "raptor_fromstack")) {
             restoreFromStack(MD);
           }
           return true;
@@ -3450,7 +3450,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
           Mode == DerivativeMode::ForwardModeSplit) {
         eraseIfUnused(call, /*erase*/ true, /*check*/ false);
       } else {
-        if (auto MD = hasMetadata(&call, "enzyme_fromstack")) {
+        if (auto MD = hasMetadata(&call, "raptor_fromstack")) {
           restoreFromStack(MD);
         }
       }
@@ -3485,7 +3485,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
       return true;
     }
 
-    if (EnzymeFreeInternalAllocations)
+    if (RaptorFreeInternalAllocations)
       hasPDFree = true;
 
     // TODO enable this if we need to free the memory
@@ -3592,7 +3592,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
     eraseIfUnused(call);
     return true;
   }
-  if (funcName.contains("__enzyme_todense")) {
+  if (funcName.contains("__raptor_todense")) {
     if (gutils->isConstantValue(&call)) {
       eraseIfUnused(call);
       return true;
@@ -3653,7 +3653,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
     visitMemSetCommon(call);
     return true;
   }
-  if (funcName == "enzyme_zerotype") {
+  if (funcName == "raptor_zerotype") {
     IRBuilder<> BuilderZ(&call);
     getForwardBuilder(BuilderZ);
 
@@ -3690,8 +3690,8 @@ bool AdjointGenerator::handleKnownCallDerivatives(
             ToCopy2.push_back(LLVMContext::MD_noalias);
             cal->copyMetadata(call, ToCopy2);
             cal->setAttributes(call.getAttributes());
-            if (auto m = hasMetadata(&call, "enzyme_zerostack"))
-              cal->setMetadata("enzyme_zerostack", m);
+            if (auto m = hasMetadata(&call, "raptor_zerostack"))
+              cal->setMetadata("raptor_zerostack", m);
             cal->setCallingConv(call.getCallingConv());
             cal->setTailCallKind(call.getTailCallKind());
             cal->setDebugLoc(gutils->getNewFromOriginal(call.getDebugLoc()));
@@ -4159,7 +4159,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
     return true;
   }
 
-  if (call.hasFnAttr("enzyme_sample")) {
+  if (call.hasFnAttr("raptor_sample")) {
     if (Mode != DerivativeMode::ReverseModeCombined &&
         Mode != DerivativeMode::ReverseModeGradient)
       return true;
@@ -4185,10 +4185,10 @@ bool AdjointGenerator::handleKnownCallDerivatives(
       dchoice = diffe(&call, Builder2);
     }
 
-    if (call.hasMetadata("enzyme_gradient_setter")) {
+    if (call.hasMetadata("raptor_gradient_setter")) {
       auto gradient_setter = cast<Function>(
           cast<ValueAsMetadata>(
-              call.getMetadata("enzyme_gradient_setter")->getOperand(0).get())
+              call.getMetadata("raptor_gradient_setter")->getOperand(0).get())
               ->getValue());
 
       TraceUtils::InsertChoiceGradient(
@@ -4199,7 +4199,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
     return true;
   }
 
-  if (call.hasFnAttr("enzyme_insert_argument")) {
+  if (call.hasFnAttr("raptor_insert_argument")) {
     IRBuilder<> Builder2(&call);
     getReverseBuilder(Builder2);
 
@@ -4209,7 +4209,7 @@ bool AdjointGenerator::handleKnownCallDerivatives(
 
     auto gradient_setter = cast<Function>(
         cast<ValueAsMetadata>(
-            call.getMetadata("enzyme_gradient_setter")->getOperand(0).get())
+            call.getMetadata("raptor_gradient_setter")->getOperand(0).get())
             ->getValue());
 
     auto dtrace = lookup(gutils->getNewFromOriginal(trace), Builder2);

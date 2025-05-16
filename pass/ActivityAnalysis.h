@@ -1,13 +1,13 @@
 //===- ActivityAnalysis.h - Declaration of Activity Analysis  -----------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -24,8 +24,8 @@
 // functions that compute this for values and instructions, respectively.
 //
 //===----------------------------------------------------------------------===//
-#ifndef ENZYME_ACTIVE_VAR_H
-#define ENZYME_ACTIVE_VAR_H 1
+#ifndef RAPTOR_ACTIVE_VAR_H
+#define RAPTOR_ACTIVE_VAR_H 1
 
 #include <cstdint>
 #include <deque>
@@ -50,11 +50,11 @@
 #include "Utils.h"
 
 extern "C" {
-extern llvm::cl::opt<bool> EnzymePrintActivity;
-extern llvm::cl::opt<bool> EnzymeNonmarkedGlobalsInactive;
-extern llvm::cl::opt<bool> EnzymeGlobalActivity;
-extern llvm::cl::opt<bool> EnzymeEmptyFnInactive;
-extern llvm::cl::opt<bool> EnzymeEnableRecursiveHypotheses;
+extern llvm::cl::opt<bool> RaptorPrintActivity;
+extern llvm::cl::opt<bool> RaptorNonmarkedGlobalsInactive;
+extern llvm::cl::opt<bool> RaptorGlobalActivity;
+extern llvm::cl::opt<bool> RaptorEmptyFnInactive;
+extern llvm::cl::opt<bool> RaptorEnableRecursiveHypotheses;
 }
 
 class PreProcessCache;
@@ -182,7 +182,7 @@ private:
     insertConstantsFrom(TR, Hypothesis);
     for (auto I : Hypothesis.ActiveInstructions) {
       bool inserted = ActiveInstructions.insert(I).second;
-      if (inserted && directions == 3 && EnzymeEnableRecursiveHypotheses) {
+      if (inserted && directions == 3 && RaptorEnableRecursiveHypotheses) {
         ReEvaluateInstIfInactiveValue[Orig].insert(I);
         if (Orig2 && Orig2 != Orig)
           ReEvaluateInstIfInactiveValue[Orig2].insert(I);
@@ -190,7 +190,7 @@ private:
     }
     for (auto V : Hypothesis.ActiveValues) {
       bool inserted = ActiveValues.insert(V).second;
-      if (inserted && directions == 3 && EnzymeEnableRecursiveHypotheses) {
+      if (inserted && directions == 3 && RaptorEnableRecursiveHypotheses) {
         ReEvaluateValueIfInactiveValue[Orig].insert(V);
         if (Orig2 && Orig2 != Orig)
           ReEvaluateValueIfInactiveValue[Orig2].insert(V);

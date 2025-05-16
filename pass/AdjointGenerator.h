@@ -1,13 +1,13 @@
 //===- AdjointGenerator.h - Implementation of Adjoint's of instructions --===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -37,14 +37,14 @@
 
 #include "DiffeGradientUtils.h"
 #include "DifferentialUseAnalysis.h"
-#include "EnzymeLogic.h"
+#include "RaptorLogic.h"
 #include "FunctionUtils.h"
 #include "GradientUtils.h"
 #include "LibraryFuncs.h"
 #include "TraceUtils.h"
 #include "TypeAnalysis/TBAA.h"
 
-#define DEBUG_TYPE "enzyme"
+#define DEBUG_TYPE "raptor"
 
 // Helper instruction visitor that generates adjoints
 class AdjointGenerator : public llvm::InstVisitor<AdjointGenerator> {
@@ -115,7 +115,7 @@ public:
         unnecessaryInstructions.find(&I) == unnecessaryInstructions.end();
     if (!used) {
       // if decided to cache a value, preserve it here for later
-      // replacement in EnzymeLogic
+      // replacement in RaptorLogic
       auto found = gutils->knownRecomputeHeuristic.find(&I);
       if (found != gutils->knownRecomputeHeuristic.end() && !found->second)
         used = true;
@@ -550,7 +550,7 @@ public:
     //! Store loads that need to be cached for use in reverse pass
 
     // Only cache value here if caching decision isn't precomputed.
-    // Otherwise caching will be done inside EnzymeLogic.cpp at
+    // Otherwise caching will be done inside RaptorLogic.cpp at
     // the end of the function jointly.
     if (Mode != DerivativeMode::ForwardMode &&
         Mode != DerivativeMode::ForwardModeError &&
@@ -596,14 +596,14 @@ public:
       return;
 
     if (nonmarkedglobals_inactiveloads) {
-      // Assume that non enzyme_shadow globals are inactive
+      // Assume that non raptor_shadow globals are inactive
       //  If we ever store to a global variable, we will error if it doesn't
       //  have a shadow This allows functions who only read global memory to
       //  have their derivative computed Note that this is too aggressive for
       //  general programs as if the global aliases with an argument something
       //  that is written to, then we will have a logical error
       if (auto arg = dyn_cast<GlobalVariable>(I.getOperand(0))) {
-        if (!hasMetadata(arg, "enzyme_shadow")) {
+        if (!hasMetadata(arg, "raptor_shadow")) {
           return;
         }
       }
@@ -2213,7 +2213,7 @@ public:
                   auto res = Builder2.CreateFDiv(
                       Builder2.CreateFNeg(Builder2.CreateFMul(idiff, lop0)),
                       lop1);
-                  if (EnzymeStrongZero) {
+                  if (RaptorStrongZero) {
                     res = CreateSelect(
                         Builder2,
                         Builder2.CreateFCmpOEQ(
@@ -2238,7 +2238,7 @@ public:
                       Builder2.CreateFNeg(Builder2.CreateFMul(
                           s, Builder2.CreateFDiv(idiff, lop0))),
                       lop1);
-                  if (EnzymeStrongZero) {
+                  if (RaptorStrongZero) {
                     res = CreateSelect(
                         Builder2,
                         Builder2.CreateFCmpOEQ(
@@ -2854,8 +2854,8 @@ public:
             llvm::SmallVector<unsigned int, 9> ToCopy2(MD_ToCopy);
             ToCopy2.push_back(LLVMContext::MD_noalias);
             cal->copyMetadata(MS, ToCopy2);
-            if (auto m = hasMetadata(&MS, "enzyme_zerostack"))
-              cal->setMetadata("enzyme_zerostack", m);
+            if (auto m = hasMetadata(&MS, "raptor_zerostack"))
+              cal->setMetadata("raptor_zerostack", m);
 
             if (startsWith(funcName, "memset_pattern")) {
               AttributeList NewAttrs;
@@ -2907,7 +2907,7 @@ public:
 
     // Special handling mechanism to bypass TA limitations by supporting
     // arbitrary sized types.
-    if (auto MD = hasMetadata(&MS, "enzyme_truetype")) {
+    if (auto MD = hasMetadata(&MS, "raptor_truetype")) {
       toIterate = parseTrueType(MD, Mode, false);
     } else {
       auto &DL = gutils->newFunc->getParent()->getDataLayout();
@@ -3164,8 +3164,8 @@ public:
           auto cal = BuilderZ.CreateCall(MS.getCalledFunction(), args, Defs);
           llvm::SmallVector<unsigned int, 9> ToCopy2(MD_ToCopy);
           ToCopy2.push_back(LLVMContext::MD_noalias);
-          if (auto m = hasMetadata(&MS, "enzyme_zerostack"))
-            cal->setMetadata("enzyme_zerostack", m);
+          if (auto m = hasMetadata(&MS, "raptor_zerostack"))
+            cal->setMetadata("raptor_zerostack", m);
           cal->copyMetadata(MS, ToCopy2);
           cal->setAttributes(MS.getAttributes());
           cal->setCallingConv(MS.getCallingConv());
@@ -3208,8 +3208,8 @@ public:
           llvm::SmallVector<unsigned int, 9> ToCopy2(MD_ToCopy);
           ToCopy2.push_back(LLVMContext::MD_noalias);
           cal->copyMetadata(MS, ToCopy2);
-          if (auto m = hasMetadata(&MS, "enzyme_zerostack"))
-            cal->setMetadata("enzyme_zerostack", m);
+          if (auto m = hasMetadata(&MS, "raptor_zerostack"))
+            cal->setMetadata("raptor_zerostack", m);
 
           if (startsWith(funcName, "memset_pattern")) {
             AttributeList NewAttrs;
@@ -3299,7 +3299,7 @@ public:
 
     // Special handling mechanism to bypass TA limitations by supporting
     // arbitrary sized types.
-    if (auto MD = hasMetadata(&MTI, "enzyme_truetype")) {
+    if (auto MD = hasMetadata(&MTI, "raptor_truetype")) {
       toIterate = parseTrueType(MD, Mode,
                                 !gutils->isConstantValue(orig_src) &&
                                     !gutils->runtimeActivity);
@@ -3309,8 +3309,8 @@ public:
       vd |= TR.query(orig_src).Data0().ShiftIndices(DL, 0, size, 0);
       for (size_t i = 0; i < MTI.getNumOperands(); i++)
         if (MTI.getOperand(i) == orig_dst)
-          if (MTI.getAttributes().hasParamAttr(i, "enzyme_type")) {
-            auto attr = MTI.getAttributes().getParamAttr(i, "enzyme_type");
+          if (MTI.getAttributes().hasParamAttr(i, "raptor_type")) {
+            auto attr = MTI.getAttributes().getParamAttr(i, "raptor_type");
             auto TT =
                 TypeTree::parse(attr.getValueAsString(), MTI.getContext());
             vd |= TT.Data0().ShiftIndices(DL, 0, size, 0);
@@ -3640,7 +3640,7 @@ public:
       return;
     }
 
-    // When compiling Enzyme against standard LLVM, and not Intel's
+    // When compiling Raptor against standard LLVM, and not Intel's
     // modified version of LLVM, the intrinsic `llvm.intel.subscript` is
     // not fully understood by LLVM. One of the results of this is that the ID
     // of the intrinsic is set to Intrinsic::not_intrinsic - hence we are
@@ -4722,14 +4722,14 @@ public:
 
         if (call.paramHasAttr(i, Attribute::StructRet)) {
           structAttrs[args.size()].push_back(
-              Attribute::get(call.getContext(), "enzyme_sret"));
+              Attribute::get(call.getContext(), "raptor_sret"));
           // TODO
           // structAttrs[args.size()].push_back(Attribute::get(
           //     call.getContext(), Attribute::AttrKind::ElementType,
           //     call.getParamAttr(i, Attribute::StructRet).getValueAsType()));
         }
-        for (auto attr : {"enzymejl_returnRoots", "enzymejl_parmtype",
-                          "enzymejl_parmtype_ref", "enzyme_type"})
+        for (auto attr : {"raptorjl_returnRoots", "raptorjl_parmtype",
+                          "raptorjl_parmtype_ref", "raptor_type"})
           if (call.getAttributes().hasParamAttr(i, attr)) {
             structAttrs[args.size()].push_back(call.getParamAttr(i, attr));
           }
@@ -4787,20 +4787,20 @@ public:
               structAttrs[args.size()].push_back(attr);
             }
 
-        for (auto attr : {"enzymejl_returnRoots", "enzymejl_parmtype",
-                          "enzymejl_parmtype_ref", "enzyme_type"})
+        for (auto attr : {"raptorjl_returnRoots", "raptorjl_parmtype",
+                          "raptorjl_parmtype_ref", "raptor_type"})
           if (call.getAttributes().hasParamAttr(i, attr)) {
             if (gutils->getWidth() == 1) {
               structAttrs[args.size()].push_back(call.getParamAttr(i, attr));
-            } else if (attr == std::string("enzymejl_returnRoots")) {
+            } else if (attr == std::string("raptorjl_returnRoots")) {
               structAttrs[args.size()].push_back(
-                  Attribute::get(call.getContext(), "enzymejl_returnRoots_v"));
+                  Attribute::get(call.getContext(), "raptorjl_returnRoots_v"));
             }
           }
         if (call.paramHasAttr(i, Attribute::StructRet)) {
           if (gutils->getWidth() == 1) {
             structAttrs[args.size()].push_back(
-                Attribute::get(call.getContext(), "enzyme_sret")
+                Attribute::get(call.getContext(), "raptor_sret")
                 // orig->getParamAttr(i,
                 // Attribute::StructRet).getValueAsType());
             );
@@ -4811,7 +4811,7 @@ public:
             //     Attribute::StructRet).getValueAsType()));
           } else {
             structAttrs[args.size()].push_back(
-                Attribute::get(call.getContext(), "enzyme_sret_v"));
+                Attribute::get(call.getContext(), "raptor_sret_v"));
             // TODO
             // structAttrs[args.size()].push_back(Attribute::get(
             //     call.getContext(), Attribute::AttrKind::ElementType,
@@ -5011,16 +5011,16 @@ public:
       if (call.isByValArgument(i)) {
         preByVal[pre_args.size()] = call.getParamByValType(i);
       }
-      for (auto attr : {"enzymejl_returnRoots", "enzymejl_parmtype",
-                        "enzymejl_parmtype_ref", "enzyme_type"})
+      for (auto attr : {"raptorjl_returnRoots", "raptorjl_parmtype",
+                        "raptorjl_parmtype_ref", "raptor_type"})
         if (call.getAttributes().hasParamAttr(i, attr)) {
           structAttrs[pre_args.size()].push_back(call.getParamAttr(i, attr));
         }
       if (call.paramHasAttr(i, Attribute::StructRet)) {
         structAttrs[pre_args.size()].push_back(
             // TODO persist types
-            Attribute::get(call.getContext(), "enzyme_sret")
-            // Attribute::get(orig->getContext(), "enzyme_sret",
+            Attribute::get(call.getContext(), "raptor_sret")
+            // Attribute::get(orig->getContext(), "raptor_sret",
             // orig->getParamAttr(ii, Attribute::StructRet).getValueAsType());
         );
       }
@@ -5102,31 +5102,31 @@ public:
               structAttrs[pre_args.size()].push_back(attr);
             }
 
-        for (auto attr : {"enzymejl_returnRoots", "enzymejl_parmtype",
-                          "enzymejl_parmtype_ref", "enzyme_type"})
+        for (auto attr : {"raptorjl_returnRoots", "raptorjl_parmtype",
+                          "raptorjl_parmtype_ref", "raptor_type"})
           if (call.getAttributes().hasParamAttr(i, attr)) {
             if (gutils->getWidth() == 1) {
               structAttrs[pre_args.size()].push_back(
                   call.getParamAttr(i, attr));
-            } else if (attr == std::string("enzymejl_returnRoots")) {
+            } else if (attr == std::string("raptorjl_returnRoots")) {
               structAttrs[pre_args.size()].push_back(
-                  Attribute::get(call.getContext(), "enzymejl_returnRoots_v"));
+                  Attribute::get(call.getContext(), "raptorjl_returnRoots_v"));
             }
           }
         if (call.paramHasAttr(i, Attribute::StructRet)) {
           if (gutils->getWidth() == 1) {
             structAttrs[pre_args.size()].push_back(
                 // TODO persist types
-                Attribute::get(call.getContext(), "enzyme_sret")
-                // Attribute::get(orig->getContext(), "enzyme_sret",
+                Attribute::get(call.getContext(), "raptor_sret")
+                // Attribute::get(orig->getContext(), "raptor_sret",
                 // orig->getParamAttr(ii,
                 // Attribute::StructRet).getValueAsType());
             );
           } else {
             structAttrs[pre_args.size()].push_back(
                 // TODO persist types
-                Attribute::get(call.getContext(), "enzyme_sret_v")
-                // Attribute::get(orig->getContext(), "enzyme_sret_v",
+                Attribute::get(call.getContext(), "raptor_sret_v")
+                // Attribute::get(orig->getContext(), "raptor_sret_v",
                 // gutils->getShadowType(orig->getParamAttr(ii,
                 // Attribute::StructRet).getValueAsType()));
             );
@@ -5602,7 +5602,7 @@ public:
                       cast<PointerType>(tape->getType())->getAddressSpace()));
         auto truetape =
             BuilderZ.CreateLoad(fnandtapetype->tapeType, tapep, "tapeld");
-        truetape->setMetadata("enzyme_mustcache",
+        truetape->setMetadata("raptor_mustcache",
                               MDNode::get(truetape->getContext(), {}));
 
         CreateDealloc(BuilderZ, tape);
@@ -5937,7 +5937,7 @@ public:
   void visitCallInst(llvm::CallInst &call) {
     using namespace llvm;
 
-    // When compiling Enzyme against standard LLVM, and not Intel's
+    // When compiling Raptor against standard LLVM, and not Intel's
     // modified version of LLVM, the intrinsic `llvm.intel.subscript` is
     // not fully understood by LLVM. One of the results of this is that the
     // visitor dispatches to visitCallInst, rather than visitIntrinsicInst, when
@@ -6102,7 +6102,7 @@ public:
             // the LLVM type, as storing a new augmentedReturn has issues
             // regarding persisting the data structure, and when it will
             // be freed, since it will no longer live in the map in
-            // EnzymeLogic.
+            // RaptorLogic.
             tapeType = (llvm::Type *)fd->second;
 
 #if LLVM_VERSION_MAJOR >= 18
@@ -6247,12 +6247,12 @@ public:
         }
       }
 
-      if (!noFree && !EnzymeGlobalActivity) {
+      if (!noFree && !RaptorGlobalActivity) {
         bool mayActiveFree = false;
         for (unsigned i = 0; i < call.arg_size(); ++i) {
           Value *a = call.getOperand(i);
 
-          if (EnzymeJuliaAddrLoad && isSpecialPtr(a->getType()))
+          if (RaptorJuliaAddrLoad && isSpecialPtr(a->getType()))
             continue;
           // if could not be a pointer, it cannot be freed
           if (!TR.query(a)[{-1}].isPossiblePointer())

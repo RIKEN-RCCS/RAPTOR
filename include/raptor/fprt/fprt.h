@@ -1,5 +1,5 @@
-#ifndef _ENZYME_FPRT_FPRT_H_
-#define _ENZYME_FPRT_FPRT_H_
+#ifndef _RAPTOR_FPRT_FPRT_H_
+#define _RAPTOR_FPRT_FPRT_H_
 
 #include <atomic>
 #include <stdint.h>
@@ -8,33 +8,33 @@
 // that to be void *
 #include <mpfr.h>
 
-#define __ENZYME_MPFR_ATTRIBUTES                                               \
+#define __RAPTOR_MPFR_ATTRIBUTES                                               \
   [[maybe_unused]] __attribute__((weak)) __attribute__((used))
-#define __ENZYME_MPFR_ORIGINAL_ATTRIBUTES                                      \
+#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                      \
   __attribute__((weak)) __attribute__((used))
-#define __ENZYME_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
+#define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
 
-#define __ENZYME_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
+#define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // User-facing API
-double __enzyme_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
+double __raptor_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
-double __enzyme_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
+double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch);
-void __enzyme_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
+void __raptor_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
                                 int64_t mode, const char *loc, mpfr_t *scratch);
-double __enzyme_truncate_mem_value_d(double, int, int);
-float __enzyme_truncate_mem_value_f(float, int, int);
-double __enzyme_expand_mem_value_d(double, int, int);
-float __enzyme_expand_mem_value_f(float, int, int);
-void __enzyme_fprt_delete_all();
+double __raptor_truncate_mem_value_d(double, int, int);
+float __raptor_truncate_mem_value_f(float, int, int);
+double __raptor_expand_mem_value_d(double, int, int);
+float __raptor_expand_mem_value_f(float, int, int);
+void __raptor_fprt_delete_all();
 
-long long __enzyme_get_trunc_flop_count();
-long long f_enzyme_get_trunc_flop_count();
+long long __raptor_get_trunc_flop_count();
+long long f_raptor_get_trunc_flop_count();
 
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
@@ -48,44 +48,44 @@ std::atomic<long long> shadow_err_counter = 0;
 bool excl_trunc = false;
 
 // For internal use
-// struct __enzyme_fp;
-typedef struct __enzyme_fp {
+// struct __raptor_fp;
+typedef struct __raptor_fp {
   mpfr_t result;
-//#ifdef ENZYME_FPRT_ENABLE_SHADOW_RESIDUALS
+//#ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
   double excl_result;
   double shadow;
 //#endif
-} __enzyme_fp;
+} __raptor_fp;
 
-__enzyme_fp *__enzyme_fprt_64_52_new_intermediate(int64_t exponent,
+__raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
                                                   int64_t significand,
                                                   int64_t mode,
                                                   const char *loc);
-double __enzyme_fprt_64_52_const(double _a, int64_t exponent,
+double __raptor_fprt_64_52_const(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc, mpfr_t *scratch);
 
-__ENZYME_MPFR_ATTRIBUTES bool __enzyme_fprt_is_mem_mode(int64_t mode) {
+__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_is_mem_mode(int64_t mode) {
   return mode & 0b0001;
 }
-__ENZYME_MPFR_ATTRIBUTES bool __enzyme_fprt_is_op_mode(int64_t mode) {
+__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_is_op_mode(int64_t mode) {
   return mode & 0b0010;
 }
-__ENZYME_MPFR_ATTRIBUTES double __enzyme_fprt_idx_to_double(uint64_t p) {
+__RAPTOR_MPFR_ATTRIBUTES double __raptor_fprt_idx_to_double(uint64_t p) {
   return *((double *)(&p));
 }
-__ENZYME_MPFR_ATTRIBUTES uint64_t __enzyme_fprt_double_to_idx(double d) {
+__RAPTOR_MPFR_ATTRIBUTES uint64_t __raptor_fprt_double_to_idx(double d) {
   return *((uint64_t *)(&d));
 }
-__ENZYME_MPFR_ATTRIBUTES double __enzyme_fprt_ptr_to_double(__enzyme_fp *p) {
+__RAPTOR_MPFR_ATTRIBUTES double __raptor_fprt_ptr_to_double(__raptor_fp *p) {
   return *((double *)(&p));
 }
-__ENZYME_MPFR_ATTRIBUTES __enzyme_fp *__enzyme_fprt_double_to_ptr(double d) {
-  return *((__enzyme_fp **)(&d));
+__RAPTOR_MPFR_ATTRIBUTES __raptor_fp *__raptor_fprt_double_to_ptr(double d) {
+  return *((__raptor_fp **)(&d));
 }
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _ENZYME_FPRT_FPRT_H_
+#endif // _RAPTOR_FPRT_FPRT_H_

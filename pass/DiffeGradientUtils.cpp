@@ -1,13 +1,13 @@
 //===- DiffeGradientUtils.cpp - Helper class and utilities for AD ---------===//
 //
-//                             Enzyme Project
+//                             Raptor Project
 //
-// Part of the Enzyme Project, under the Apache License v2.0 with LLVM
+// Part of the Raptor Project, under the Apache License v2.0 with LLVM
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 // If using this code in an academic setting, please cite the following:
-// @incollection{enzymeNeurips,
+// @incollection{raptorNeurips,
 // title = {Instead of Rewriting Foreign Code for Machine Learning,
 //          Automatically Synthesize Fast Gradients},
 // author = {Moses, William S. and Churavy, Valentin},
@@ -52,7 +52,7 @@
 using namespace llvm;
 
 DiffeGradientUtils::DiffeGradientUtils(
-    EnzymeLogic &Logic, Function *newFunc_, Function *oldFunc_,
+    RaptorLogic &Logic, Function *newFunc_, Function *oldFunc_,
     TargetLibraryInfo &TLI, TypeAnalysis &TA, TypeResults TR,
     ValueToValueMapTy &invertedPointers_,
     const SmallPtrSetImpl<Value *> &constantvalues_,
@@ -84,7 +84,7 @@ DiffeGradientUtils::DiffeGradientUtils(
 }
 
 DiffeGradientUtils *DiffeGradientUtils::CreateFromClone(
-    EnzymeLogic &Logic, DerivativeMode mode, bool runtimeActivity,
+    RaptorLogic &Logic, DerivativeMode mode, bool runtimeActivity,
     unsigned width, Function *todiff, TargetLibraryInfo &TLI, TypeAnalysis &TA,
     FnTypeInfo &oldTypeInfo, DIFFE_TYPE retType, bool shadowReturn,
     bool diffeReturnArg, ArrayRef<DIFFE_TYPE> constant_args,

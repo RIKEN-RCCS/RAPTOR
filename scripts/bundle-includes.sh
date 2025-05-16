@@ -13,7 +13,7 @@ echo > "$OUTPUT_FILE"
 echo "const char* include_headers[][2] = {" >> "$OUTPUT_FILE"
 for FILE in $(find -L $INPUT_DIR -type f); do
     echo $FILE
-    INTERNAL_FILENAME=$(echo $FILE | sed "s|$INPUT_DIR|\/enzymeroot\/|")
+    INTERNAL_FILENAME=$(echo $FILE | sed "s|$INPUT_DIR|\/raptorroot\/|")
     echo $INTERNAL_FILENAME
     echo '{"'"$INTERNAL_FILENAME"'",' >> "$OUTPUT_FILE"
     echo 'R"(' >> "$OUTPUT_FILE"

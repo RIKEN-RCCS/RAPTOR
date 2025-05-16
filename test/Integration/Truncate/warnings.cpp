@@ -1,7 +1,7 @@
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
-// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
-// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %newLoadClangEnzyme -include enzyme/fprt/mpfr.h -Xclang -verify -Rpass=enzyme; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
+// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
+// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
+// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
 
 #include <math.h>
 #include <stdio.h>
@@ -28,33 +28,33 @@ typedef double (*fty)(double *, double *, double *, int);
 
 typedef double (*fty2)(double, double);
 
-template <typename fty> fty *__enzyme_truncate_mem_func(fty *, int, int);
-extern fty __enzyme_truncate_op_func_2(...);
-extern fty2 __enzyme_truncate_op_func(...);
-extern double __enzyme_truncate_mem_value(...);
-extern double __enzyme_expand_mem_value(...);
+template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int);
+extern fty __raptor_truncate_op_func_2(...);
+extern fty2 __raptor_truncate_op_func(...);
+extern double __raptor_truncate_mem_value(...);
+extern double __raptor_expand_mem_value(...);
 
 int main() {
 #ifdef TRUNC_MEM
   {
     double a = 2;
     double b = 3;
-    a = __enzyme_truncate_mem_value(a, FROM, TO);
-    b = __enzyme_truncate_mem_value(b, FROM, TO);
-    double trunc = __enzyme_expand_mem_value(
-        __enzyme_truncate_mem_func(intrinsics, FROM, TO)(a, b), FROM, TO);
+    a = __raptor_truncate_mem_value(a, FROM, TO);
+    b = __raptor_truncate_mem_value(b, FROM, TO);
+    double trunc = __raptor_expand_mem_value(
+        __raptor_truncate_mem_func(intrinsics, FROM, TO)(a, b), FROM, TO);
   }
   {
     double a = 2;
-    a = __enzyme_truncate_mem_value(a, FROM, TO);
-    __enzyme_truncate_mem_func(print_d, FROM, TO)(a);
+    a = __raptor_truncate_mem_value(a, FROM, TO);
+    __raptor_truncate_mem_func(print_d, FROM, TO)(a);
   }
 #endif
 #ifdef TRUNC_OP
   {
     double a = 2;
     double b = 3;
-    double trunc = __enzyme_truncate_op_func(intrinsics, FROM, TO)(a, b);
+    double trunc = __raptor_truncate_op_func(intrinsics, FROM, TO)(a, b);
   }
 #endif
 }
