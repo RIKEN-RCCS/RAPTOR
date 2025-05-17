@@ -6,12 +6,25 @@
 // Exceptions. See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
+// If using this code in an academic setting, please cite the following:
+// @incollection{raptorNeurips,
+// title = {Instead of Rewriting Foreign Code for Machine Learning,
+//          Automatically Synthesize Fast Gradients},
+// author = {Moses, William S. and Churavy, Valentin},
+// booktitle = {Advances in Neural Information Processing Systems 33},
+// year = {2020},
+// note = {To appear in},
+// }
 //
 //===----------------------------------------------------------------------===//
 //
+// This file contains Raptor, a transformation pass that takes replaces calls
+// to function calls to *__raptor_autodiff* with a call to the derivative of
+// the function passed as the first argument.
 //
 //===----------------------------------------------------------------------===//
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/Pass.h"
 #include <llvm/Config/llvm-config.h>
 #include <llvm/IR/GlobalValue.h>
 #include <memory>
@@ -64,6 +77,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 
 #include "RaptorLogic.h"
+#include "Utils.h"
 
 #include "llvm/Transforms/Utils.h"
 
@@ -359,11 +373,964 @@ bool attributeKnownFunctions(llvm::Function &F) {
           AttributeList::FunctionIndex,
           Attribute::get(F.getContext(), "raptor_no_escaping_allocation"));
     }
+  // changed |= attributeTablegen(F);
   return changed;
 }
 
+namespace {
+
+Value *GetFunctionValFromValue(Value *fn) {
+  while (!isa<Function>(fn)) {
+    if (auto ci = dyn_cast<CastInst>(fn)) {
+      fn = ci->getOperand(0);
+      continue;
+    }
+    if (auto ci = dyn_cast<ConstantExpr>(fn)) {
+      if (ci->isCast()) {
+        fn = ci->getOperand(0);
+        continue;
+      }
+    }
+    if (auto ci = dyn_cast<BlockAddress>(fn)) {
+      fn = ci->getFunction();
+      continue;
+    }
+    if (auto *GA = dyn_cast<GlobalAlias>(fn)) {
+      fn = GA->getAliasee();
+      continue;
+    }
+    if (auto *Call = dyn_cast<CallInst>(fn)) {
+      if (auto F = Call->getCalledFunction()) {
+        SmallPtrSet<Value *, 1> ret;
+        for (auto &BB : *F) {
+          if (auto RI = dyn_cast<ReturnInst>(BB.getTerminator())) {
+            ret.insert(RI->getReturnValue());
+          }
+        }
+        if (ret.size() == 1) {
+          auto val = *ret.begin();
+          val = GetFunctionValFromValue(val);
+          if (isa<Constant>(val)) {
+            fn = val;
+            continue;
+          }
+          if (auto arg = dyn_cast<Argument>(val)) {
+            fn = Call->getArgOperand(arg->getArgNo());
+            continue;
+          }
+        }
+      }
+    }
+    // if (auto *Call = dyn_cast<InvokeInst>(fn)) {
+    //   if (auto F = Call->getCalledFunction()) {
+    //     SmallPtrSet<Value *, 1> ret;
+    //     for (auto &BB : *F) {
+    //       if (auto RI = dyn_cast<ReturnInst>(BB.getTerminator())) {
+    //         ret.insert(RI->getReturnValue());
+    //       }
+    //     }
+    //     if (ret.size() == 1) {
+    //       auto val = *ret.begin();
+    //       while (isa<LoadInst>(val)) {
+    //         auto v2 = simplifyLoad(val);
+    //         if (v2) {
+    //           val = v2;
+    //           continue;
+    //         }
+    //         break;
+    //       }
+    //       if (isa<Constant>(val)) {
+    //         fn = val;
+    //         continue;
+    //       }
+    //       if (auto arg = dyn_cast<Argument>(val)) {
+    //         fn = Call->getArgOperand(arg->getArgNo());
+    //         continue;
+    //       }
+    //     }
+    //   }
+    // }
+    // if (auto S = simplifyLoad(fn)) {
+    //   fn = S;
+    //   continue;
+    // }
+    break;
+  }
+
+  return fn;
+}
+
+Function *GetFunctionFromValue(Value *fn) {
+  return dyn_cast<Function>(GetFunctionValFromValue(fn));
+}
+
+
+class RaptorBase {
+public:
+  RaptorLogic Logic;
+  RaptorBase(bool PostOpt)
+      : Logic(RaptorPostOpt.getNumOccurrences() ? RaptorPostOpt : PostOpt) {
+    // initializeLowerAutodiffIntrinsicPass(*PassRegistry::getPassRegistry());
+  }
+
+  Function *parseFunctionParameter(CallInst *CI) {
+    Value *fn = CI->getArgOperand(0);
+
+    // determine function to differentiate
+    if (CI->hasStructRetAttr()) {
+      fn = CI->getArgOperand(1);
+    }
+
+    Value *ofn = fn;
+    fn = GetFunctionFromValue(fn);
+
+    if (!fn || !isa<Function>(fn)) {
+      assert(ofn);
+      EmitFailure("NoFunctionToDifferentiate", CI->getDebugLoc(), CI,
+                  "failed to find fn to differentiate", *CI, " - found - ",
+                  *ofn);
+      return nullptr;
+    }
+    if (cast<Function>(fn)->empty()) {
+      EmitFailure("EmptyFunctionToDifferentiate", CI->getDebugLoc(), CI,
+                  "failed to find fn to differentiate", *CI, " - found - ",
+                  *fn);
+      return nullptr;
+    }
+
+    return cast<Function>(fn);
+  }
+
+
+  static FloatRepresentation getDefaultFloatRepr(unsigned width) {
+    switch (width) {
+    case 16:
+      return FloatRepresentation(5, 10);
+    case 32:
+      return FloatRepresentation(8, 23);
+    case 64:
+      return FloatRepresentation(11, 52);
+    default:
+      llvm_unreachable("Invalid float width");
+    }
+  };
+
+  bool HandleTruncateFunc(CallInst *CI, TruncateMode mode) {
+    IRBuilder<> Builder(CI);
+    Function *F = parseFunctionParameter(CI);
+    if (!F)
+      return false;
+    unsigned ArgSize = CI->arg_size();
+    if (ArgSize != 4 && ArgSize != 3) {
+      EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
+                  "Had incorrect number of args to __raptor_truncate_func", *CI,
+                  " - expected 3 or 4");
+      return false;
+    }
+    FloatTruncation truncation = [&]() -> FloatTruncation {
+      if (ArgSize == 3) {
+        auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+        assert(Cfrom);
+        auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
+        assert(Cto);
+        return FloatTruncation(
+            getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
+            getDefaultFloatRepr((unsigned)Cto->getValue().getZExtValue()),
+            mode);
+      } else if (ArgSize == 4) {
+        auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+        assert(Cfrom);
+        auto Cto_exponent = cast<ConstantInt>(CI->getArgOperand(2));
+        assert(Cto_exponent);
+        auto Cto_significand = cast<ConstantInt>(CI->getArgOperand(3));
+        assert(Cto_significand);
+        return FloatTruncation(
+            getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
+            FloatRepresentation(
+                (unsigned)Cto_exponent->getValue().getZExtValue(),
+                (unsigned)Cto_significand->getValue().getZExtValue()),
+            mode);
+      }
+      llvm_unreachable("??");
+    }();
+
+    RequestContext context(CI, &Builder);
+    llvm::Value *res = Logic.CreateTruncateFunc(context, F, truncation, mode);
+    if (!res)
+      return false;
+    res = Builder.CreatePointerCast(res, CI->getType());
+
+    Module *M = F->getParent();
+    auto fname = std::string(RaptorFPRTPrefix) + "trunc_change";
+    Function *ChangeF = M->getFunction(fname);
+    if (!ChangeF) {
+      FunctionType *FnTy = FunctionType::get(
+          Type::getVoidTy(M->getContext()), {Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext())},
+          /*is_vararg*/ false);
+      ChangeF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
+    }
+
+    for (auto &Use : CI->uses()) {
+      if (CallInst *UserCI = dyn_cast<CallInst>(Use.getUser())) {
+        if (UserCI->getCalledOperand() == CI) {
+          IRBuilder<> B(UserCI);
+          B.CreateCall(ChangeF,
+                       {
+                           B.getInt64(1),
+                           B.getInt64(truncation.getTo().exponentWidth),
+                           B.getInt64(truncation.getTo().significandWidth),
+                           B.getInt64(truncation.getMode()),
+                     });
+          B.SetInsertPoint(UserCI->getNextNode());
+          B.CreateCall(ChangeF,
+                       {
+                           B.getInt64(0),
+                           B.getInt64(truncation.getTo().exponentWidth),
+                           B.getInt64(truncation.getTo().significandWidth),
+                           B.getInt64(truncation.getMode()),
+                     });
+        }
+      } else {
+        llvm::errs()
+            << "ERROR: FOUND NON CallInst USER OF TRUNCATED FUNCTION\n";
+        llvm_unreachable("aborting");
+      }
+    }
+    CI->replaceAllUsesWith(res);
+    CI->eraseFromParent();
+    return true;
+  }
+
+  bool HandleTruncateValue(CallInst *CI, bool isTruncate) {
+    IRBuilder<> Builder(CI);
+    unsigned ArgSize = CI->arg_size();
+    if (ArgSize != 4 && ArgSize != 3) {
+      EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
+                  "Had incorrect number of args to __raptor_truncate_value",
+                  *CI, " - expected 3");
+      return false;
+    }
+    if (ArgSize == 3) {
+      auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+      assert(Cfrom);
+      auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
+      assert(Cto);
+      auto Addr = CI->getArgOperand(0);
+      RequestContext context(CI, &Builder);
+      bool res = Logic.CreateTruncateValue(
+          context, Addr,
+          getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
+          getDefaultFloatRepr((unsigned)Cto->getValue().getZExtValue()),
+          isTruncate);
+      if (!res)
+        return false;
+      return true;
+    } else if (ArgSize == 4) {
+      auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+      assert(Cfrom);
+      auto Cto_exponent = cast<ConstantInt>(CI->getArgOperand(2));
+      assert(Cto_exponent);
+      auto Cto_significand = cast<ConstantInt>(CI->getArgOperand(3));
+      assert(Cto_significand);
+      auto Addr = CI->getArgOperand(0);
+      RequestContext context(CI, &Builder);
+      bool res = Logic.CreateTruncateValue(
+          context, Addr,
+          getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
+          FloatRepresentation(
+              (unsigned)Cto_exponent->getValue().getZExtValue(),
+              (unsigned)Cto_significand->getValue().getZExtValue()),
+          isTruncate);
+      if (!res)
+        return false;
+      return true;
+    }
+    llvm_unreachable("??");
+  }
+
+  bool handleFlopMemory(Function &F) {
+    if (F.isDeclaration())
+      return false;
+    if (!RaptorTruncateAccessCount)
+      return false;
+
+    if (F.getName().starts_with(RaptorFPRTPrefix))
+      return false;
+
+    auto M = F.getParent();
+    auto &DL = M->getDataLayout();
+    IRBuilder<> B(M->getContext());
+
+    auto fname = std::string(RaptorFPRTPrefix) + "memory_access";
+    Function *AccessF = M->getFunction(fname);
+    Type *PtrTy = PointerType::get(M->getContext(), 0);
+    if (!AccessF) {
+      FunctionType *FnTy =
+          FunctionType::get(Type::getVoidTy(M->getContext()),
+                            {PtrTy, Type::getInt64Ty(M->getContext()),
+                             Type::getInt64Ty(M->getContext())},
+                            /*is_vararg*/ false);
+      AccessF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
+    }
+
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        uint64_t isStore;
+        Type *ty;
+        Value *ptr;
+        if (auto load = dyn_cast<LoadInst>(&I)) {
+          isStore = false;
+          ty = load->getType();
+          ptr = load->getPointerOperand();
+        } else if (auto store = dyn_cast<StoreInst>(&I)) {
+          isStore = true;
+          ty = store->getValueOperand()->getType();
+          ptr = store->getPointerOperand();
+        } else {
+          continue;
+        }
+        uint64_t size = DL.getTypeStoreSize(ty);
+        CallInst::Create(AccessF,
+                         {B.CreateAddrSpaceCast(ptr, PtrTy), B.getInt64(size),
+                          B.getInt64(isStore)},
+                         "", &I);
+      }
+    }
+
+    return true;
+  }
+
+  bool handleFlopCount(Function &F) {
+    if (F.isDeclaration())
+      return false;
+    if (!RaptorTruncateCount)
+      return false;
+
+    if (F.getName().starts_with(RaptorFPRTPrefix))
+      return false;
+
+    for (auto Repr : {getDefaultFloatRepr(16), getDefaultFloatRepr(32),
+                      getDefaultFloatRepr(64)}) {
+      IRBuilder<> Builder(F.getContext());
+      RequestContext context(&*F.getEntryBlock().begin(), &Builder);
+      Function *TruncatedFunc = Logic.CreateTruncateFunc(
+          context, &F, FloatTruncation(Repr, TruncCountMode), TruncCountMode);
+
+      ValueToValueMapTy Mapping;
+      for (auto &&[Arg, TArg] : llvm::zip(F.args(), TruncatedFunc->args()))
+        Mapping[&TArg] = &Arg;
+
+      // Move the truncated body into the original function
+      F.deleteBody();
+#if LLVM_VERSION_MAJOR >= 16
+      F.splice(F.begin(), TruncatedFunc);
+#else
+      F.getBasicBlockList().splice(F.begin(),
+                                   TruncatedFunc->getBasicBlockList());
+#endif
+      RemapFunction(F, Mapping,
+                    RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
+      TruncatedFunc->deleteBody();
+    }
+    return true;
+  }
+
+  bool handleFullModuleTrunc(Function &F) {
+    if (startsWith(F.getName(), RaptorFPRTPrefix))
+      return false;
+    typedef std::vector<FloatTruncation> TruncationsTy;
+    static TruncationsTy FullModuleTruncs = []() -> TruncationsTy {
+      StringRef ConfigStr(RaptorTruncateAll);
+      auto Invalid = [=]() {
+        // TODO emit better diagnostic
+        llvm::report_fatal_error("error: invalid format for truncation config");
+      };
+
+      // "64" or "11-52"
+      auto parseFloatRepr = [&]() -> std::optional<FloatRepresentation> {
+        unsigned Tmp = 0;
+        if (ConfigStr.consumeInteger(10, Tmp))
+          return {};
+        if (ConfigStr.consume_front("-")) {
+          unsigned Tmp2 = 0;
+          if (ConfigStr.consumeInteger(10, Tmp2))
+            Invalid();
+          return FloatRepresentation(Tmp, Tmp2);
+        }
+        return getDefaultFloatRepr(Tmp);
+      };
+
+      // Parse "64to32;32to16;5-10to4-9"
+      TruncationsTy Tmp;
+      while (true) {
+        auto From = parseFloatRepr();
+        if (!From && !ConfigStr.empty())
+          Invalid();
+        if (!From)
+          break;
+        if (!ConfigStr.consume_front("to"))
+          Invalid();
+        auto To = parseFloatRepr();
+        if (!To)
+          Invalid();
+        Tmp.push_back({*From, *To, TruncOpFullModuleMode});
+        ConfigStr.consume_front(";");
+      }
+      return Tmp;
+    }();
+
+    if (FullModuleTruncs.empty())
+      return false;
+
+    // TODO sort truncations (64to32, then 32to16 will make everything 16)
+    for (auto Truncation : FullModuleTruncs) {
+      IRBuilder<> Builder(F.getContext());
+      RequestContext context(&*F.getEntryBlock().begin(), &Builder);
+      Function *TruncatedFunc = Logic.CreateTruncateFunc(
+          context, &F, Truncation, TruncOpFullModuleMode);
+
+      ValueToValueMapTy Mapping;
+      for (auto &&[Arg, TArg] : llvm::zip(F.args(), TruncatedFunc->args()))
+        Mapping[&TArg] = &Arg;
+
+      // Move the truncated body into the original function
+      F.deleteBody();
+#if LLVM_VERSION_MAJOR >= 16
+      F.splice(F.begin(), TruncatedFunc);
+#else
+      F.getBasicBlockList().splice(F.begin(),
+                                   TruncatedFunc->getBasicBlockList());
+#endif
+      RemapFunction(F, Mapping,
+                    RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
+      TruncatedFunc->eraseFromParent();
+    }
+    return true;
+  }
+
+  bool lowerRaptorCalls(Function &F, std::set<Function *> &done) {
+    if (!RaptorTruncateAll.empty() && RaptorTruncateCount)
+      llvm::report_fatal_error(
+          "error: trunc all and trunc count are incompatible");
+
+    if (done.count(&F))
+      return false;
+    done.insert(&F);
+
+    if (F.empty())
+      return false;
+
+    if (handleFullModuleTrunc(F))
+      return true;
+
+    bool Changed = false;
+
+    for (BasicBlock &BB : F)
+      if (InvokeInst *II = dyn_cast<InvokeInst>(BB.getTerminator())) {
+
+        Function *Fn = II->getCalledFunction();
+
+        if (auto castinst = dyn_cast<ConstantExpr>(II->getCalledOperand())) {
+          if (castinst->isCast())
+            if (auto fn = dyn_cast<Function>(castinst->getOperand(0)))
+              Fn = fn;
+        }
+        if (!Fn)
+          continue;
+
+        if (!Fn->getName().contains("__raptor"))
+          continue;
+
+        SmallVector<Value *, 16> CallArgs(II->arg_begin(), II->arg_end());
+        SmallVector<OperandBundleDef, 1> OpBundles;
+        II->getOperandBundlesAsDefs(OpBundles);
+        // Insert a normal call instruction...
+        CallInst *NewCall =
+            CallInst::Create(II->getFunctionType(), II->getCalledOperand(),
+                             CallArgs, OpBundles, "", II);
+        NewCall->takeName(II);
+        NewCall->setCallingConv(II->getCallingConv());
+        NewCall->setAttributes(II->getAttributes());
+        NewCall->setDebugLoc(II->getDebugLoc());
+        II->replaceAllUsesWith(NewCall);
+
+        // Insert an unconditional branch to the normal destination.
+        BranchInst::Create(II->getNormalDest(), II);
+
+        // Remove any PHI node entries from the exception destination.
+        II->getUnwindDest()->removePredecessor(&BB);
+
+        II->eraseFromParent();
+        Changed = true;
+      }
+
+    SmallVector<CallInst *, 4> toTruncateFuncMem;
+    SmallVector<CallInst *, 4> toTruncateFuncOp;
+    SmallVector<CallInst *, 4> toTruncateValue;
+    SmallVector<CallInst *, 4> toExpandValue;
+  retry:;
+    for (BasicBlock &BB : F) {
+      for (Instruction &I : BB) {
+        CallInst *CI = dyn_cast<CallInst>(&I);
+
+        if (!CI)
+          continue;
+
+        Function *Fn = nullptr;
+
+        Value *FnOp = CI->getCalledOperand();
+        while (true) {
+          if ((Fn = dyn_cast<Function>(FnOp)))
+            break;
+          if (auto castinst = dyn_cast<ConstantExpr>(FnOp)) {
+            if (castinst->isCast()) {
+              FnOp = castinst->getOperand(0);
+              continue;
+            }
+          }
+          break;
+        }
+
+        if (!Fn)
+          continue;
+
+        size_t num_args = CI->arg_size();
+
+        if (Fn->getName() == "omp_get_max_threads" ||
+            Fn->getName() == "omp_get_thread_num") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemory();
+          CI->setOnlyAccessesInaccessibleMemory();
+          Fn->setOnlyReadsMemory();
+          CI->setOnlyReadsMemory();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOnly);
+          Fn->addFnAttr(Attribute::ReadOnly);
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadOnly);
+#endif
+        }
+        if ((Fn->getName() == "cblas_ddot" || Fn->getName() == "cblas_sdot") &&
+            Fn->isDeclaration()) {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesArgMemory();
+          Fn->setOnlyReadsMemory();
+          CI->setOnlyReadsMemory();
+#else
+          Fn->addFnAttr(Attribute::ArgMemOnly);
+          Fn->addFnAttr(Attribute::ReadOnly);
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadOnly);
+#endif
+          CI->addParamAttr(1, Attribute::ReadOnly);
+          CI->addParamAttr(1, Attribute::NoCapture);
+          CI->addParamAttr(3, Attribute::ReadOnly);
+          CI->addParamAttr(3, Attribute::NoCapture);
+        }
+        if (Fn->getName() == "frexp" || Fn->getName() == "frexpf" ||
+            Fn->getName() == "frexpl") {
+#if LLVM_VERSION_MAJOR >= 16
+          CI->setOnlyAccessesArgMemory();
+#else
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ArgMemOnly);
+#endif
+          CI->addParamAttr(1, Attribute::WriteOnly);
+        }
+        if (Fn->getName() == "__fd_sincos_1" || Fn->getName() == "__fd_cos_1" ||
+            Fn->getName() == "__mth_i_ipowi") {
+#if LLVM_VERSION_MAJOR >= 16
+          CI->setOnlyReadsMemory();
+          CI->setOnlyWritesMemory();
+#else
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadNone);
+#endif
+        }
+        if (Fn->getName().contains("strcmp")) {
+          Fn->addParamAttr(0, Attribute::ReadOnly);
+          Fn->addParamAttr(1, Attribute::ReadOnly);
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyReadsMemory();
+          CI->setOnlyReadsMemory();
+#else
+          Fn->addFnAttr(Attribute::ReadOnly);
+          CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadOnly);
+#endif
+        }
+        if (Fn->getName() == "f90io_fmtw_end" ||
+            Fn->getName() == "f90io_unf_end") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemory();
+          CI->setOnlyAccessesInaccessibleMemory();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOnly);
+#endif
+        }
+        if (Fn->getName() == "f90io_open2003a") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+          CI->setOnlyAccessesInaccessibleMemOrArgMem();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+          for (size_t i : {0, 1, 2, 3, 4, 5, 6, 7, /*8, */ 9, 10, 11, 12, 13}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadOnly);
+            }
+          }
+          // todo more
+          for (size_t i : {0, 1}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+        if (Fn->getName() == "f90io_fmtw_inita") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+          CI->setOnlyAccessesInaccessibleMemOrArgMem();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+          // todo more
+          for (size_t i : {0, 2}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadOnly);
+            }
+          }
+
+          // todo more
+          for (size_t i : {0, 2}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+
+        if (Fn->getName() == "f90io_unf_init") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+          CI->setOnlyAccessesInaccessibleMemOrArgMem();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+          // todo more
+          for (size_t i : {0, 1, 2, 3}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadOnly);
+            }
+          }
+
+          // todo more
+          for (size_t i : {0, 1, 2, 3}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+
+        if (Fn->getName() == "f90io_src_info03a") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+          CI->setOnlyAccessesInaccessibleMemOrArgMem();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+          // todo more
+          for (size_t i : {0, 1}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadOnly);
+            }
+          }
+
+          // todo more
+          for (size_t i : {0}) {
+            if (i < num_args &&
+                CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+        if (Fn->getName() == "f90io_sc_d_fmt_write" ||
+            Fn->getName() == "f90io_sc_i_fmt_write" ||
+            Fn->getName() == "ftnio_fmt_write64" ||
+            Fn->getName() == "f90io_fmt_write64_aa" ||
+            Fn->getName() == "f90io_fmt_writea" ||
+            Fn->getName() == "f90io_unf_writea" ||
+            Fn->getName() == "f90_pausea") {
+#if LLVM_VERSION_MAJOR >= 16
+          Fn->setOnlyAccessesInaccessibleMemOrArgMem();
+          CI->setOnlyAccessesInaccessibleMemOrArgMem();
+#else
+          Fn->addFnAttr(Attribute::InaccessibleMemOrArgMemOnly);
+          CI->addAttribute(AttributeList::FunctionIndex,
+                           Attribute::InaccessibleMemOrArgMemOnly);
+#endif
+          for (size_t i = 0; i < num_args; ++i) {
+            if (CI->getArgOperand(i)->getType()->isPointerTy()) {
+              CI->addParamAttr(i, Attribute::ReadOnly);
+              CI->addParamAttr(i, Attribute::NoCapture);
+            }
+          }
+        }
+
+        bool enableRaptor = false;
+        bool truncateFuncOp = false;
+        bool truncateFuncMem = false;
+        bool truncateValue = false;
+        bool expandValue = false;
+        if (false) {
+        } else if (Fn->getName().contains("__raptor_truncate_mem_func")) {
+          enableRaptor = true;
+          truncateFuncMem = true;
+        } else if (Fn->getName().contains("__raptor_truncate_op_func")) {
+          enableRaptor = true;
+          truncateFuncOp = true;
+        } else if (Fn->getName().contains("__raptor_truncate_mem_value")) {
+          enableRaptor = true;
+          truncateValue = true;
+        } else if (Fn->getName().contains("__raptor_expand_mem_value")) {
+          enableRaptor = true;
+          expandValue = true;
+        }
+
+        if (enableRaptor) {
+
+          Value *fn = CI->getArgOperand(0);
+          while (auto ci = dyn_cast<CastInst>(fn)) {
+            fn = ci->getOperand(0);
+          }
+          while (auto ci = dyn_cast<BlockAddress>(fn)) {
+            fn = ci->getFunction();
+          }
+          while (auto ci = dyn_cast<ConstantExpr>(fn)) {
+            fn = ci->getOperand(0);
+          }
+          if (auto si = dyn_cast<SelectInst>(fn)) {
+            BasicBlock *post = BB.splitBasicBlock(CI);
+            BasicBlock *sel1 = BasicBlock::Create(BB.getContext(), "sel1", &F);
+            BasicBlock *sel2 = BasicBlock::Create(BB.getContext(), "sel2", &F);
+            BB.getTerminator()->eraseFromParent();
+            IRBuilder<> PB(&BB);
+            PB.CreateCondBr(si->getCondition(), sel1, sel2);
+            IRBuilder<> S1(sel1);
+            auto B1 = S1.CreateBr(post);
+            CallInst *cloned = cast<CallInst>(CI->clone());
+            cloned->insertBefore(B1);
+            cloned->setOperand(0, si->getTrueValue());
+            IRBuilder<> S2(sel2);
+            auto B2 = S2.CreateBr(post);
+            CI->moveBefore(B2);
+            CI->setOperand(0, si->getFalseValue());
+            if (CI->getNumUses() != 0) {
+              IRBuilder<> P(post->getFirstNonPHI());
+              auto merge = P.CreatePHI(CI->getType(), 2);
+              merge->addIncoming(cloned, sel1);
+              merge->addIncoming(CI, sel2);
+              CI->replaceAllUsesWith(merge);
+            }
+            goto retry;
+          }
+          if (truncateFuncOp)
+            toTruncateFuncOp.push_back(CI);
+          else if (truncateFuncMem)
+            toTruncateFuncMem.push_back(CI);
+          else if (truncateValue)
+            toTruncateValue.push_back(CI);
+          else if (expandValue)
+            toExpandValue.push_back(CI);
+
+          // TODO do we leave this?
+          if (auto dc = dyn_cast<Function>(fn)) {
+            // Force postopt on any inner functions in the nested
+            // AD case.
+            bool tmp = Logic.PostOpt;
+            Logic.PostOpt = true;
+            Changed |= lowerRaptorCalls(*dc, done);
+            Logic.PostOpt = tmp;
+          }
+        }
+      }
+    }
+
+    for (auto call : toTruncateFuncMem) {
+      HandleTruncateFunc(call, TruncMemMode);
+    }
+    for (auto call : toTruncateFuncOp) {
+      HandleTruncateFunc(call, TruncOpMode);
+    }
+    for (auto call : toTruncateValue) {
+      HandleTruncateValue(call, true);
+    }
+    for (auto call : toExpandValue) {
+      HandleTruncateValue(call, false);
+    }
+
+    return Changed;
+  }
+
+  bool run(Module &M) {
+    if (char *Name = getenv("RAPTOR_DUMP_MODULE_PRE")) {
+      std::error_code EC;
+      raw_fd_stream Out(Name, EC);
+      if (!EC) {
+        Out << M;
+      } else {
+        llvm::errs() << "Could not open Raptor dump file.";
+      }
+    }
+    Logic.clear();
+
+    for (Function &F : make_early_inc_range(M)) {
+      attributeKnownFunctions(F);
+    }
+
+    bool changed = false;
+    for (Function &F : M) {
+      if (F.empty())
+        continue;
+      for (BasicBlock &BB : F) {
+        for (Instruction &I : make_early_inc_range(BB)) {
+          if (auto CI = dyn_cast<CallInst>(&I)) {
+            Function *F = CI->getCalledFunction();
+            if (auto castinst =
+                    dyn_cast<ConstantExpr>(CI->getCalledOperand())) {
+              if (castinst->isCast())
+                if (auto fn = dyn_cast<Function>(castinst->getOperand(0))) {
+                  F = fn;
+                }
+            }
+            if (F && F->getName() == "f90_mzero8") {
+              IRBuilder<> B(CI);
+
+              SmallVector<Value *, 4> args;
+              args.push_back(CI->getArgOperand(0));
+              args.push_back(
+                  ConstantInt::get(Type::getInt8Ty(M.getContext()), 0));
+              args.push_back(B.CreateMul(
+                  CI->getArgOperand(1),
+                  ConstantInt::get(CI->getArgOperand(1)->getType(), 8)));
+              args.push_back(ConstantInt::getFalse(M.getContext()));
+
+              Type *tys[] = {args[0]->getType(), args[2]->getType()};
+              auto memsetIntr =
+                  Intrinsic::getDeclaration(&M, Intrinsic::memset, tys);
+              B.CreateCall(memsetIntr, args);
+
+              CI->eraseFromParent();
+            }
+          }
+        }
+      }
+    }
+
+    for (Function &F : M) {
+      changed |= handleFlopMemory(F);
+    }
+
+    std::set<Function *> done;
+    for (Function &F : M) {
+      if (F.empty())
+        continue;
+
+      changed |= lowerRaptorCalls(F, done);
+    }
+
+    for (Function &F : M) {
+      changed |= handleFlopCount(F);
+    }
+
+    Logic.clear();
+
+    if (changed && Logic.PostOpt) {
+      TimeTraceScope timeScope("Raptor PostOpt", M.getName());
+
+      PassBuilder PB;
+      LoopAnalysisManager LAM;
+      FunctionAnalysisManager FAM;
+      CGSCCAnalysisManager CGAM;
+      ModuleAnalysisManager MAM;
+      PB.registerModuleAnalyses(MAM);
+      PB.registerFunctionAnalyses(FAM);
+      PB.registerLoopAnalyses(LAM);
+      PB.registerCGSCCAnalyses(CGAM);
+      PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+      auto PM = PB.buildModuleSimplificationPipeline(OptimizationLevel::O2,
+                                                     ThinOrFullLTOPhase::None);
+      PM.run(M, MAM);
+      if (RaptorOMPOpt) {
+        OpenMPOptPass().run(M, MAM);
+        /// Attributor is run second time for promoted args to get attributes.
+        AttributorPass().run(M, MAM);
+        for (auto &F : M)
+          if (!F.empty())
+            PromotePass().run(F, FAM);
+      }
+    }
+
+    if (char *Name = getenv("RAPTOR_DUMP_MODULE_POST")) {
+      std::error_code EC;
+      raw_fd_stream Out(Name, EC);
+      if (!EC) {
+        Out << M;
+      } else {
+        llvm::errs() << "Could not open Raptor dump file.";
+      }
+    }
+    return changed;
+  }
+};
+
+class RaptorOldPM : public RaptorBase, public ModulePass {
+public:
+  static char ID;
+  RaptorOldPM(bool PostOpt = false) : RaptorBase(PostOpt), ModulePass(ID) {}
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<TargetLibraryInfoWrapperPass>();
+
+    // AU.addRequiredID(LCSSAID);
+
+    // LoopInfo is required to ensure that all loops have preheaders
+    // AU.addRequired<LoopInfoWrapperPass>();
+
+    // AU.addRequiredID(llvm::LoopSimplifyID);//<LoopSimplifyWrapperPass>();
+  }
+  bool runOnModule(Module &M) override { return run(M); }
+};
+
+} // namespace
+
+char RaptorOldPM::ID = 0;
+
+static RegisterPass<RaptorOldPM> X("raptor", "Raptor Pass");
+
+ModulePass *createRaptorPass(bool PostOpt) { return new RaptorOldPM(PostOpt); }
+
 #include <llvm-c/Core.h>
 #include <llvm-c/Types.h>
+
+#include "llvm/IR/LegacyPassManager.h"
+
+extern "C" void AddRaptorPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createRaptorPass(/*PostOpt*/ false));
+}
 
 #include "llvm/Passes/PassPlugin.h"
 
@@ -480,7 +1447,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizePM)));
   };
 
-  auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level) {
+  auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level, ThinOrFullLTOPhase Phase) {
     MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
 
     if (!RaptorEnable)
@@ -763,7 +1730,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     LPM.addPass(LoopDeletionPass());
     // FIXME: Add loop interchange.
 
-    loadPass(MPM, Level);
+    loadPass(MPM, Level, llvm::ThinOrFullLTOPhase::FullLTOPostLink);
   };
   PB.registerFullLinkTimeOptimizationEarlyEPCallback(loadLTO);
 }
@@ -781,10 +1748,6 @@ void registerRaptor(llvm::PassBuilder &PB) {
         }
         if (Name == "preserve-nvvm") {
           MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
-          return true;
-        }
-        if (Name == "print-type-analysis") {
-          MPM.addPass(TypeAnalysisPrinterNewPM());
           return true;
         }
         return false;
