@@ -894,7 +894,7 @@ public:
         return;
       auto NewPN = cast<llvm::PHINode>(getNewFromOriginal(&PN));
       IRBuilder<> B(
-          NewPN->getParent()->getParent()->getEntryBlock().getFirstNonPHI());
+          &*NewPN->getParent()->getParent()->getEntryBlock().getFirstNonPHIIt());
       for (unsigned It = 0; It < NewPN->getNumIncomingValues(); It++) {
         if (isa<ConstantFP>(NewPN->getIncomingValue(It))) {
           NewPN->setOperand(
