@@ -70,36 +70,6 @@
 
 using namespace llvm;
 
-extern "C" {
-llvm::cl::opt<bool>
-    RaptorPrint("raptor-print", cl::init(false), cl::Hidden,
-                cl::desc("Print before and after fns for autodiff"));
-
-llvm::cl::opt<bool>
-    RaptorPrintUnnecessary("raptor-print-unnecessary", cl::init(false),
-                           cl::Hidden,
-                           cl::desc("Print unnecessary values in function"));
-
-cl::opt<bool> looseTypeAnalysis("raptor-loose-types", cl::init(false),
-                                cl::Hidden,
-                                cl::desc("Allow looser use of types"));
-
-cl::opt<bool> nonmarkedglobals_inactiveloads(
-    "raptor_nonmarkedglobals_inactiveloads", cl::init(true), cl::Hidden,
-    cl::desc("Consider loads of nonmarked globals to be inactive"));
-
-cl::opt<bool> RaptorJuliaAddrLoad(
-    "raptor-julia-addr-load", cl::init(false), cl::Hidden,
-    cl::desc("Mark all loads resulting in an addr(13)* to be legal to redo"));
-
-cl::opt<bool> RaptorAssumeUnknownNoFree(
-    "raptor-assume-unknown-nofree", cl::init(false), cl::Hidden,
-    cl::desc("Assume unknown instructions are nofree as needed"));
-
-LLVMValueRef (*RaptorFixupReturn)(LLVMBuilderRef, LLVMValueRef) = nullptr;
-}
-
-
 static Value *floatValTruncate(IRBuilderBase &B, Value *v,
                                FloatTruncation truncation) {
   if (truncation.isToFPRT())

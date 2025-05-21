@@ -22,6 +22,7 @@
 // computing the underlying data type of LLVM values.
 //
 //===----------------------------------------------------------------------===//
+#include "llvm/ADT/StringMap.h"
 #include <cstdint>
 #include <deque>
 
@@ -39,26 +40,26 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 
-#include "llvm/IR/InstIterator.h"
-
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/TimeProfiler.h"
-#include "llvm/Support/raw_ostream.h"
-
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/StringSet.h"
-
-#include "llvm/IR/InlineAsm.h"
-
-#include "../Utils.h"
-#include "TypeAnalysis.h"
-
-#include "../FunctionUtils.h"
-#include "../LibraryFuncs.h"
-
-#include "RustDebugInfo.h"
-#include "TBAA.h"
+// #include "llvm/IR/InstIterator.h"
+//
+// #include "llvm/Support/CommandLine.h"
+// #include "llvm/Support/TimeProfiler.h"
+// #include "llvm/Support/raw_ostream.h"
+//
+// #include "llvm/ADT/SmallSet.h"
+// #include "llvm/ADT/StringMap.h"
+// #include "llvm/ADT/StringSet.h"
+//
+// #include "llvm/IR/InlineAsm.h"
+//
+// #include "../Utils.h"
+// #include "TypeAnalysis.h"
+//
+// #include "../FunctionUtils.h"
+// #include "../LibraryFuncs.h"
+//
+// // #include "RustDebugInfo.h"
+// //#include "TBAA.h"
 
 #include <math.h>
 
@@ -70,28 +71,28 @@
 
 using namespace llvm;
 
-extern "C" {
-/// Maximum offset for type trees to keep
-llvm::cl::opt<int> MaxIntOffset("enzyme-max-int-offset", cl::init(100),
-                                cl::Hidden,
-                                cl::desc("Maximum type tree offset"));
-
-llvm::cl::opt<unsigned> EnzymeMaxTypeDepth("enzyme-max-type-depth", cl::init(6),
-                                           cl::Hidden,
-                                           cl::desc("Maximum type tree depth"));
-
-llvm::cl::opt<bool> EnzymePrintType("enzyme-print-type", cl::init(false),
-                                    cl::Hidden,
-                                    cl::desc("Print type analysis algorithm"));
-
-llvm::cl::opt<bool> RustTypeRules("enzyme-rust-type", cl::init(false),
-                                  cl::Hidden,
-                                  cl::desc("Enable rust-specific type rules"));
-
-llvm::cl::opt<bool> EnzymeStrictAliasing(
-    "enzyme-strict-aliasing", cl::init(true), cl::Hidden,
-    cl::desc("Assume strict aliasing of types / type stability"));
-}
+// extern "C" {
+// /// Maximum offset for type trees to keep
+// llvm::cl::opt<int> MaxIntOffset("enzyme-max-int-offset", cl::init(100),
+//                                 cl::Hidden,
+//                                 cl::desc("Maximum type tree offset"));
+//
+// llvm::cl::opt<unsigned> EnzymeMaxTypeDepth("enzyme-max-type-depth", cl::init(6),
+//                                            cl::Hidden,
+//                                            cl::desc("Maximum type tree depth"));
+//
+// llvm::cl::opt<bool> EnzymePrintType("enzyme-print-type", cl::init(false),
+//                                     cl::Hidden,
+//                                     cl::desc("Print type analysis algorithm"));
+//
+// llvm::cl::opt<bool> RustTypeRules("enzyme-rust-type", cl::init(false),
+//                                   cl::Hidden,
+//                                   cl::desc("Enable rust-specific type rules"));
+//
+// llvm::cl::opt<bool> EnzymeStrictAliasing(
+//     "enzyme-strict-aliasing", cl::init(true), cl::Hidden,
+//     cl::desc("Assume strict aliasing of types / type stability"));
+// }
 
 const llvm::StringMap<llvm::Intrinsic::ID> LIBM_FUNCTIONS = {
     {"sinc", Intrinsic::not_intrinsic},
@@ -207,6 +208,8 @@ const llvm::StringMap<llvm::Intrinsic::ID> LIBM_FUNCTIONS = {
     {"llround", Intrinsic::llround},
     {"lrint", Intrinsic::lrint},
     {"llrint", Intrinsic::llrint}};
+
+#if 0
 
 static bool isItaniumEncoding(StringRef S) {
   // Itanium encoding requires 1 or 3 leading underscores, followed by 'Z'.
@@ -4427,11 +4430,11 @@ void TypeAnalyzer::visitCallBase(CallBase &call) {
 
     StringRef funcName = getFuncNameFromCall(&call);
 
-    auto blasMetaData = extractBLAS(funcName);
-    if (blasMetaData) {
-      BlasInfo blas = *blasMetaData;
-#include "BlasTA.inc"
-    }
+//     auto blasMetaData = extractBLAS(funcName);
+//     if (blasMetaData) {
+//       BlasInfo blas = *blasMetaData;
+// #include "BlasTA.inc"
+//     }
 
     // clang-format off
     const char* NoTARecurStartsWith[] = {
@@ -6330,3 +6333,5 @@ FnTypeInfo preventTypeAnalysisLoops(const FnTypeInfo &oldTypeInfo_,
   }
   return oldTypeInfo;
 }
+
+#endif

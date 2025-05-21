@@ -13,7 +13,6 @@
 #ifndef RAPTOR_UTILS_H
 #define RAPTOR_UTILS_H
 
-#include "Utils.h.bak"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/IRBuilder.h"

@@ -17,6 +17,7 @@ set(RAPTOR_SRC
     RaptorLogic.cpp
     Raptor.cpp
     Utils.cpp
+    TypeAnalysis/TypeAnalysis.cpp
 )
 list(REMOVE_ITEM RAPTOR_SRC "eopt.cpp")
 set(CMAKE_CXX_STANDARD 17)
