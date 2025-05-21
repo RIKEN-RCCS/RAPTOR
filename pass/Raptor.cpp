@@ -1356,9 +1356,6 @@ public:
 #undef DEBUG_TYPE
 AnalysisKey RaptorNewPM::Key;
 
-#include "ActivityAnalysisPrinter.h"
-#include "JLInstSimplify.h"
-#include "PreserveNVVM.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Transforms/AggressiveInstCombine/AggressiveInstCombine.h"
 #include "llvm/Transforms/IPO/AlwaysInliner.h"
@@ -1448,7 +1445,6 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
   };
 
   auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level, ThinOrFullLTOPhase Phase) {
-    MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
 
     if (!RaptorEnable)
       return;
@@ -1467,7 +1463,6 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
 #endif
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizerPM)));
     MPM.addPass(RaptorNewPM(/*PostOpt=*/true));
-    MPM.addPass(PreserveNVVMNewPM(/*Begin*/ false));
 #if LLVM_VERSION_MAJOR >= 16
     OptimizerPM2.addPass(llvm::GVNPass());
     OptimizerPM2.addPass(llvm::SROAPass(llvm::SROAOptions::PreserveCFG));
@@ -1485,16 +1480,6 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
   };
   // TODO need for perf reasons to move Raptor pass to the pre vectorization.
   PB.registerOptimizerEarlyEPCallback(loadPass);
-
-  auto loadNVVM = [](ModulePassManager &MPM, OptimizationLevel) {
-    MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
-  };
-
-  // We should register at vectorizer start for consistency, however,
-  // that requires a functionpass, and we have a modulepass.
-  // PB.registerVectorizerStartEPCallback(loadPass);
-  PB.registerPipelineStartEPCallback(loadNVVM);
-  PB.registerFullLinkTimeOptimizationEarlyEPCallback(loadNVVM);
 
   auto preLTOPass = [](ModulePassManager &MPM, OptimizationLevel Level) {
     // Create a function that performs CFI checks for cross-DSO calls with
@@ -1746,23 +1731,11 @@ void registerRaptor(llvm::PassBuilder &PB) {
           MPM.addPass(RaptorNewPM());
           return true;
         }
-        if (Name == "preserve-nvvm") {
-          MPM.addPass(PreserveNVVMNewPM(/*Begin*/ true));
-          return true;
-        }
         return false;
       });
   PB.registerPipelineParsingCallback(
       [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
          llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-        if (Name == "print-activity-analysis") {
-          FPM.addPass(ActivityAnalysisPrinterNewPM());
-          return true;
-        }
-        if (Name == "jl-inst-simplify") {
-          FPM.addPass(JLInstSimplifyNewPM());
-          return true;
-        }
         return false;
       });
 }
