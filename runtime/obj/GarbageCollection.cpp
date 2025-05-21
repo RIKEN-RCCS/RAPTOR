@@ -33,14 +33,17 @@
 #include <iostream>
 #include <list>
 #include <llvm/Support/ErrorHandling.h>
+#include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #define RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
 #define RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 
-#include <raptor/fprt/fprt.h>
-#include <raptor/fprt/mpfr.h>
+#include <raptor/Common.h>
+#include <raptor/raptor.h>
+
+bool excl_trunc = false;
 
 struct GCFloatTy {
   __raptor_fp fp;

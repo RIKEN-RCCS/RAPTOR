@@ -22,13 +22,13 @@ set_target_properties(
   OUTPUT_NAME "Raptor-RT-FP-${LLVM_VERSION_MAJOR}"
 )
 
-set(ICNLUDE_DIRS
+set(RAPTOR_ALL_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/include/public
   ${CMAKE_CURRENT_SOURCE_DIR}/include/private
 )
-target_include_directories(Raptor-RT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${INCLUDE_DIRS})
-target_include_directories(Raptor-RT-FP-${LLVM_VERSION_MAJOR} PRIVATE ${INCLUDE_DIRS})
-target_include_directories(Raptor-RT-Count-${LLVM_VERSION_MAJOR} PRIVATE ${INCLUDE_DIRS})
+target_include_directories(Raptor-RT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
+target_include_directories(Raptor-RT-FP-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
+target_include_directories(Raptor-RT-Count-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
 
 option(DISABLE_TRUNC_FLOP_COUNT "Disable counters for truncated flops." OFF)
 if(DISABLE_TRUNC_FLOP_COUNT)

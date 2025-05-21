@@ -24,19 +24,13 @@
 #ifndef __RAPTOR_RUNTIME_RAPTOR_MPFR__
 #define __RAPTOR_RUNTIME_RAPTOR_MPFR__
 
-#include <iostream>
+#include <map>
 #include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <map>
-#include <set>
-#include <string.h>
 
-// #include <mpi.h>
-
-#include "fprt.h"
-
-#define MAX_MPFR_OPERANDS 3
+#include "raptor/Common.h"
+#include "raptor/raptor.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -318,14 +312,6 @@ long long __raptor_reset_shadow_trace();
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long f_raptor_reset_shadow_trace();
-
-typedef struct __raptor_op {
-  const char *op;             // Operation name
-  double l1_err = 0;          // Running error.
-  long long count_thresh = 0; // Number of error violations
-  long long count = 0;        // Number of samples
-  long long count_ignore = 0;
-} __raptor_op;
 
 __RAPTOR_MPFR_ATTRIBUTES
 std::map<const char *, struct __raptor_op> opdata;

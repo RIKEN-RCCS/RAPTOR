@@ -35,8 +35,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include <raptor/raptor>
-#include <raptor/fprt/fprt.h>
+#include "raptor/raptor.h"
 
 #define __RAPTOR_MPFR_ATTRIBUTES __attribute__((weak))
 #define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak))

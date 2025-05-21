@@ -262,7 +262,7 @@ export(TARGETS ClangRaptorFlags
     APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 set(RAPTOR_INCLUDES
-  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/raptor/fprt/fprt.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor/raptor.h"
 )
 
 set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")

@@ -1,11 +1,16 @@
 
+#include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
-#include <atomic>
+#include <iostream>
+#include <map>
+#include <ostream>
+#include <utility>
+#include <vector>
 
-#include "raptor/fprt.h"
 #include "raptor/Common.h"
-
+#include "raptor/raptor.h"
 
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
@@ -18,6 +23,8 @@ std::atomic<long long> trunc_load_counter = 0;
 std::atomic<long long> trunc_store_counter = 0;
 std::atomic<long long> original_load_counter = 0;
 std::atomic<long long> original_store_counter = 0;
+
+extern std::map<const char *, struct __raptor_op> opdata;
 
 // TODO this needs to be thread local
 std::atomic<bool> global_is_truncating = false;
@@ -127,7 +134,7 @@ bool __op_dump_cmp(std::pair<const char *, __raptor_op>& a,
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_op_dump_status(int num) {
+void raptor_fprt_op_dump_status(unsigned num) {
   // int size, rank;
   // MPI_Comm_size(MPI_COMM_WORLD, &size);
   // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -231,7 +238,8 @@ void raptor_fprt_op_dump_status(int num) {
 
     std::sort(od_vec.begin(), od_vec.end(), __op_dump_cmp);
 
-    for (auto it = od_vec.begin(); it != od_vec.begin() + num; ++it) {
+    auto end = od_vec.begin() + num;
+    for (auto it = od_vec.begin(); it != end; ++it) {
       std::cout << it->first << ": " << it->second.count << "x" << it->second.op
                 << " L1 Error Norm: " << it->second.l1_err
                 << " Number of violations: " << it->second.count_thresh
