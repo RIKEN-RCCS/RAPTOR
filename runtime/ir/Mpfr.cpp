@@ -787,7 +787,7 @@ __RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_64_52_intr_llvm_is_fpclass_f64(
       tests);
 }
 
-#include "flops.def"
+#include "Flops.def"
 
 #ifdef __cplusplus
 }

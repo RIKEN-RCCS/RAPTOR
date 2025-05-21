@@ -1,11 +1,11 @@
 
-#include <raptor/fprt/fprt.h>
-#include <raptor/fprt/mpfr.h>
+#include <cstdio>
+#include <cstdlib>
+#include <atomic>
 
-#include <vector>
-#include <algorithm>
+#include "raptor/fprt.h"
+#include "raptor/Common.h"
 
-// #include <mpi.h>
 
 // Global variable to count truncated flops
 // TODO only implemented for op mode at the moment
