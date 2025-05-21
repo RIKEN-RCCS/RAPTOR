@@ -85,7 +85,6 @@
 #include "llvm/Transforms/IPO/OpenMPOpt.h"
 #include "llvm/Transforms/Utils/Mem2Reg.h"
 
-#include "CApi.h"
 using namespace llvm;
 #ifdef DEBUG_TYPE
 #undef DEBUG_TYPE
@@ -693,7 +692,7 @@ public:
         CallInst::Create(AccessF,
                          {B.CreateAddrSpaceCast(ptr, PtrTy), B.getInt64(size),
                           B.getInt64(isStore)},
-                         "", &I);
+                         "", I.getIterator());
       }
     }
 
@@ -847,7 +846,7 @@ public:
         // Insert a normal call instruction...
         CallInst *NewCall =
             CallInst::Create(II->getFunctionType(), II->getCalledOperand(),
-                             CallArgs, OpBundles, "", II);
+                             CallArgs, OpBundles, "", II->getIterator());
         NewCall->takeName(II);
         NewCall->setCallingConv(II->getCallingConv());
         NewCall->setAttributes(II->getAttributes());
@@ -855,7 +854,7 @@ public:
         II->replaceAllUsesWith(NewCall);
 
         // Insert an unconditional branch to the normal destination.
-        BranchInst::Create(II->getNormalDest(), II);
+        BranchInst::Create(II->getNormalDest(), II->getIterator());
 
         // Remove any PHI node entries from the exception destination.
         II->getUnwindDest()->removePredecessor(&BB);
@@ -1132,14 +1131,14 @@ public:
             IRBuilder<> S1(sel1);
             auto B1 = S1.CreateBr(post);
             CallInst *cloned = cast<CallInst>(CI->clone());
-            cloned->insertBefore(B1);
+            cloned->insertBefore(B1->getIterator());
             cloned->setOperand(0, si->getTrueValue());
             IRBuilder<> S2(sel2);
             auto B2 = S2.CreateBr(post);
-            CI->moveBefore(B2);
+            CI->moveBefore(B2->getIterator());
             CI->setOperand(0, si->getFalseValue());
             if (CI->getNumUses() != 0) {
-              IRBuilder<> P(post->getFirstNonPHI());
+              IRBuilder<> P(&*post->getFirstNonPHIIt());
               auto merge = P.CreatePHI(CI->getType(), 2);
               merge->addIncoming(cloned, sel1);
               merge->addIncoming(CI, sel2);
@@ -1230,7 +1229,7 @@ public:
 
               Type *tys[] = {args[0]->getType(), args[2]->getType()};
               auto memsetIntr =
-                  Intrinsic::getDeclaration(&M, Intrinsic::memset, tys);
+                  Intrinsic::getOrInsertDeclaration(&M, Intrinsic::memset, tys);
               B.CreateCall(memsetIntr, args);
 
               CI->eraseFromParent();
