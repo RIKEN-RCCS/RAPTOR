@@ -11,8 +11,10 @@
 //===----------------------------------------------------------------------===//
 #include "RaptorLogic.h"
 #include "Utils.h"
+#include "llvm-c/Core.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/InstrTypes.h"
@@ -21,21 +23,12 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Transforms/Utils/Instrumentation.h"
 #include <cmath>
-#include <llvm-c/Core.h>
-#include <llvm/IR/DebugInfoMetadata.h>
-#include <llvm/Transforms/Instrumentation.h>
 #include <tuple>
 
-#if LLVM_VERSION_MAJOR >= 16
-#define private public
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
-#undef private
-#else
-#include "SCEV/ScalarEvolution.h"
-#include "SCEV/ScalarEvolutionExpander.h"
-#endif
 
 #include "llvm/Analysis/DependenceAnalysis.h"
 #include <deque>
@@ -63,10 +56,6 @@
 
 #include "llvm/Support/AMDGPUMetadata.h"
 #include "llvm/Support/TimeProfiler.h"
-
-#define addAttribute addAttributeAtIndex
-#define getAttribute getAttributeAtIndex
-#define removeAttribute removeAttributeAtIndex
 
 using namespace llvm;
 

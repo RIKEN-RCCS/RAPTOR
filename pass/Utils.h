@@ -17,13 +17,14 @@
 #include "llvm/IR/GlobalAlias.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instruction.h"
-#include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Support/CommandLine.h"
 
 extern const llvm::StringMap<llvm::Intrinsic::ID> LIBM_FUNCTIONS;
 
 extern "C" {
 /// Print additional debug info relevant to performance
-extern llvm::cl::opt<bool> RaptorPrintPerf;
+// extern llvm::cl::opt<bool> RaptorPrintPerf;
+static constexpr bool RaptorPrintPerf = true;
 }
 
 template <typename... Args>

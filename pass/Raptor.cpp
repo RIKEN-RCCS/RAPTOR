@@ -29,25 +29,15 @@
 #include <llvm/IR/GlobalValue.h>
 #include <memory>
 
-#if LLVM_VERSION_MAJOR >= 16
-#define private public
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
-#undef private
-#else
-#include "SCEV/ScalarEvolution.h"
-#include "SCEV/ScalarEvolutionExpander.h"
-#endif
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/MapVector.h"
-#include <optional>
-#if LLVM_VERSION_MAJOR <= 16
-#include "llvm/ADT/Optional.h"
-#endif
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include <optional>
 
 #include "llvm/Passes/PassBuilder.h"
 
@@ -90,8 +80,6 @@ using namespace llvm;
 #undef DEBUG_TYPE
 #endif
 #define DEBUG_TYPE "lower-raptor-intrinsic"
-
-#include <iostream>
 
 llvm::cl::opt<bool> RaptorEnable("raptor-enable", cl::init(true), cl::Hidden,
                                  cl::desc("Run the Raptor pass"));

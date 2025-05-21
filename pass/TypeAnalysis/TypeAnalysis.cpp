@@ -12,7 +12,7 @@
 
 #include "llvm/ADT/StringMap.h"
 
-#include <llvm/Config/llvm-config.h>
+#include "llvm/Config/llvm-config.h"
 
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Demangle/ItaniumDemangle.h"
@@ -22,6 +22,7 @@
 #include "llvm/IR/InstrTypes.h"
 #include <math.h>
 
+#include "../Utils.h"
 
 using namespace llvm;
 
