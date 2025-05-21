@@ -1,10 +1,25 @@
 
-add_library( Raptor-RT-GC-${LLVM_VERSION_MAJOR}
+add_library(
+  Raptor-RT-GC-${LLVM_VERSION_MAJOR}
   obj/GarbageCollection.cpp
 )
 
-add_library( Raptor-RT-Count-${LLVM_VERSION_MAJOR}
+add_library(
+  Raptor-RT-Count-${LLVM_VERSION_MAJOR}
   obj/Counting.cpp
+)
+
+add_library(
+  Raptor-RT-FP-${LLVM_VERSION_MAJOR}
+  OBJECT
+  ir/Mpfr.cpp
+)
+
+set_target_properties(
+  Raptor-RT-FP-${LLVM_VERSION_MAJOR}
+  PROPERTIES
+  COMPILE_FLAGS "-emit-llvm"
+  OUTPUT_NAME "Raptor-RT-FP-${LLVM_VERSION_MAJOR}"
 )
 
 target_include_directories(Raptor-RT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
