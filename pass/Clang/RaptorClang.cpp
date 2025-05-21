@@ -35,7 +35,6 @@
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"
 
-#include "../Utils.h"
 
 #include "bundled_includes.h"
 
@@ -98,12 +97,12 @@ public:
     std::string pluginPath;
 #endif
     for (auto P : Opts.Plugins)
-      if (endsWith(llvm::sys::path::stem(P), PluginName)) {
+      if (llvm::sys::path::stem(P).ends_with(PluginName)) {
 #if LLVM_VERSION_MAJOR < 18
         pluginPath = P;
 #endif
         for (auto passPlugin : CGOpts.PassPlugins) {
-          if (endsWith(llvm::sys::path::stem(passPlugin), PluginName)) {
+          if (llvm::sys::path::stem(passPlugin).ends_with(PluginName)) {
             contains = true;
             break;
           }
