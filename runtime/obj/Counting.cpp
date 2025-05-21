@@ -31,41 +31,21 @@ std::atomic<bool> global_is_truncating = false;
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_trunc_flop_count() {
-  if (trunc_flop_counter < 0) {
-    puts("ERROR: FLOP Counter Overflow!");
-    exit(0);
-  }
-
   return trunc_flop_counter;
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_double_flop_count() {
-  if (trunc_flop_counter < 0) {
-    puts("ERROR: FLOP Counter Overflow!");
-    exit(0);
-  }
-
   return double_flop_counter;
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_float_flop_count() {
-  if (trunc_flop_counter < 0) {
-    puts("ERROR: FLOP Counter Overflow!");
-    exit(0);
-  }
-
   return float_flop_counter;
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_half_flop_count() {
-  if (trunc_flop_counter < 0) {
-    puts("ERROR: FLOP Counter Overflow!");
-    exit(0);
-  }
-
   return half_flop_counter;
 }
 
