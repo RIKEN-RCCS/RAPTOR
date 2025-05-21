@@ -10,6 +10,14 @@ add_library(
 )
 
 add_library(
+  Raptor-RT-${LLVM_VERSION_MAJOR}
+  obj/Counting.cpp
+  obj/GarbageCollection.cpp
+  ir/Mpfr.cpp
+  ir/Fprt.cpp
+)
+
+add_library(
   Raptor-RT-FP-${LLVM_VERSION_MAJOR}
   OBJECT
   ir/Mpfr.cpp
@@ -29,6 +37,7 @@ set(RAPTOR_ALL_INCLUDE_DIRS
 target_include_directories(Raptor-RT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
 target_include_directories(Raptor-RT-FP-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
 target_include_directories(Raptor-RT-Count-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
+target_include_directories(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
 
 option(DISABLE_TRUNC_FLOP_COUNT "Disable counters for truncated flops." OFF)
 if(DISABLE_TRUNC_FLOP_COUNT)

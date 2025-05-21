@@ -85,7 +85,7 @@ config.substitutions.append(('%loadRaptor', newPM))
 config.substitutions.append(('%newLoadRaptor', newPM))
 config.substitutions.append(('%OPloadRaptor', newPMOP))
 config.substitutions.append(('%OPnewLoadRaptor', newPMOP))
-config.substitutions.append(('%raptor', '-passes="raptor"'))
+config.substitutions.append(('%llvm-raptor', '-passes="raptor"'))
 config.substitutions.append(('%simplifycfg', "simplifycfg"))
 config.substitutions.append(('%loopmssa', "loop-mssa"))
 
@@ -94,14 +94,14 @@ config.substitutions.append(('%loadBC', ''
                                  ))
 config.substitutions.append(('%BClibdir', '@RAPTOR_SOURCE_DIR@/bclib/'))
 
-newPM = ((" -fexperimental-new-pass-manager" if int(config.llvm_ver) < 13 else "")
-          + ' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext
+newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext
           + ' -Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 
 if len("@RAPTOR_BINARY_DIR@") == 0:
-  newPM = (" -fexperimental-new-pass-manager" if int(config.llvm_ver) < 13 else "")
+  newPM = ""
 
-config.substitutions.append(('%newLoadClangRaptor', newPM))
+config.substitutions.append(('%clang-raptor', newPM))
+config.substitutions.append(('%link-raptor', newPM))
 
 config.substitutions.append(('%hasMPFR', has_mpfr))
 

@@ -21,8 +21,6 @@
 // This file contains easy to use wrappers around MPFR functions.
 //
 //===----------------------------------------------------------------------===//
-#ifndef __RAPTOR_RUNTIME_RAPTOR_MPFR__
-#define __RAPTOR_RUNTIME_RAPTOR_MPFR__
 
 #include <map>
 #include <mpfr.h>
@@ -31,10 +29,6 @@
 
 #include "raptor/Common.h"
 #include "raptor/raptor.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // TODO s
 //
@@ -313,7 +307,6 @@ long long __raptor_reset_shadow_trace();
 __RAPTOR_MPFR_ATTRIBUTES
 long long f_raptor_reset_shadow_trace();
 
-__RAPTOR_MPFR_ATTRIBUTES
 std::map<const char *, struct __raptor_op> opdata;
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -774,9 +767,3 @@ __RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_64_52_intr_llvm_is_fpclass_f64(
 }
 
 #include "Flops.def"
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // #ifndef __RAPTOR_RUNTIME_RAPTOR_MPFR__

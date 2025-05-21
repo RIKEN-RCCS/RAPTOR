@@ -269,7 +269,7 @@ set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.
 list(APPEND RAPTOR_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
 add_custom_command(OUTPUT ${bundled_includes}
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/raptor
+  ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor
   ${bundled_includes}
   DEPENDS ${RAPTOR_INCLUDES}
   COMMENT "Bundling includes"

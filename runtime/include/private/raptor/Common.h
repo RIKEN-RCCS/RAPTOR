@@ -6,8 +6,8 @@
 
 #define MAX_MPFR_OPERANDS 3
 
-#define __RAPTOR_MPFR_ATTRIBUTES __attribute__((weak))
-#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak))
+#define __RAPTOR_MPFR_ATTRIBUTES extern "C" __attribute__((weak))
+#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C" __attribute__((weak))
 #define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
 #define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
