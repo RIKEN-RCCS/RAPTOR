@@ -1,12 +1,9 @@
 // clang-format off
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O0                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang                           -O1 -g             %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr.h -lm -lmpfr && %s.a.out ; fi
-
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -include raptor/fprt/mpfr-test.h -lm -lmpfr && %s.a.out ; fi
+// RUN: %clang                -DTRUNC_OP -O0                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
+// RUN: %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
+// RUN: %clang                           -O1 -g             %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
+// RUN: %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
+// RUN: %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
 
 #include <math.h>
 

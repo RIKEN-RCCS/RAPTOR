@@ -338,3 +338,5 @@ install(FILES
 install(EXPORT RaptorTargets
   DESTINATION "${INSTALL_CMAKE_DIR}"
   COMPONENT   dev)
+
+add_subdirectory(test)
