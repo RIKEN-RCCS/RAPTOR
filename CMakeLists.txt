@@ -262,9 +262,9 @@ export(TARGETS ClangRaptorFlags
     APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 set(RAPTOR_INCLUDES
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/flops.def"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/fprt.h"
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/raptor/fprt/mpfr.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/raptor/fprt/flops.def"
+  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/raptor/fprt/fprt.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/raptor/fprt/mpfr.h"
 )
 
 set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")
@@ -339,4 +339,5 @@ install(EXPORT RaptorTargets
   DESTINATION "${INSTALL_CMAKE_DIR}"
   COMPONENT   dev)
 
+add_subdirectory(runtime)
 add_subdirectory(test)
