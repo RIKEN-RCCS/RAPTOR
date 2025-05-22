@@ -4,18 +4,24 @@ Raptor allows users to easily alter and profile floating-point precision in thei
 This is achieved using an LLVM pass and an accompanying runtime.
 
 
+## Dependencies
+
+RAPTOR requires LLVM version 20 with clang and flang support for C/C++ and Fortran respectively.
+
 ## Building
 
 ``` shell
-cd raptor
+export LLVM_INSTALL_DIR="<path-to-llvm-install-dir>"
+export INSTALL_DIR="<path-to-raptor-install-dir>"
 cmake --fresh \
-  -DLLVM_DIR="path/to/llvm-install/lib/cmake/llvm" \
-  -DCMAKE_INSTALL_PREFIX="path/to/raptor-install/" \
-  -DLLVM_EXTERNAL_LIT="path/to/llvm-project/llvm/utils/lit/lit.py" \
+  -DLLVM_DIR="$LLVM_INSTALL_DIR/lib/cmake/llvm" \
+  -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
+  -DCMAKE_BUILD_TYPE=Release \
   -B build -G Ninja
 ninja -C ./build install
 ```
 
+Running the tests requires either specifying an LLVM build directory instead of an install one, or specifying the lit path using `-DLLVM_EXTERNAL_LIT="path/to/llvm-project/llvm/utils/lit/lit.py"`.
 
 ## Usage
 
