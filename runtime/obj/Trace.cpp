@@ -35,10 +35,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "raptor/Common.h"
 #include "raptor/raptor.h"
-
-#define __RAPTOR_MPFR_ATTRIBUTES __attribute__((weak))
-#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak))
 
 #ifndef RAPTOR_FPRT_TRACE_PRINT
 #define RAPTOR_FPRT_TRACE_PRINT 1

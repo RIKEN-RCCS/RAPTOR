@@ -23,12 +23,12 @@ add_library(
   ir/Mpfr.cpp
 )
 
-set_target_properties(
-  Raptor-RT-FP-${LLVM_VERSION_MAJOR}
-  PROPERTIES
-  COMPILE_FLAGS "-emit-llvm"
-  OUTPUT_NAME "Raptor-RT-FP-${LLVM_VERSION_MAJOR}"
-)
+# set_target_properties(
+#   Raptor-RT-FP-${LLVM_VERSION_MAJOR}
+#   PROPERTIES
+#   COMPILE_FLAGS "-emit-llvm"
+#   OUTPUT_NAME "Raptor-RT-FP-${LLVM_VERSION_MAJOR}"
+# )
 
 set(RAPTOR_ALL_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/include/public
