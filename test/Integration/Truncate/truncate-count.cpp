@@ -1,4 +1,4 @@
-// RUN: if [ %llvmver -ge 12 ] ; then %clang -O2 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-count -lm && %s.a.out | FileCheck %s; fi
+// RUN: if [ %llvmver -ge 12 ] ; then %clang -O2 %s -o %t.a.out %newLoadClangRaptor -mllvm --raptor-truncate-count -lm && %t.a.out | FileCheck %s; fi
 
 #include <cstdio>
 #include <cmath>
