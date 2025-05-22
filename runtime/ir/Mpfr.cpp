@@ -99,11 +99,16 @@ double __raptor_fprt_64_52_abs_err(double a, double b) {
 #define RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
 #ifdef RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_dump_status();
+__RAPTOR_MPFR_ATTRIBUTES
 double raptor_fprt_gc_mark_seen(double a);
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_doit();
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_excl_trunc_start();
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_excl_trunc_end();
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -755,9 +760,8 @@ void raptor_fprt_op_clear();
   }
 #endif  // RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 
-__RAPTOR_MPFR_ORIGINAL_ATTRIBUTES
-bool __raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a,
-                                                           int32_t tests);
+__RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak)) bool
+__raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a, int32_t tests);
 __RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_64_52_intr_llvm_is_fpclass_f64(
     double a, int32_t tests, int64_t exponent, int64_t significand,
     int64_t mode, const char *loc, mpfr_t *scratch) {

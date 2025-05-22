@@ -6,8 +6,8 @@
 
 #define MAX_MPFR_OPERANDS 3
 
-#define __RAPTOR_MPFR_ATTRIBUTES extern "C" __attribute__((weak))
-#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C" __attribute__((weak))
+#define __RAPTOR_MPFR_ATTRIBUTES extern "C"
+#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C"
 #define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
 #define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
@@ -31,13 +31,9 @@ typedef struct __raptor_fp {
   // #endif
 } __raptor_fp;
 
-extern "C" __raptor_fp *
+__RAPTOR_MPFR_ATTRIBUTES __raptor_fp *
 __raptor_fprt_64_52_new_intermediate(int64_t exponent, int64_t significand,
                                      int64_t mode, const char *loc);
-
-extern "C" double __raptor_fprt_64_52_const(double _a, int64_t exponent,
-                                            int64_t significand, int64_t mode,
-                                            const char *loc, mpfr_t *scratch);
 
 static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
   return mode & 0b0001;

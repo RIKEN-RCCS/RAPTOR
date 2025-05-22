@@ -100,8 +100,9 @@ newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ve
 if len("@RAPTOR_BINARY_DIR@") == 0:
   newPM = ""
 
-config.substitutions.append(('%clang-raptor', newPM))
-config.substitutions.append(('%link-raptor', newPM))
+link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lRaptor-RT-" + config.llvm_ver
+config.substitutions.append(('%loadClangRaptor', newPM))
+config.substitutions.append(('%linkRaptorRT', link))
 
 config.substitutions.append(('%hasMPFR', has_mpfr))
 

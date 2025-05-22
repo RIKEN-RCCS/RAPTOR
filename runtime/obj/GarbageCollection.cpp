@@ -57,12 +57,14 @@ struct {
 
 } __raptor_mpfr_fps;
 
+__RAPTOR_MPFR_ATTRIBUTES
 double __raptor_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc) {
   __raptor_fp *a = __raptor_fprt_double_to_ptr(_a);
   return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc) {
   __raptor_mpfr_fps.all.push_back({});
@@ -76,6 +78,7 @@ double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
   return __raptor_fprt_ptr_to_double(a);
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 double __raptor_fprt_64_52_const(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc) {
@@ -84,6 +87,7 @@ double __raptor_fprt_64_52_const(double _a, int64_t exponent,
   return __raptor_fprt_64_52_new(_a, exponent, significand, mode, loc);
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 __raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
                                                   int64_t significand,
                                                   int64_t mode,
@@ -94,21 +98,25 @@ __raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
   return a;
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void __raptor_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
                                 int64_t mode, const char *loc) {
   // ignore for now
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_dump_status() {
   std::cerr << "Currently " << __raptor_mpfr_fps.all.size()
             << " floats allocated." << std::endl;
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_clear_seen() {
   for (auto &gcfp : __raptor_mpfr_fps.all)
     gcfp.seen = false;
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 double raptor_fprt_gc_mark_seen(double a) {
   __raptor_fp *fp = __raptor_fprt_double_to_ptr(a);
   if (!fp)
@@ -119,6 +127,7 @@ double raptor_fprt_gc_mark_seen(double a) {
   return a;
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_doit() {
   for (auto it = __raptor_mpfr_fps.all.begin();
        it != __raptor_mpfr_fps.all.end();) {
@@ -132,10 +141,12 @@ void raptor_fprt_gc_doit() {
   raptor_fprt_gc_clear_seen();
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_excl_trunc_start() {
   excl_trunc = true;
 }
 
+__RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_excl_trunc_end() {
   excl_trunc = false;
 }

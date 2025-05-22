@@ -1,9 +1,9 @@
 // clang-format off
-// RUN: %clang                -DTRUNC_OP -O0                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
-// RUN: %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
-// RUN: %clang                           -O1 -g             %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
-// RUN: %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
-// RUN: %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %newLoadClangRaptor -lm -lmpfr && %s.a.out
+// RUN: %clang                -DTRUNC_OP -O0                %s -o %s.a.out %loadClangRaptor %linkRaptorRT -lm -lmpfr && %s.a.out
+// RUN: %clang                -DTRUNC_OP -O2    -ffast-math %s -o %s.a.out %loadClangRaptor %linkRaptorRT -lm -lmpfr && %s.a.out
+// RUN: %clang                           -O1 -g             %s -o %s.a.out %loadClangRaptor %linkRaptorRT -lm -lmpfr && %s.a.out
+// RUN: %clang    -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %loadClangRaptor %linkRaptorRT -lm -lmpfr && %s.a.out
+// RUN: %clang -g -DTRUNC_MEM -DTRUNC_OP -O2                %s -o %s.a.out %loadClangRaptor %linkRaptorRT -lm -lmpfr && %s.a.out
 
 #include <math.h>
 
