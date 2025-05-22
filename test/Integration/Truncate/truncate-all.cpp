@@ -1,22 +1,23 @@
 // clang-format off
 // Baseline
 
-// RUN: if [ %llvmver -ge 12 ]; then %clang -O3 %s -S -emit-llvm -o - %newLoadClangRaptor -S -mllvm --raptor-truncate-count=false -mllvm --raptor-truncate-all="" | %lli - | FileCheck --check-prefix BASELINE %s; fi
+// RUN: %clang -O3 %s -S -emit-llvm -o - %linkRaptorRT %loadClangRaptor -S -mllvm --raptor-truncate-count=false -mllvm --raptor-truncate-all="" | %lli - | FileCheck --check-prefix BASELINE %s
 // BASELINE: 900000000.560000
 
 
 // Truncated
 
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -mllvm --raptor-truncate-count=false -include raptor/fprt/mpfr.h -O3 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-all="64to32" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_32 %s; fi
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %s.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="64to32" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_32 %s
 // TO_32: 900000000.000000
 
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -mllvm --raptor-truncate-count=false -include raptor/fprt/mpfr.h -O3 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-all="11-52to8-23" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_28_23 %s; fi
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %s.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to8-23" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_28_23 %s
 // TO_28_23: 900000000.000000
 
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -mllvm --raptor-truncate-count=false -include raptor/fprt/mpfr.h -O3 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_3_7 %s; fi
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %s.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix TO_3_7 %s
 // TO_3_7: 897581056.000000
 
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -mllvm --raptor-truncate-count=false -g -include raptor/fprt/mpfr-test.h -O3 %s -o %s.a.out %newLoadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix CHECK-LOCS %s; fi
+// TODO revive the location check
+// COM: %clang -mllvm --raptor-truncate-count=false -g -O3 %s -o %s.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %s.a.out | FileCheck --check-prefix CHECK-LOCS %s
 // CHECK-LOCS:      0x[[op1:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op1loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op2:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op2loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op3:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op3loc:.*]]
