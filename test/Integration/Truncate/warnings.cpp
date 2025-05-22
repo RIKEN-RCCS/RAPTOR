@@ -1,7 +1,7 @@
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
-// RUN: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
-// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
-// COM: if [ %llvmver -ge 12 ] && [ %hasMPFR == "yes" ] ; then %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %newLoadClangRaptor -include raptor/fprt/mpfr.h -Xclang -verify -Rpass=raptor; fi
+// RUN: %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
+// RUN: %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
+// COM: %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
+// COM: %clang -c -DTRUNC_OP  -O2 -g %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
 
 #include <math.h>
 #include <stdio.h>
