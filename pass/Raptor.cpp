@@ -489,15 +489,17 @@ public:
     return cast<Function>(fn);
   }
 
-  FloatTruncation parseTruncation(CallInst *CI, TruncateMode Mode) {
+  /// Returns the parsed truncation and how many arguments were consumed
+  std::pair<FloatTruncation, unsigned>
+  parseTruncation(CallInst *CI, TruncateMode Mode, unsigned ArgOffset) {
     unsigned ArgNum = CI->arg_size();
-    auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+    auto Cfrom = cast<ConstantInt>(CI->getArgOperand(ArgOffset));
     if (!Cfrom)
       EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                   "Expected from argument to be constant");
     FloatRepresentation FRFrom = FloatRepresentation::getIEEE(
         (unsigned)Cfrom->getValue().getZExtValue());
-    auto Cty = dyn_cast<ConstantInt>(CI->getArgOperand(2));
+    auto Cty = dyn_cast<ConstantInt>(CI->getArgOperand(ArgOffset + 1));
     if (!Cty)
       EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                   "Expected type argument to be constant");
@@ -505,31 +507,33 @@ public:
       if (ArgNum != 4)
         EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
                     "Wrong number of arguments for IEEE type");
-      auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
+      auto Cto = cast<ConstantInt>(CI->getArgOperand(ArgOffset + 2));
       if (!Cto)
         EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                     "Expected IEEE width to be constant");
-      return FloatTruncation(FRFrom,
-                             FloatRepresentation::getIEEE(
-                                 (unsigned)Cfrom->getValue().getZExtValue()),
-                             Mode);
+      return {FloatTruncation(FRFrom,
+                              FloatRepresentation::getIEEE(
+                                  (unsigned)Cfrom->getValue().getZExtValue()),
+                              Mode),
+              3};
     } else if (Cty->getValue().getZExtValue() == FloatRepresentation::MPFR) {
       if (ArgNum != 5)
         EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
                     "Wrong number of arguments for MPFR type");
-      auto Ctoe = cast<ConstantInt>(CI->getArgOperand(2));
+      auto Ctoe = cast<ConstantInt>(CI->getArgOperand(ArgOffset + 2));
       if (!Ctoe)
         EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                     "Expected MPFR exponent width to be constant");
-      auto Ctos = cast<ConstantInt>(CI->getArgOperand(3));
+      auto Ctos = cast<ConstantInt>(CI->getArgOperand(ArgOffset + 3));
       if (!Ctos)
         EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                     "Expected MPFR significand width to be constant");
-      return FloatTruncation(FRFrom,
-                             FloatRepresentation::getMPFR(
-                                 (unsigned)Ctoe->getValue().getZExtValue(),
-                                 (unsigned)Ctos->getValue().getZExtValue()),
-                             Mode);
+      return {FloatTruncation(FRFrom,
+                              FloatRepresentation::getMPFR(
+                                  (unsigned)Ctoe->getValue().getZExtValue(),
+                                  (unsigned)Ctos->getValue().getZExtValue()),
+                              Mode),
+              4};
     }
     EmitFailure("NotConstant", CI->getDebugLoc(), CI, "Unknown float type");
     llvm_unreachable("Unknown float type");
@@ -547,7 +551,7 @@ public:
                   " - expected 4 or 5");
       return false;
     }
-    FloatTruncation Truncation = parseTruncation(CI, Mode);
+    auto [Truncation, NumArgsParsed] = parseTruncation(CI, Mode, 1);
 
     RequestContext context(CI, &Builder);
     llvm::Value *res = Logic.CreateTruncateFunc(context, F, Truncation, Mode);
@@ -610,9 +614,8 @@ public:
     }
     RequestContext context(CI, &Builder);
     auto Addr = CI->getArgOperand(0);
-    FloatTruncation Truncation = parseTruncation(CI, TruncMemMode);
-    return Logic.CreateTruncateValue(context, Addr, Truncation.getFrom(),
-                                     Truncation.getTo(), isTruncate);
+    auto [Truncation, NumArgsParsed] = parseTruncation(CI, TruncMemMode, 1);
+    return Logic.CreateTruncateValue(context, Addr, Truncation, isTruncate);
   }
 
   bool handleFlopMemory(Function &F) {

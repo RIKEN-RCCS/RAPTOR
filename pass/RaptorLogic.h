@@ -187,6 +187,7 @@ public:
   unsigned getSignificandWidth() const { return SignificandWidth; }
 
   bool isIEEE() { return Ty == IEEE; }
+  bool isMPFR() { return Ty == MPFR; }
 
   bool canBeBuiltin() const {
     unsigned w = getWidth();
@@ -286,7 +287,7 @@ public:
   std::string mangleTruncation() const {
     if (Mode == TruncCountMode)
       return "count";
-    return From.getMangling() + "to" + To.getMangling();
+    return From.getMangling() + "_to_" + To.getMangling();
   }
   std::string mangleFrom() const { return From.getMangling(); }
 };
@@ -313,8 +314,7 @@ public:
                                      FloatTruncation truncation,
                                      TruncateMode mode, bool root = true);
   bool CreateTruncateValue(RequestContext context, llvm::Value *addr,
-                           FloatRepresentation from, FloatRepresentation to,
-                           bool isTruncate);
+                           FloatTruncation Truncation, bool isTruncate);
 
   void clear();
 };
