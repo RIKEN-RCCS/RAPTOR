@@ -7,17 +7,17 @@
 
 // Truncated
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="64to32" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_32 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-ieee(32)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_32 %s
 // TO_32: 900000000.000000
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to8-23" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_28_23 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,23)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_28_23 %s
 // TO_28_23: 900000000.000000
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(3,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
 // TO_3_7: 897581056.000000
 
 // TODO revive the location check
-// COM: %clang -mllvm --raptor-truncate-count=false -g -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="11-52to3-7" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix CHECK-LOCS %s
+// COM: %clang -mllvm --raptor-truncate-count=false -g -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(3,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix CHECK-LOCS %s
 // CHECK-LOCS:      0x[[op1:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op1loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op2:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op2loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op3:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op3loc:.*]]

@@ -129,25 +129,24 @@ public:
     return Repr;
   }
 
-  static std::optional<FloatRepresentation>
-  getFromString(llvm::StringRef &ConfigStr) {
-    if (!ConfigStr.consume_front("ieee(")) {
+  static std::optional<FloatRepresentation> parse(llvm::StringRef &ConfigStr) {
+    if (ConfigStr.consume_front("ieee(")) {
       unsigned Width = 0;
       if (ConfigStr.consumeInteger(10, Width))
         return {};
-      if (ConfigStr.consume_front(")"))
+      if (!ConfigStr.consume_front(")"))
         return {};
       return getIEEE(Width);
-    } else if (!ConfigStr.consume_front("mpfr(")) {
+    } else if (ConfigStr.consume_front("mpfr(")) {
       unsigned Exponent = 0;
       unsigned Significand = 0;
       if (ConfigStr.consumeInteger(10, Exponent))
         return {};
-      if (ConfigStr.consume_front(","))
+      if (!ConfigStr.consume_front(","))
         return {};
       if (ConfigStr.consumeInteger(10, Significand))
         return {};
-      if (ConfigStr.consume_front(")"))
+      if (!ConfigStr.consume_front(")"))
         return {};
       return getMPFR(Exponent, Significand);
     }
