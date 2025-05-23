@@ -23,10 +23,10 @@
 // the function passed as the first argument.
 //
 //===----------------------------------------------------------------------===//
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Pass.h"
-#include <llvm/Config/llvm-config.h>
-#include <llvm/IR/GlobalValue.h>
 #include <memory>
 
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -101,10 +101,12 @@ llvm::cl::opt<std::string> RaptorTruncateAll(
         "Truncate all floating point operations. "
         "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
 
-llvm::cl::opt<bool> RaptorTruncateCount("raptor-truncate-count", cl::init(false), cl::Hidden,
-                                        cl::desc("Count all non-truncated floating point operations."));
-llvm::cl::opt<bool> RaptorTruncateAccessCount("raptor-truncate-access-count", cl::init(false), cl::Hidden,
-                                              cl::desc("Count all floating-point loads and stores."));
+llvm::cl::opt<bool> RaptorTruncateCount(
+    "raptor-truncate-count", cl::init(false), cl::Hidden,
+    cl::desc("Count all non-truncated floating point operations."));
+llvm::cl::opt<bool> RaptorTruncateAccessCount(
+    "raptor-truncate-access-count", cl::init(false), cl::Hidden,
+    cl::desc("Count all floating-point loads and stores."));
 
 #define addAttribute addAttributeAtIndex
 #define getAttribute getAttributeAtIndex
@@ -451,7 +453,6 @@ Function *GetFunctionFromValue(Value *fn) {
   return dyn_cast<Function>(GetFunctionValFromValue(fn));
 }
 
-
 class RaptorBase {
 public:
   RaptorLogic Logic;
@@ -488,61 +489,68 @@ public:
     return cast<Function>(fn);
   }
 
-
-  static FloatRepresentation getDefaultFloatRepr(unsigned width) {
-    switch (width) {
-    case 16:
-      return FloatRepresentation(5, 10);
-    case 32:
-      return FloatRepresentation(8, 23);
-    case 64:
-      return FloatRepresentation(11, 52);
-    default:
-      llvm_unreachable("Invalid float width");
+  FloatTruncation parseTruncation(CallInst *CI, TruncateMode Mode) {
+    unsigned ArgNum = CI->arg_size();
+    auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
+    if (!Cfrom)
+      EmitFailure("NotConstant", CI->getDebugLoc(), CI,
+                  "Expected from argument to be constant");
+    FloatRepresentation FRFrom = FloatRepresentation::getIEEE(
+        (unsigned)Cfrom->getValue().getZExtValue());
+    auto Cty = dyn_cast<ConstantInt>(CI->getArgOperand(2));
+    if (!Cty)
+      EmitFailure("NotConstant", CI->getDebugLoc(), CI,
+                  "Expected type argument to be constant");
+    if (Cty->getValue().getZExtValue() == FloatRepresentation::IEEE) {
+      if (ArgNum != 4)
+        EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
+                    "Wrong number of arguments for IEEE type");
+      auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
+      if (!Cto)
+        EmitFailure("NotConstant", CI->getDebugLoc(), CI,
+                    "Expected IEEE width to be constant");
+      return FloatTruncation(FRFrom,
+                             FloatRepresentation::getIEEE(
+                                 (unsigned)Cfrom->getValue().getZExtValue()),
+                             Mode);
+    } else if (Cty->getValue().getZExtValue() == FloatRepresentation::MPFR) {
+      if (ArgNum != 5)
+        EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
+                    "Wrong number of arguments for MPFR type");
+      auto Ctoe = cast<ConstantInt>(CI->getArgOperand(2));
+      if (!Ctoe)
+        EmitFailure("NotConstant", CI->getDebugLoc(), CI,
+                    "Expected MPFR exponent width to be constant");
+      auto Ctos = cast<ConstantInt>(CI->getArgOperand(3));
+      if (!Ctos)
+        EmitFailure("NotConstant", CI->getDebugLoc(), CI,
+                    "Expected MPFR significand width to be constant");
+      return FloatTruncation(FRFrom,
+                             FloatRepresentation::getMPFR(
+                                 (unsigned)Ctoe->getValue().getZExtValue(),
+                                 (unsigned)Ctos->getValue().getZExtValue()),
+                             Mode);
     }
-  };
+    EmitFailure("NotConstant", CI->getDebugLoc(), CI, "Unknown float type");
+    llvm_unreachable("Unknown float type");
+  }
 
-  bool HandleTruncateFunc(CallInst *CI, TruncateMode mode) {
+  bool HandleTruncateFunc(CallInst *CI, TruncateMode Mode) {
     IRBuilder<> Builder(CI);
     Function *F = parseFunctionParameter(CI);
     if (!F)
       return false;
-    unsigned ArgSize = CI->arg_size();
-    if (ArgSize != 4 && ArgSize != 3) {
+    unsigned ArgNum = CI->arg_size();
+    if (ArgNum != 4 && ArgNum != 5) {
       EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
                   "Had incorrect number of args to __raptor_truncate_func", *CI,
-                  " - expected 3 or 4");
+                  " - expected 4 or 5");
       return false;
     }
-    FloatTruncation truncation = [&]() -> FloatTruncation {
-      if (ArgSize == 3) {
-        auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
-        assert(Cfrom);
-        auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
-        assert(Cto);
-        return FloatTruncation(
-            getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
-            getDefaultFloatRepr((unsigned)Cto->getValue().getZExtValue()),
-            mode);
-      } else if (ArgSize == 4) {
-        auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
-        assert(Cfrom);
-        auto Cto_exponent = cast<ConstantInt>(CI->getArgOperand(2));
-        assert(Cto_exponent);
-        auto Cto_significand = cast<ConstantInt>(CI->getArgOperand(3));
-        assert(Cto_significand);
-        return FloatTruncation(
-            getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
-            FloatRepresentation(
-                (unsigned)Cto_exponent->getValue().getZExtValue(),
-                (unsigned)Cto_significand->getValue().getZExtValue()),
-            mode);
-      }
-      llvm_unreachable("??");
-    }();
+    FloatTruncation Truncation = parseTruncation(CI, Mode);
 
     RequestContext context(CI, &Builder);
-    llvm::Value *res = Logic.CreateTruncateFunc(context, F, truncation, mode);
+    llvm::Value *res = Logic.CreateTruncateFunc(context, F, Truncation, Mode);
     if (!res)
       return false;
     res = Builder.CreatePointerCast(res, CI->getType());
@@ -552,7 +560,10 @@ public:
     Function *ChangeF = M->getFunction(fname);
     if (!ChangeF) {
       FunctionType *FnTy = FunctionType::get(
-          Type::getVoidTy(M->getContext()), {Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext())},
+          Type::getVoidTy(M->getContext()),
+          {Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()),
+           Type::getInt64Ty(M->getContext()),
+           Type::getInt64Ty(M->getContext())},
           /*is_vararg*/ false);
       ChangeF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
     }
@@ -564,18 +575,18 @@ public:
           B.CreateCall(ChangeF,
                        {
                            B.getInt64(1),
-                           B.getInt64(truncation.getTo().exponentWidth),
-                           B.getInt64(truncation.getTo().significandWidth),
-                           B.getInt64(truncation.getMode()),
-                     });
+                           B.getInt64(Truncation.getTo().getExponentWidth()),
+                           B.getInt64(Truncation.getTo().getSignificandWidth()),
+                           B.getInt64(Truncation.getMode()),
+                       });
           B.SetInsertPoint(UserCI->getNextNode());
           B.CreateCall(ChangeF,
                        {
                            B.getInt64(0),
-                           B.getInt64(truncation.getTo().exponentWidth),
-                           B.getInt64(truncation.getTo().significandWidth),
-                           B.getInt64(truncation.getMode()),
-                     });
+                           B.getInt64(Truncation.getTo().getExponentWidth()),
+                           B.getInt64(Truncation.getTo().getSignificandWidth()),
+                           B.getInt64(Truncation.getMode()),
+                       });
         }
       } else {
         llvm::errs()
@@ -591,48 +602,17 @@ public:
   bool HandleTruncateValue(CallInst *CI, bool isTruncate) {
     IRBuilder<> Builder(CI);
     unsigned ArgSize = CI->arg_size();
-    if (ArgSize != 4 && ArgSize != 3) {
+    if (ArgSize != 5 && ArgSize != 4) {
       EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
                   "Had incorrect number of args to __raptor_truncate_value",
                   *CI, " - expected 3");
       return false;
     }
-    if (ArgSize == 3) {
-      auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
-      assert(Cfrom);
-      auto Cto = cast<ConstantInt>(CI->getArgOperand(2));
-      assert(Cto);
-      auto Addr = CI->getArgOperand(0);
-      RequestContext context(CI, &Builder);
-      bool res = Logic.CreateTruncateValue(
-          context, Addr,
-          getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
-          getDefaultFloatRepr((unsigned)Cto->getValue().getZExtValue()),
-          isTruncate);
-      if (!res)
-        return false;
-      return true;
-    } else if (ArgSize == 4) {
-      auto Cfrom = cast<ConstantInt>(CI->getArgOperand(1));
-      assert(Cfrom);
-      auto Cto_exponent = cast<ConstantInt>(CI->getArgOperand(2));
-      assert(Cto_exponent);
-      auto Cto_significand = cast<ConstantInt>(CI->getArgOperand(3));
-      assert(Cto_significand);
-      auto Addr = CI->getArgOperand(0);
-      RequestContext context(CI, &Builder);
-      bool res = Logic.CreateTruncateValue(
-          context, Addr,
-          getDefaultFloatRepr((unsigned)Cfrom->getValue().getZExtValue()),
-          FloatRepresentation(
-              (unsigned)Cto_exponent->getValue().getZExtValue(),
-              (unsigned)Cto_significand->getValue().getZExtValue()),
-          isTruncate);
-      if (!res)
-        return false;
-      return true;
-    }
-    llvm_unreachable("??");
+    RequestContext context(CI, &Builder);
+    auto Addr = CI->getArgOperand(0);
+    FloatTruncation Truncation = parseTruncation(CI, TruncMemMode);
+    return Logic.CreateTruncateValue(context, Addr, Truncation.getFrom(),
+                                     Truncation.getTo(), isTruncate);
   }
 
   bool handleFlopMemory(Function &F) {
@@ -696,8 +676,9 @@ public:
     if (F.getName().starts_with(RaptorFPRTPrefix))
       return false;
 
-    for (auto Repr : {getDefaultFloatRepr(16), getDefaultFloatRepr(32),
-                      getDefaultFloatRepr(64)}) {
+    for (auto Repr :
+         {FloatRepresentation::getIEEE(16), FloatRepresentation::getIEEE(32),
+          FloatRepresentation::getIEEE(64)}) {
       IRBuilder<> Builder(F.getContext());
       RequestContext context(&*F.getEntryBlock().begin(), &Builder);
       Function *TruncatedFunc = Logic.CreateTruncateFunc(
@@ -709,12 +690,7 @@ public:
 
       // Move the truncated body into the original function
       F.deleteBody();
-#if LLVM_VERSION_MAJOR >= 16
       F.splice(F.begin(), TruncatedFunc);
-#else
-      F.getBasicBlockList().splice(F.begin(),
-                                   TruncatedFunc->getBasicBlockList());
-#endif
       RemapFunction(F, Mapping,
                     RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
       TruncatedFunc->deleteBody();
@@ -733,31 +709,17 @@ public:
         llvm::report_fatal_error("error: invalid format for truncation config");
       };
 
-      // "64" or "11-52"
-      auto parseFloatRepr = [&]() -> std::optional<FloatRepresentation> {
-        unsigned Tmp = 0;
-        if (ConfigStr.consumeInteger(10, Tmp))
-          return {};
-        if (ConfigStr.consume_front("-")) {
-          unsigned Tmp2 = 0;
-          if (ConfigStr.consumeInteger(10, Tmp2))
-            Invalid();
-          return FloatRepresentation(Tmp, Tmp2);
-        }
-        return getDefaultFloatRepr(Tmp);
-      };
-
-      // Parse "64to32;32to16;5-10to4-9"
+      // Parse "ieee(64)-mpfr(11, 13);ieee(32)-ieee(16)"
       TruncationsTy Tmp;
       while (true) {
-        auto From = parseFloatRepr();
+        auto From = FloatRepresentation::getFromString(ConfigStr);
         if (!From && !ConfigStr.empty())
           Invalid();
         if (!From)
           break;
         if (!ConfigStr.consume_front("to"))
           Invalid();
-        auto To = parseFloatRepr();
+        auto To = FloatRepresentation::getFromString(ConfigStr);
         if (!To)
           Invalid();
         Tmp.push_back({*From, *To, TruncOpFullModuleMode});
@@ -782,12 +744,7 @@ public:
 
       // Move the truncated body into the original function
       F.deleteBody();
-#if LLVM_VERSION_MAJOR >= 16
       F.splice(F.begin(), TruncatedFunc);
-#else
-      F.getBasicBlockList().splice(F.begin(),
-                                   TruncatedFunc->getBasicBlockList());
-#endif
       RemapFunction(F, Mapping,
                     RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
       TruncatedFunc->eraseFromParent();
@@ -1431,8 +1388,8 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizePM)));
   };
 
-  auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level, ThinOrFullLTOPhase Phase) {
-
+  auto loadPass = [prePass](ModulePassManager &MPM, OptimizationLevel Level,
+                            ThinOrFullLTOPhase Phase) {
     if (!RaptorEnable)
       return;
 
@@ -1722,9 +1679,7 @@ void registerRaptor(llvm::PassBuilder &PB) {
       });
   PB.registerPipelineParsingCallback(
       [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
-         llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-        return false;
-      });
+         llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) { return false; });
 }
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK

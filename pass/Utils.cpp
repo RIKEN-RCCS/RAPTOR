@@ -20,6 +20,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 
+#include "Utils.h"
 
 llvm::CallInst *createIntrinsicCall(llvm::IRBuilderBase &B,
                                     llvm::Intrinsic::ID ID, llvm::Type *RetTy,
@@ -52,3 +53,13 @@ llvm::CallInst *createIntrinsicCall(llvm::IRBuilderBase &B,
 #endif
   return nres;
 }
+
+RaptorFailure::RaptorFailure(const llvm::Twine &RemarkName,
+                             const llvm::DiagnosticLocation &Loc,
+                             const llvm::Instruction *CodeRegion)
+    : RaptorFailure(RemarkName, Loc, CodeRegion->getParent()->getParent()) {}
+
+RaptorFailure::RaptorFailure(const llvm::Twine &RemarkName,
+                             const llvm::DiagnosticLocation &Loc,
+                             const llvm::Function *CodeRegion)
+    : DiagnosticInfoUnsupported(*CodeRegion, RemarkName, Loc) {}
