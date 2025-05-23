@@ -167,8 +167,8 @@ public:
                               const SmallVectorImpl<Value *> &ArgsIn,
                               llvm::Type *RetTy, Value *LocStr) {
     SmallVector<Value *, 5> Args(ArgsIn.begin(), ArgsIn.end());
-    Args.push_back(B.getInt64(truncation.getTo().exponentWidth));
-    Args.push_back(B.getInt64(truncation.getTo().significandWidth));
+    Args.push_back(B.getInt64(truncation.getTo().getExponentWidth()));
+    Args.push_back(B.getInt64(truncation.getTo().getSignificandWidth()));
     Args.push_back(B.getInt64(truncation.getMode()));
 #if LLVM_VERSION_MAJOR <= 14
     Args.push_back(B.CreateBitCast(LocStr, NullPtr->getType()));

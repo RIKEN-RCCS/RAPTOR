@@ -26,6 +26,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ErrorHandling.h"
 
 extern "C" {
@@ -35,6 +36,19 @@ extern llvm::cl::opt<bool> RaptorJuliaAddrLoad;
 
 constexpr char RaptorFPRTPrefix[] = "__raptor_fprt_";
 constexpr char RaptorFPRTOriginalPrefix[] = "__raptor_fprt_original_";
+
+constexpr unsigned F64Width = 64;
+constexpr unsigned F64Exponent = 11;
+constexpr unsigned F64Significand = 52;
+static_assert(F64Width == F64Exponent + F64Significand + 1);
+constexpr unsigned F32Width = 32;
+constexpr unsigned F32Exponent = 8;
+constexpr unsigned F32Significand = 23;
+static_assert(F32Width == F32Exponent + F32Significand + 1);
+constexpr unsigned F16Width = 16;
+constexpr unsigned F16Exponent = 5;
+constexpr unsigned F16Significand = 10;
+static_assert(F16Width == F16Exponent + F16Significand + 1);
 
 // Holder class to represent a context in which a derivative
 // or batch is being requested. This contains the instruction
@@ -57,11 +71,11 @@ getTypeForWidth(llvm::LLVMContext &ctx, unsigned width, bool builtinFloat) {
     else
       llvm::report_fatal_error(
           "Truncation to non builtin float width unsupported");
-  case 64:
+  case F64Width:
     return llvm::Type::getDoubleTy(ctx);
-  case 32:
+  case F32Width:
     return llvm::Type::getFloatTy(ctx);
-  case 16:
+  case F16Width:
     return llvm::Type::getHalfTy(ctx);
   }
 }
@@ -87,31 +101,104 @@ enum TruncateMode {
 }
 
 struct FloatRepresentation {
+public:
+  enum FloatRepresentationType { IEEE = 0, MPFR = 1 };
+
+private:
+  FloatRepresentation() {}
+
   // |_|__________|_________________|
   //  ^         ^         ^
   //  sign bit  exponent  significand
   //
   //  value = (sign) * significand * 2 ^ exponent
-  unsigned exponentWidth;
-  unsigned significandWidth;
+  unsigned ExponentWidth;
+  unsigned SignificandWidth;
+  FloatRepresentationType Ty;
 
-  FloatRepresentation() : exponentWidth(0), significandWidth(0) {}
-  FloatRepresentation(unsigned e, unsigned s)
-      : exponentWidth(e), significandWidth(s) {}
+public:
+  FloatRepresentation(FloatRepresentation &) = default;
+  FloatRepresentation(const FloatRepresentation &) = default;
+  ~FloatRepresentation() {}
 
-  unsigned getTypeWidth() const { return 1 + exponentWidth + significandWidth; }
+  static FloatRepresentation getMPFR(unsigned E, unsigned S) {
+    FloatRepresentation Repr;
+    Repr.ExponentWidth = E;
+    Repr.SignificandWidth = S;
+    Repr.Ty = MPFR;
+    return Repr;
+  }
+
+  static std::optional<FloatRepresentation>
+  getFromString(llvm::StringRef &ConfigStr) {
+    if (!ConfigStr.consume_front("ieee(")) {
+      unsigned Width = 0;
+      if (ConfigStr.consumeInteger(10, Width))
+        return {};
+      if (ConfigStr.consume_front(")"))
+        return {};
+      return getIEEE(Width);
+    } else if (!ConfigStr.consume_front("mpfr(")) {
+      unsigned Exponent = 0;
+      unsigned Significand = 0;
+      if (ConfigStr.consumeInteger(10, Exponent))
+        return {};
+      if (ConfigStr.consume_front(","))
+        return {};
+      if (ConfigStr.consumeInteger(10, Significand))
+        return {};
+      if (ConfigStr.consume_front(")"))
+        return {};
+      return getMPFR(Exponent, Significand);
+    }
+    return {};
+  }
+
+  static FloatRepresentation getIEEE(unsigned width) {
+    FloatRepresentation Repr;
+    switch (width) {
+    case F64Width:
+      Repr.ExponentWidth = F64Exponent;
+      Repr.SignificandWidth = F64Significand;
+      break;
+    case F32Width:
+      Repr.ExponentWidth = F32Exponent;
+      Repr.SignificandWidth = F32Significand;
+      break;
+    case F16Width:
+      Repr.ExponentWidth = F16Exponent;
+      Repr.SignificandWidth = F16Significand;
+      break;
+    default:
+      llvm_unreachable("Invalid IEEE width");
+    }
+    assert(width == Repr.ExponentWidth + Repr.SignificandWidth + 1);
+    assert(width == Repr.getWidth());
+    Repr.Ty = IEEE;
+    return Repr;
+  }
+
+  FloatRepresentationType getType() const { return Ty; }
+
+  unsigned getWidth() const { return 1 + ExponentWidth + SignificandWidth; }
+
+  unsigned getExponentWidth() const { return ExponentWidth; }
+
+  unsigned getSignificandWidth() const { return SignificandWidth; }
+
+  bool isIEEE() { return Ty == IEEE; }
 
   bool canBeBuiltin() const {
-    unsigned w = getTypeWidth();
-    return (w == 16 && significandWidth == 10) ||
-           (w == 32 && significandWidth == 23) ||
-           (w == 64 && significandWidth == 52);
+    unsigned w = getWidth();
+    return (w == F16Width && SignificandWidth == F16Significand) ||
+           (w == F32Width && SignificandWidth == F32Significand) ||
+           (w == F64Width && SignificandWidth == F64Significand);
   }
 
   llvm::Type *getBuiltinType(llvm::LLVMContext &ctx) const {
     if (!canBeBuiltin())
       return nullptr;
-    return getTypeForWidth(ctx, getTypeWidth(), /*builtinFloat=*/true);
+    return getTypeForWidth(ctx, getWidth(), /*builtinFloat=*/true);
   }
 
   llvm::Type *getType(llvm::LLVMContext &ctx) const {
@@ -121,36 +208,48 @@ struct FloatRepresentation {
     llvm_unreachable("TODO MPFR");
   }
 
-  bool operator==(const FloatRepresentation &other) const {
-    return other.exponentWidth == exponentWidth &&
-           other.significandWidth == significandWidth;
+  bool operator==(const FloatRepresentation &Other) const {
+    return Other.Ty == Ty && Other.ExponentWidth == ExponentWidth &&
+           Other.SignificandWidth == SignificandWidth;
   }
-  bool operator<(const FloatRepresentation &other) const {
-    return std::tuple(exponentWidth, significandWidth) <
-           std::tuple(other.exponentWidth, other.significandWidth);
+
+  bool operator<(const FloatRepresentation &Other) const {
+    return std::tuple(Ty, ExponentWidth, SignificandWidth) <
+           std::tuple(Other.Ty, Other.ExponentWidth, Other.SignificandWidth);
   }
-  std::string to_string() const {
-    return std::to_string(getTypeWidth()) + "_" +
-           std::to_string(significandWidth);
+
+  std::string getMangling() const {
+    switch (Ty) {
+    case IEEE:
+      return "ieee_" + std::to_string(getWidth());
+    case MPFR:
+      return "mpfr_" + std::to_string(getExponentWidth()) + "_" +
+             std::to_string(getSignificandWidth());
+    default:
+      llvm_unreachable("Unknown type");
+    }
   }
 };
 
 struct FloatTruncation {
 private:
-  FloatRepresentation from, to;
-  TruncateMode mode;
+  FloatRepresentation From, To;
+  TruncateMode Mode;
 
 public:
-  FloatTruncation(FloatRepresentation From, TruncateMode mode)
-      : from(From), mode(mode) {
-    if (mode != TruncCountMode)
+  FloatTruncation(FloatRepresentation From, TruncateMode Mode)
+      : From(From), To(From), Mode(Mode) {
+    if (Mode != TruncCountMode)
       llvm::report_fatal_error("Only count mode allowed in this constructor");
   }
   FloatTruncation(FloatRepresentation From, FloatRepresentation To,
                   TruncateMode mode)
-      : from(From), to(To), mode(mode) {
+      : From(From), To(To), Mode(mode) {
+    if (!From.isIEEE())
+      llvm::report_fatal_error("Float truncation `from` type is not IEEE.");
     if (!From.canBeBuiltin())
       llvm::report_fatal_error("Float truncation `from` type is not builtin.");
+    // TODO make these warnings
     // if (From.exponentWidth < To.exponentWidth &&
     //     (mode == TruncOpMode || mode == TruncOpFullModuleMode))
     //   llvm::report_fatal_error("Float truncation `from` type must have "
@@ -163,12 +262,13 @@ public:
     //   llvm::report_fatal_error(
     //       "Float truncation `from` and `to` type must not be the same.");
   }
-  TruncateMode getMode() { return mode; }
-  FloatRepresentation getTo() { return to; }
-  unsigned getFromTypeWidth() { return from.getTypeWidth(); }
-  unsigned getToTypeWidth() { return to.getTypeWidth(); }
+  TruncateMode getMode() { return Mode; }
+  FloatRepresentation getTo() { return To; }
+  FloatRepresentation getFrom() { return From; }
+  unsigned getFromTypeWidth() { return From.getWidth(); }
+  unsigned getToTypeWidth() { return To.getWidth(); }
   llvm::Type *getFromType(llvm::LLVMContext &ctx) {
-    return from.getBuiltinType(ctx);
+    return From.getBuiltinType(ctx);
   }
   bool isToFPRT() {
     // TODO maybe add new mode in which we directly truncate to native fp ops,
@@ -176,7 +276,7 @@ public:
     return true;
   }
   llvm::Type *getToType(llvm::LLVMContext &ctx) { return getFromType(ctx); }
-  auto getTuple() const { return std::tuple(from, to, mode); }
+  auto getTuple() const { return std::tuple(From, To, Mode); }
   bool operator==(const FloatTruncation &other) const {
     return getTuple() == other.getTuple();
   }
@@ -184,11 +284,11 @@ public:
     return getTuple() < other.getTuple();
   }
   std::string mangleTruncation() const {
-    if (mode == TruncCountMode)
+    if (Mode == TruncCountMode)
       return "count";
-    return from.to_string() + "to" + to.to_string();
+    return From.getMangling() + "to" + To.getMangling();
   }
-  std::string mangleFrom() const { return from.to_string(); }
+  std::string mangleFrom() const { return From.getMangling(); }
 };
 
 typedef std::map<std::tuple<std::string, unsigned, unsigned>,

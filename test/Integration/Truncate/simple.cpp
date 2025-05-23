@@ -53,13 +53,13 @@ typedef double (*fty)(double *, double *, double *, int);
 
 typedef double (*fty2)(double, double);
 
-template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int);
-template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int);
+template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
 extern double __raptor_truncate_mem_value(...);
 extern double __raptor_expand_mem_value(...);
 
 #define FROM 64
-#define TO 32
+#define TO 1, 8, 23
 
 #define TEST(F) do {
 
@@ -153,7 +153,7 @@ int main() {
         //     B[i] = __raptor_truncate_mem_value(B[i], 64, 32);
         // }
 
-        __raptor_truncate_op_func(compute, 64, 32)(A, B, C, N);
+        __raptor_truncate_op_func(compute, FROM, TO)(A, B, C, N);
 
         // for (int i = 0; i < N; i++) {
         //     C[i] = __raptor_expand_mem_value(C[i], 64, 32);
