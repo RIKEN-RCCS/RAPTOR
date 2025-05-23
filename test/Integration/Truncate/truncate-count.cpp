@@ -1,5 +1,5 @@
-// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm
-// --raptor-truncate-count -lm && %t.a.out | FileCheck %s
+// clang-format off
+// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-count -lm && %t.a.out | FileCheck %s
 
 #include <cstdio>
 #include <cmath>
@@ -14,7 +14,7 @@
 
 extern "C" void __raptor_fprt_ieee_64_count(int64_t exponent,
                                             int64_t significand, int64_t mode,
-                                            const char *loc) {
+                                            const char *loc, void *scratch) {
   puts("FLOP!");
 }
 

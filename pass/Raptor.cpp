@@ -715,14 +715,16 @@ public:
       // Parse "ieee(64)-mpfr(11, 13);ieee(32)-ieee(16)"
       TruncationsTy Tmp;
       while (true) {
-        auto From = FloatRepresentation::getFromString(ConfigStr);
-        if (!From && !ConfigStr.empty())
-          Invalid();
-        if (!From)
+        if (ConfigStr.empty())
           break;
-        if (!ConfigStr.consume_front("to"))
+        auto From = FloatRepresentation::parse(ConfigStr);
+        if (!From)
           Invalid();
-        auto To = FloatRepresentation::getFromString(ConfigStr);
+        if (ConfigStr.empty())
+          Invalid();
+        if (!ConfigStr.consume_front("-"))
+          Invalid();
+        auto To = FloatRepresentation::parse(ConfigStr);
         if (!To)
           Invalid();
         Tmp.push_back({*From, *To, TruncOpFullModuleMode});
