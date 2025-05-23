@@ -56,55 +56,56 @@ struct {
 
 } __raptor_mpfr_fps;
 
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc) {
-  __raptor_fp *a = __raptor_fprt_ieee_64_to_ptr(_a);
-  return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc) {
-  __raptor_mpfr_fps.all.push_back({});
-  __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;
-  mpfr_init2(a->result, significand);
-  mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-#ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
-  a->excl_result = _a;
-  a->shadow = _a;
-#endif
-  return __raptor_fprt_ptr_to_double(a);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_const(double _a, int64_t exponent,
-                                   int64_t significand, int64_t mode,
-                                   const char *loc) {
-  // TODO This should really be called only once for an appearance in the code,
-  // currently it is called every time a flop uses a constant.
-  return __raptor_fprt_ieee_64_new(_a, exponent, significand, mode, loc);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-__raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
-                                                    int64_t significand,
-                                                    int64_t mode,
-                                                    const char *loc) {
-  __raptor_mpfr_fps.all.push_back({});
-  __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;
-  mpfr_init2(a->result, significand);
-  return a;
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_ieee_64_delete(double a, int64_t exponent,
-                                  int64_t significand, int64_t mode,
-                                  const char *loc) {
-  // ignore for now
-}
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_get(CPP_TY _a, int64_t exponent,            \
+                                       int64_t significand, int64_t mode,      \
+                                       const char *loc, void *scratch) {       \
+    __raptor_fp *a = __raptor_fprt_##FROM_TY##_to_ptr(_a);                     \
+    return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);         \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_new(CPP_TY _a, int64_t exponent,            \
+                                       int64_t significand, int64_t mode,      \
+                                       const char *loc, void *scratch) {       \
+    __raptor_mpfr_fps.all.push_back({});                                       \
+    __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
+    mpfr_init2(a->result, significand);                                        \
+    mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);            \
+    a->excl_result = _a;                                                       \
+    a->shadow = _a;                                                            \
+    return __raptor_fprt_ptr_to_##FROM_TY(a);                                  \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_const(CPP_TY _a, int64_t exponent,          \
+                                         int64_t significand, int64_t mode,    \
+                                         const char *loc, void *scratch) {     \
+    /* TODO This should really be called only once for an appearance in the    \
+     * code, currently it is called every time a flop uses a constant. */      \
+    return __raptor_fprt_##FROM_TY##_new(_a, exponent, significand, mode, loc, \
+                                         scratch);                             \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __raptor_fp *__raptor_fprt_##FROM_TY##_new_intermediate(                     \
+      int64_t exponent, int64_t significand, int64_t mode, const char *loc,    \
+      void *scratch) {                                                         \
+    __raptor_mpfr_fps.all.push_back({});                                       \
+    __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
+    mpfr_init2(a->result, significand);                                        \
+    return a;                                                                  \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_delete(CPP_TY a, int64_t exponent,            \
+                                        int64_t significand, int64_t mode,     \
+                                        const char *loc, void *scratch) {      \
+    /* ignore for now */                                                       \
+  }
+#include "raptor/FloatTypes.def"
+#undef RAPTOR_FLOAT_TYPE
 
 __RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_dump_status() {
@@ -144,11 +145,7 @@ void raptor_fprt_gc_doit() {
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_excl_trunc_start() {
-  excl_trunc = true;
-}
+void raptor_fprt_excl_trunc_start() { excl_trunc = true; }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_excl_trunc_end() {
-  excl_trunc = false;
-}
+void raptor_fprt_excl_trunc_end() { excl_trunc = false; }

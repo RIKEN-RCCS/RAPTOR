@@ -28,7 +28,6 @@
 #include <stdlib.h>
 
 #include "raptor/Common.h"
-#include "raptor/raptor.h"
 
 // TODO s
 //
@@ -90,130 +89,34 @@
   } while (0)
 #endif
 
-#ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
-double __raptor_fprt_ieee_64_abs_err(double a, double b) {
-  return std::abs(a - b);
-}
-#endif
-
-#define RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
-#ifdef RAPTOR_FPRT_ENABLE_GARBAGE_COLLECTION
-
-__RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_gc_dump_status();
-__RAPTOR_MPFR_ATTRIBUTES
-double raptor_fprt_gc_mark_seen(double a);
-__RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_gc_doit();
-
-__RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_excl_trunc_start();
-__RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_excl_trunc_end();
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc, mpfr_t *scratch);
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc, mpfr_t *scratch);
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_const(double _a, int64_t exponent,
-                                   int64_t significand, int64_t mode,
-                                   const char *loc, mpfr_t *scratch);
-
-__RAPTOR_MPFR_ATTRIBUTES
-__raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
-                                                    int64_t significand,
-                                                    int64_t mode,
-                                                    const char *loc);
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_ieee_64_delete(double a, int64_t exponent,
-                                  int64_t significand, int64_t mode,
-                                  const char *loc, mpfr_t *scratch);
-
-#else
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc, mpfr_t *scratch) {
-  __raptor_fp *a = __raptor_fprt_ieee_64_to_ptr(_a);
-  return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc, mpfr_t *scratch) {
-  __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
-  if (!a)
-    exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
-  mpfr_init2(a->result, significand);
-  mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-  a->excl_result = _a;
-  a->shadow = _a;
-  return __raptor_fprt_ptr_to_double(a);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_const(double _a, int64_t exponent,
-                                   int64_t significand, int64_t mode,
-                                   const char *loc, mpfr_t *scratch) {
-  // TODO This should really be called only once for an appearance in the code,
-  // currently it is called every time a flop uses a constant.
-  return __raptor_fprt_ieee_64_new(_a, exponent, significand, mode, loc,
-                                   scratch);
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-__raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
-                                                    int64_t significand,
-                                                    int64_t mode,
-                                                    const char *loc) {
-  __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
-  if (!a)
-    exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
-  mpfr_init2(a->result, significand);
-  return a;
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_ieee_64_delete(double a, int64_t exponent,
-                                  int64_t significand, int64_t mode,
-                                  const char *loc, mpfr_t *scratch) {
-  free(__raptor_fprt_ieee_64_to_ptr(a));
-}
-
-#endif
-
-// Handle the case where people zero out memory and expect the floating
-// point numbers there to be zero.
-__RAPTOR_MPFR_ATTRIBUTES
-double __raptor_fprt_ieee_64_check_zero(double _a, int64_t exponent,
-                                        int64_t significand, int64_t mode,
-                                        const char *loc, mpfr_t *scratch) {
-  if ((*(uint64_t *)(&_a)) == 0)
-    return __raptor_fprt_ieee_64_const(0, exponent, significand, mode, loc,
-                                       scratch);
-  else
-    return _a;
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-__raptor_fp *__raptor_fprt_ieee_64_to_ptr_checked(double d, int64_t exponent,
-                                                  int64_t significand,
-                                                  int64_t mode, const char *loc,
-                                                  mpfr_t *scratch) {
-  d = __raptor_fprt_ieee_64_check_zero(d, exponent, significand, mode, loc,
-                                       scratch);
-  return __raptor_fprt_ieee_64_to_ptr(d);
-}
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_abs_err(CPP_TY a, CPP_TY b) {               \
+    return std::abs(a - b);                                                    \
+  }                                                                            \
+                                                                               \
+  /* Handle the case where people zero out memory and expect the floating */   \
+  /* point numbers there to be zero. */                                        \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_check_zero(                                 \
+      CPP_TY _a, int64_t exponent, int64_t significand, int64_t mode,          \
+      const char *loc, mpfr_t *scratch) {                                      \
+    if ((*(uint64_t *)(&_a)) == 0)                                             \
+      return __raptor_fprt_##FROM_TY##_const(0, exponent, significand, mode,   \
+                                             loc, scratch);                    \
+    else                                                                       \
+      return _a;                                                               \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __raptor_fp *__raptor_fprt_##FROM_TY##_to_ptr_checked(                       \
+      CPP_TY d, int64_t exponent, int64_t significand, int64_t mode,           \
+      const char *loc, mpfr_t *scratch) {                                      \
+    d = __raptor_fprt_##FROM_TY##_check_zero(d, exponent, significand, mode,   \
+                                             loc, scratch);                    \
+    return __raptor_fprt_##FROM_TY##_to_ptr(d);                                \
+  }
+#include "raptor/FloatTypes.def"
+#undef RAPTOR_FLOAT_TYPE
 
 __RAPTOR_MPFR_ATTRIBUTES
 void __raptor_fprt_trunc_count(int64_t exponent, int64_t significand,
@@ -258,7 +161,6 @@ long long f_raptor_get_float_flop_count();
 __RAPTOR_MPFR_ATTRIBUTES
 long long f_raptor_get_half_flop_count();
 
-
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_memory_access_trunc_store();
 
@@ -302,12 +204,8 @@ void __raptor_fprt_ieee_16_count(int64_t exponent, int64_t significand,
                                  mpfr_t *scratch);
 
 __RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_trunc_change(int64_t is_truncating,
-                                int64_t to_e,
-                                int64_t to_m,
-                                int64_t mode);
-
-
+void __raptor_fprt_trunc_change(int64_t is_truncating, int64_t to_e,
+                                int64_t to_m, int64_t mode);
 
 __RAPTOR_MPFR_ATTRIBUTES
 void *__raptor_fprt_ieee_64_get_scratch(int64_t to_e, int64_t to_m,
@@ -336,11 +234,10 @@ void raptor_fprt_op_clear();
 #ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 // #define SHADOW_ERR_REL 6.25e-1   //
 // #define SHADOW_ERR_ABS 6.25e-1   // If reference is 0.
-#define SHADOW_ERR_REL 2.5e-4   // 12bit
-#define SHADOW_ERR_ABS 2.5e-4   // If reference is 0.
+#define SHADOW_ERR_REL 2.5e-4 // 12bit
+#define SHADOW_ERR_ABS 2.5e-4 // If reference is 0.
 // #define SHADOW_ERR_REL 6.0e-8   //
 // #define SHADOW_ERR_ABS 6.0e-8   // If reference is 0.
-
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
@@ -378,7 +275,7 @@ void raptor_fprt_op_clear();
       __raptor_fp *ma = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           a, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mc->shadow =                                                             \
           __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
@@ -408,7 +305,7 @@ void raptor_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -434,12 +331,12 @@ void raptor_fprt_op_clear();
       __raptor_fp *ma = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           a, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, b, ROUNDING_MODE);         \
       mc->excl_result = mpfr_get_##MPFR_GET(mc->result, ROUNDING_MODE);        \
       RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -469,7 +366,7 @@ void raptor_fprt_op_clear();
       __raptor_fp *mb = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           b, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       mc->shadow =                                                             \
@@ -501,7 +398,7 @@ void raptor_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -536,7 +433,7 @@ void raptor_fprt_op_clear();
       RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       RAPTOR_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
       __raptor_fp *madd = __raptor_fprt_##FROM_TYPE##_new_intermediate(        \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       madd->shadow =                                                           \
           __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
               ma->shadow, mb->shadow, mc->shadow);                             \
@@ -570,7 +467,7 @@ void raptor_fprt_op_clear();
       }                                                                        \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
-      return __raptor_fprt_ptr_to_double(madd);                                \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(madd);                           \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -637,11 +534,11 @@ void raptor_fprt_op_clear();
       __raptor_fp *ma = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           a, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, ROUNDING_MODE);            \
       RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -667,11 +564,11 @@ void raptor_fprt_op_clear();
       __raptor_fp *ma = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           a, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, b, ROUNDING_MODE);         \
       RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -699,13 +596,13 @@ void raptor_fprt_op_clear();
       __raptor_fp *mb = __raptor_fprt_##FROM_TYPE##_to_ptr_checked(            \
           b, exponent, significand, mode, loc, scratch);                       \
       __raptor_fp *mc = __raptor_fprt_##FROM_TYPE##_new_intermediate(          \
-          exponent, significand, mode, loc);                                   \
+          exponent, significand, mode, loc, scratch);                          \
       RAPTOR_DUMP_INPUT(ma, OP_TYPE, LLVM_OP_NAME);                            \
       RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       mpfr_##MPFR_FUNC_NAME(mc->result, ma->result, mb->result,                \
                             ROUNDING_MODE);                                    \
       RAPTOR_DUMP_RESULT(mc, OP_TYPE, LLVM_OP_NAME);                           \
-      return __raptor_fprt_ptr_to_double(mc);                                  \
+      return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \
     } else {                                                                   \
       abort();                                                                 \
     }                                                                          \
@@ -737,11 +634,12 @@ void raptor_fprt_op_clear();
       RAPTOR_DUMP_INPUT(mb, OP_TYPE, LLVM_OP_NAME);                            \
       RAPTOR_DUMP_INPUT(mc, OP_TYPE, LLVM_OP_NAME);                            \
       double mmul = __raptor_fprt_##FROM_TYPE##_binop_fmul(                    \
-          __raptor_fprt_ptr_to_double(ma), __raptor_fprt_ptr_to_double(mb),    \
-          exponent, significand, mode, loc, scratch);                          \
-      double madd = __raptor_fprt_##FROM_TYPE##_binop_fadd(                    \
-          mmul, __raptor_fprt_ptr_to_double(mc), exponent, significand, mode,  \
+          __raptor_fprt_ptr_to_##FROM_TYPE(ma),                                \
+          __raptor_fprt_ptr_to_##FROM_TYPE(mb), exponent, significand, mode,   \
           loc, scratch);                                                       \
+      double madd = __raptor_fprt_##FROM_TYPE##_binop_fadd(                    \
+          mmul, __raptor_fprt_ptr_to_##FROM_TYPE(mc), exponent, significand,   \
+          mode, loc, scratch);                                                 \
       RAPTOR_DUMP_RESULT(__raptor_fprt_##FROM_TYPE##_to_ptr(madd), OP_TYPE,    \
                          LLVM_OP_NAME);                                        \
       return madd;                                                             \
@@ -775,7 +673,7 @@ void raptor_fprt_op_clear();
       abort();                                                                 \
     }                                                                          \
   }
-#endif  // RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
+#endif // RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 
 __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak)) bool
 __raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(double a,
