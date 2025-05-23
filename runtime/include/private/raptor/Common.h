@@ -2,6 +2,7 @@
 #define _RAPTOR_COMMON_H_
 
 #include <atomic>
+#include <cstdlib>
 #include <mpfr.h>
 
 #define MAX_MPFR_OPERANDS 3
@@ -31,27 +32,73 @@ typedef struct __raptor_fp {
   // #endif
 } __raptor_fp;
 
-__RAPTOR_MPFR_ATTRIBUTES __raptor_fp *
-__raptor_fprt_ieee_64_new_intermediate(int64_t exponent, int64_t significand,
-                                       int64_t mode, const char *loc);
-
 static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
   return mode & 0b0001;
 }
 static inline bool __raptor_fprt_is_op_mode(int64_t mode) {
   return mode & 0b0010;
 }
-static inline double __raptor_fprt_idx_to_double(uint64_t p) {
-  return *((double *)(&p));
-}
-static inline uint64_t __raptor_fprt_double_to_idx(double d) {
-  return *((uint64_t *)(&d));
-}
-static inline double __raptor_fprt_ptr_to_double(__raptor_fp *p) {
-  return *((double *)(&p));
-}
-static inline __raptor_fp *__raptor_fprt_ieee_64_to_ptr(double d) {
-  return *((__raptor_fp **)(&d));
-}
+
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_gc_dump_status();
+__RAPTOR_MPFR_ATTRIBUTES
+double raptor_fprt_gc_mark_seen(double a);
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_gc_doit();
+
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_excl_trunc_start();
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_fprt_excl_trunc_end();
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  static inline CPP_TY __raptor_fprt_idx_to_##FROM_TY(uint64_t p) {            \
+    return *((CPP_TY *)(&p));                                                  \
+  }                                                                            \
+  static inline uint64_t __raptor_fprt_##FROM_TY##_to_idx(CPP_TY d) {          \
+    return *((uint64_t *)(&d));                                                \
+  }                                                                            \
+  static inline CPP_TY __raptor_fprt_ptr_to_##FROM_TY(__raptor_fp *p) {        \
+    if constexpr (sizeof(void *) == sizeof(CPP_TY))                            \
+      return *((CPP_TY *)(&p));                                                \
+    else                                                                       \
+      abort();                                                                 \
+  }                                                                            \
+  static inline __raptor_fp *__raptor_fprt_##FROM_TY##_to_ptr(CPP_TY d) {      \
+    if constexpr (sizeof(void *) == sizeof(CPP_TY))                            \
+      return *((__raptor_fp **)(&d));                                          \
+    else                                                                       \
+      abort();                                                                 \
+  }
+#include "raptor/FloatTypes.def"
+#undef RAPTOR_FLOAT_TYPE
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_get(CPP_TY _a, int64_t exponent,            \
+                                       int64_t significand, int64_t mode,      \
+                                       const char *loc, void *scratch);        \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_new(CPP_TY _a, int64_t exponent,            \
+                                       int64_t significand, int64_t mode,      \
+                                       const char *loc, void *scratch);        \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY __raptor_fprt_##FROM_TY##_const(CPP_TY _a, int64_t exponent,          \
+                                         int64_t significand, int64_t mode,    \
+                                         const char *loc, void *scratch);      \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __raptor_fp *__raptor_fprt_##FROM_TY##_new_intermediate(                     \
+      int64_t exponent, int64_t significand, int64_t mode, const char *loc,    \
+      void *scratch);                                                          \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_delete(CPP_TY a, int64_t exponent,            \
+                                        int64_t significand, int64_t mode,     \
+                                        const char *loc, void *scratch);
+#include "raptor/FloatTypes.def"
+#undef RAPTOR_FLOAT_TYPE
 
 #endif // _RAPTOR_COMMON_H_
