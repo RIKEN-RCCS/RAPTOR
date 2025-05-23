@@ -2,18 +2,18 @@
 
 #define __RAPTOR_MPFR_DOUBLE_BINOP(LLVM_OP_NAME, MPFR_FUNC_NAME,               \
                                    ROUNDING_MODE)                              \
-  __RAPTOR_MPFR_BIN(binop, LLVM_OP_NAME, MPFR_FUNC_NAME, 64_52, double, d,     \
+  __RAPTOR_MPFR_BIN(binop, LLVM_OP_NAME, MPFR_FUNC_NAME, ieee_64, double, d,     \
                     double, d, double, d, ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_DOUBLE_BINFUNCINTR(LLVM_OP_NAME, MPFR_FUNC_NAME,         \
                                          ROUNDING_MODE)                        \
-  __RAPTOR_MPFR_BIN(intr, LLVM_OP_NAME, MPFR_FUNC_NAME, 64_52, double, d,      \
+  __RAPTOR_MPFR_BIN(intr, LLVM_OP_NAME, MPFR_FUNC_NAME, ieee_64, double, d,      \
                     double, d, double, d, ROUNDING_MODE)                       \
-  __RAPTOR_MPFR_BIN(intr, llvm_##LLVM_OP_NAME##_f64, MPFR_FUNC_NAME, 64_52,    \
+  __RAPTOR_MPFR_BIN(intr, llvm_##LLVM_OP_NAME##_f64, MPFR_FUNC_NAME, ieee_64,    \
                     double, d, double, d, double, d, ROUNDING_MODE)            \
-  __RAPTOR_MPFR_BIN(func, LLVM_OP_NAME, MPFR_FUNC_NAME, 64_52, double, d,      \
+  __RAPTOR_MPFR_BIN(func, LLVM_OP_NAME, MPFR_FUNC_NAME, ieee_64, double, d,      \
                     double, d, double, d, ROUNDING_MODE)                       \
-  __RAPTOR_MPFR_BIN(func, __##LLVM_OP_NAME##_finite, MPFR_FUNC_NAME, 64_52,    \
+  __RAPTOR_MPFR_BIN(func, __##LLVM_OP_NAME##_finite, MPFR_FUNC_NAME, ieee_64,    \
                     double, d, double, d, double, d, ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_DOUBLE_BINOP_DEFAULT_ROUNDING(LLVM_OP_NAME,              \
@@ -27,13 +27,13 @@
                                    __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(LLVM_NAME, MPFR_NAME)                \
-  __RAPTOR_MPFR_SINGOP(intr, LLVM_NAME, MPFR_NAME, 64_52, double, d, double,   \
+  __RAPTOR_MPFR_SINGOP(intr, LLVM_NAME, MPFR_NAME, ieee_64, double, d, double,   \
                        d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                 \
-  __RAPTOR_MPFR_SINGOP(intr, llvm_##LLVM_NAME##_f64, MPFR_NAME, 64_52, double, \
+  __RAPTOR_MPFR_SINGOP(intr, llvm_##LLVM_NAME##_f64, MPFR_NAME, ieee_64, double, \
                        d, double, d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)      \
-  __RAPTOR_MPFR_SINGOP(func, LLVM_NAME, MPFR_NAME, 64_52, double, d, double,   \
+  __RAPTOR_MPFR_SINGOP(func, LLVM_NAME, MPFR_NAME, ieee_64, double, d, double,   \
                        d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                 \
-  __RAPTOR_MPFR_SINGOP(func, __##LLVM_NAME##_finite, MPFR_NAME, 64_52, double, \
+  __RAPTOR_MPFR_SINGOP(func, __##LLVM_NAME##_finite, MPFR_NAME, ieee_64, double, \
                        d, double, d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)      \
   __RAPTOR_MPFR_SINGOP(TYPE, LLVM_NAME, MPFR_NAME, 32_23, float, d, float, d,  \
                        __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                    \
@@ -45,7 +45,7 @@
                        __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_FCMP(NAME, ORDERED, CMP)                                 \
-  __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, 64_52, double, d,                \
+  __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, ieee_64, double, d,                \
                           __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                 \
   __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, 32_23, double, d,                \
                           __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
@@ -67,10 +67,10 @@ __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(fmod, fmod);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(maxnum, max);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(minnum, min);
 
-__RAPTOR_MPFR_BIN_INT(intr, llvm_powi_f64_i32, pow_si, 64_52, double, d, double,
+__RAPTOR_MPFR_BIN_INT(intr, llvm_powi_f64_i32, pow_si, ieee_64, double, d, double,
                       d, int32_t, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 
-__RAPTOR_MPFR_BIN_INT(func, ldexp, mul_2ui, 64_52, double, d, double,
+__RAPTOR_MPFR_BIN_INT(func, ldexp, mul_2ui, ieee_64, double, d, double,
                       d, int32_t, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 
 // Unary operations
@@ -116,7 +116,7 @@ __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(lgamma, lngamma);
 // TODO This is not accurate (I think we cast int to double)
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(nearbyint, rint);
 
-__RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, 64_52, double, d, double,
+__RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, ieee_64, double, d, double,
                      d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 __RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, 32_23, float, d, float,
@@ -126,15 +126,15 @@ __RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, 32_23, float, d, float,
 // Making this behave correctly for mem mode could be interesting.
 // It currently rounds away twice: during truncation and during conversion.
 // It may make sense to just ignore this op overall.
-__RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f64, 64_52, int32_t, double,
+__RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f64, ieee_64, int32_t, double,
                      d, MPFR_RNDA);
 __RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f32, 32_23, int32_t, float,
                      d, MPFR_RNDA);
 
 // Ternary operation
-__RAPTOR_MPFR_FMULADD(llvm_fmuladd, 64_52, double, d, f64,
+__RAPTOR_MPFR_FMULADD(llvm_fmuladd, ieee_64, double, d, f64,
                       __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-__RAPTOR_MPFR_FMULADD(llvm_fma, 64_52, double, d, f64,
+__RAPTOR_MPFR_FMULADD(llvm_fma, ieee_64, double, d, f64,
                       __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 
 // Comparisons

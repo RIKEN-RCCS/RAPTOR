@@ -266,10 +266,10 @@ struct {
 
 extern "C" {
 
-__raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
-                                                  int64_t significand,
-                                                  int64_t mode,
-                                                  const char *loc) {
+__raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
+                                                    int64_t significand,
+                                                    int64_t mode,
+                                                    const char *loc) {
   size_t id = FPs.all.size();
   FPs.all.push_back({});
   __raptor_fp *a = &FPs.all.back();
@@ -277,39 +277,42 @@ __raptor_fp *__raptor_fprt_64_52_new_intermediate(int64_t exponent,
   return a;
 }
 
-double __raptor_fprt_64_52_get(double _a, int64_t exponent, int64_t significand,
-                               int64_t mode, const char *loc) {
+double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
+                                 int64_t significand, int64_t mode,
+                                 const char *loc) {
   __raptor_fp *a = __raptor_fprt_double_to_ptr(_a);
   FPs.outputs.push_back(a);
   __raptor_fprt_trace_no_res_flop<double, 1>({_a}, "get", loc);
   return a->getResult();
 }
 
-double __raptor_fprt_64_52_new(double _a, int64_t exponent, int64_t significand,
-                               int64_t mode, const char *loc) {
+double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
+                                 int64_t significand, int64_t mode,
+                                 const char *loc) {
   __raptor_fp *a =
-      __raptor_fprt_64_52_new_intermediate(exponent, significand, mode, loc);
+      __raptor_fprt_ieee_64_new_intermediate(exponent, significand, mode, loc);
   FPs.inputs.push_back(a);
   __raptor_fprt_trace_flop<double, 0>({}, _a, a, nullptr, "new", loc);
   auto ret = __raptor_fprt_ptr_to_double(a);
   return ret;
 }
 
-double __raptor_fprt_64_52_const(double _a, int64_t exponent,
-                                 int64_t significand, int64_t mode,
-                                 const char *loc) {
+double __raptor_fprt_ieee_64_const(double _a, int64_t exponent,
+                                   int64_t significand, int64_t mode,
+                                   const char *loc) {
   // TODO This should really be called only once for an appearance in the code,
   // currently it is called every time a flop uses a constant.
   __raptor_fp *a =
-      __raptor_fprt_64_52_new_intermediate(exponent, significand, mode, loc);
+      __raptor_fprt_ieee_64_new_intermediate(exponent, significand, mode, loc);
   FPs.consts.push_back(a);
   __raptor_fprt_trace_flop<double, 0>({}, _a, a, nullptr, "const", loc);
   auto ret = __raptor_fprt_ptr_to_double(a);
   return ret;
 }
 
-void __raptor_fprt_64_52_delete(double a, int64_t exponent, int64_t significand,
-                                int64_t mode, const char *loc) {
+void __raptor_fprt_ieee_64_delete(double a, int64_t exponent,
+                                  int64_t significand, int64_t mode,
+                                  const char *loc) {
   // TODO
   __raptor_fprt_trace_no_res_flop<double, 1>({a}, "delete", loc);
 }
@@ -374,7 +377,7 @@ void __raptor_fprt_delete_all() {
     auto originalfn =                                                          \
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
     RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult());         \
-    __raptor_fp *intermediate = __raptor_fprt_64_52_new_intermediate(          \
+    __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
     double ret = __raptor_fprt_ptr_to_double(intermediate);                    \
@@ -399,7 +402,7 @@ void __raptor_fprt_delete_all() {
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
     RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
                          __raptor_fprt_double_to_ptr(b)->getResult());         \
-    __raptor_fp *intermediate = __raptor_fprt_64_52_new_intermediate(          \
+    __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
     double ret = __raptor_fprt_ptr_to_double(intermediate);                    \
@@ -422,7 +425,7 @@ void __raptor_fprt_delete_all() {
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
     RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
                          __raptor_fprt_double_to_ptr(b)->getResult());         \
-    __raptor_fp *intermediate = __raptor_fprt_64_52_new_intermediate(          \
+    __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
     double ret = __raptor_fprt_ptr_to_double(intermediate);                    \
@@ -445,7 +448,7 @@ void __raptor_fprt_delete_all() {
     TYPE res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
                           __raptor_fprt_double_to_ptr(b)->getResult(),          \
                           __raptor_fprt_double_to_ptr(c)->getResult());         \
-    __raptor_fp *intermediate = __raptor_fprt_64_52_new_intermediate(           \
+    __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(         \
         exponent, significand, mode, loc);                                      \
     intermediate->setResult(res);                                               \
     double ret = __raptor_fprt_ptr_to_double(intermediate);                     \
@@ -470,13 +473,13 @@ void __raptor_fprt_delete_all() {
   }
 
 __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES
-bool __raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(double a,
-                                                           int32_t tests);
-__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_64_52_intr_llvm_is_fpclass_f64(
+bool __raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(double a,
+                                                             int32_t tests);
+__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_ieee_64_intr_llvm_is_fpclass_f64(
     double a, int32_t tests, int64_t exponent, int64_t significand,
     int64_t mode, const char *loc) {
   __raptor_fprt_trace_no_res_flop<double, 1>({a}, "llvm_is_fpclass_f64", loc);
-  return __raptor_fprt_original_64_52_intr_llvm_is_fpclass_f64(
+  return __raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(
       __raptor_fprt_double_to_ptr(a)->getResult(), tests);
 }
 
