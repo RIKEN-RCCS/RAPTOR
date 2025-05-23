@@ -85,8 +85,9 @@ void __raptor_fprt_ieee_64_count(int64_t exponent, int64_t significand,
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_32_23_count(int64_t exponent, int64_t significand,
-                               int64_t mode, const char *loc, mpfr_t *scratch) {
+void __raptor_fprt_ieee_32_count(int64_t exponent, int64_t significand,
+                                 int64_t mode, const char *loc,
+                                 mpfr_t *scratch) {
   float_flop_counter.fetch_add(1, std::memory_order_relaxed);
 }
 

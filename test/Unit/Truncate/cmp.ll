@@ -28,12 +28,12 @@ entry:
   ret i1 %res
 }
 
-; CHECK: define internal i1 @__raptor_done_truncate_mem_func_ieee_64to32_23_f(double %x, double %y) {
+; CHECK: define internal i1 @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double %x, double %y) {
 ; CHECK-NEXT:   %res = call i1 @__raptor_fprt_ieee_64_fcmp_olt(double %x, double %y, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-NEXT:   ret i1 %res
 ; CHECK-NEXT: }
 
-; CHECK: define internal i1 @__raptor_done_truncate_op_func_ieee_64to32_23_f(double %x, double %y) {
+; CHECK: define internal i1 @__raptor_done_truncate_op_func_ieee_64toieee_32_f(double %x, double %y) {
 ; CHECK-NEXT:   %res = fcmp olt double %x, %y
 ; CHECK-NEXT:   ret i1 %res
 ; CHECK-NEXT: }
