@@ -170,11 +170,7 @@ public:
     Args.push_back(B.getInt64(truncation.getTo().getExponentWidth()));
     Args.push_back(B.getInt64(truncation.getTo().getSignificandWidth()));
     Args.push_back(B.getInt64(truncation.getMode()));
-#if LLVM_VERSION_MAJOR <= 14
-    Args.push_back(B.CreateBitCast(LocStr, NullPtr->getType()));
-#else
     Args.push_back(LocStr);
-#endif
     Args.push_back(scratch);
 
     auto FprtFunc = getFPRTFunc(Name, Args, RetTy);
@@ -873,15 +869,18 @@ public:
 };
 
 bool RaptorLogic::CreateTruncateValue(RequestContext context, Value *v,
-                                      FloatRepresentation from,
-                                      FloatRepresentation to, bool isTruncate) {
+                                      FloatTruncation Truncation,
+                                      bool isTruncate) {
   assert(context.req && context.ip);
+
+  if (!Truncation.getTo().isMPFR())
+    EmitFailure("NoMPFR", context.req->getDebugLoc(), context.req,
+                "trunc value needs target type to be MPFR");
 
   IRBuilderBase &B = *context.ip;
 
   Value *converted = nullptr;
-  auto truncation = FloatTruncation(from, to, TruncMemMode);
-  TruncateUtils TU(truncation, B.GetInsertBlock()->getParent()->getParent(),
+  TruncateUtils TU(Truncation, B.GetInsertBlock()->getParent()->getParent(),
                    *this);
   if (isTruncate)
     converted = TU.createFPRTNewCall(B, v);
