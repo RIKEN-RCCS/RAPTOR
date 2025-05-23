@@ -50,7 +50,7 @@ static inline uint64_t __raptor_fprt_double_to_idx(double d) {
 static inline double __raptor_fprt_ptr_to_double(__raptor_fp *p) {
   return *((double *)(&p));
 }
-static inline __raptor_fp *__raptor_fprt_double_to_ptr(double d) {
+static inline __raptor_fp *__raptor_fprt_ieee_64_to_ptr(double d) {
   return *((__raptor_fp **)(&d));
 }
 

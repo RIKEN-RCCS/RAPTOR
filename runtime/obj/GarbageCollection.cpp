@@ -60,7 +60,7 @@ __RAPTOR_MPFR_ATTRIBUTES
 double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc) {
-  __raptor_fp *a = __raptor_fprt_double_to_ptr(_a);
+  __raptor_fp *a = __raptor_fprt_ieee_64_to_ptr(_a);
   return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 }
 
@@ -120,7 +120,7 @@ void raptor_fprt_gc_clear_seen() {
 
 __RAPTOR_MPFR_ATTRIBUTES
 double raptor_fprt_gc_mark_seen(double a) {
-  __raptor_fp *fp = __raptor_fprt_double_to_ptr(a);
+  __raptor_fp *fp = __raptor_fprt_ieee_64_to_ptr(a);
   if (!fp)
     return a;
   intptr_t offset = (char *)&(((GCFloatTy *)nullptr)->fp) - (char *)nullptr;

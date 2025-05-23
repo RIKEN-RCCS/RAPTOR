@@ -124,7 +124,7 @@ static void __raptor_fprt_trace_no_res_flop(std::array<T, NumInputs> inputs,
   fp.setInputNum(NumInputs);
   fp.setLoc(loc);
   for (unsigned i = 0; i < inputs.size(); i++) {
-    __raptor_fp *inputfp = __raptor_fprt_double_to_ptr(inputs[i]);
+    __raptor_fp *inputfp = __raptor_fprt_ieee_64_to_ptr(inputs[i]);
     fp.setInput(i, inputfp);
   }
 
@@ -221,7 +221,7 @@ __raptor_fprt_trace_flop(std::array<T, NumInputs> _inputs, T output_val,
   std::array<__raptor_fp *, NumInputs> inputs;
   std::array<T, NumInputs> input_vals;
   for (unsigned i = 0; i < _inputs.size(); i++) {
-    __raptor_fp *inputfp = __raptor_fprt_double_to_ptr(_inputs[i]);
+    __raptor_fp *inputfp = __raptor_fprt_ieee_64_to_ptr(_inputs[i]);
     inputs[i] = inputfp;
     input_vals[i] = inputfp->getResult();
   }
@@ -280,7 +280,7 @@ __raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
 double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc) {
-  __raptor_fp *a = __raptor_fprt_double_to_ptr(_a);
+  __raptor_fp *a = __raptor_fprt_ieee_64_to_ptr(_a);
   FPs.outputs.push_back(a);
   __raptor_fprt_trace_no_res_flop<double, 1>({_a}, "get", loc);
   return a->getResult();
@@ -376,7 +376,7 @@ void __raptor_fprt_delete_all() {
       const char *loc) {                                                       \
     auto originalfn =                                                          \
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
-    RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult());         \
+    RET res = originalfn(__raptor_fprt_ieee_64_to_ptr(a)->getResult());        \
     __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
@@ -400,8 +400,8 @@ void __raptor_fprt_delete_all() {
           const char *loc) {                                                   \
     auto originalfn =                                                          \
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
-    RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
-                         __raptor_fprt_double_to_ptr(b)->getResult());         \
+    RET res = originalfn(__raptor_fprt_ieee_64_to_ptr(a)->getResult(),         \
+                         __raptor_fprt_ieee_64_to_ptr(b)->getResult());        \
     __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
@@ -423,8 +423,8 @@ void __raptor_fprt_delete_all() {
       const char *loc) {                                                       \
     auto originalfn =                                                          \
         __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME;       \
-    RET res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
-                         __raptor_fprt_double_to_ptr(b)->getResult());         \
+    RET res = originalfn(__raptor_fprt_ieee_64_to_ptr(a)->getResult(),         \
+                         __raptor_fprt_ieee_64_to_ptr(b)->getResult());        \
     __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(        \
         exponent, significand, mode, loc);                                     \
     intermediate->setResult(res);                                              \
@@ -445,9 +445,9 @@ void __raptor_fprt_delete_all() {
       int64_t mode, const char *loc) {                                          \
     auto originalfn =                                                           \
         __raptor_fprt_original_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE; \
-    TYPE res = originalfn(__raptor_fprt_double_to_ptr(a)->getResult(),          \
-                          __raptor_fprt_double_to_ptr(b)->getResult(),          \
-                          __raptor_fprt_double_to_ptr(c)->getResult());         \
+    TYPE res = originalfn(__raptor_fprt_ieee_64_to_ptr(a)->getResult(),         \
+                          __raptor_fprt_ieee_64_to_ptr(b)->getResult(),         \
+                          __raptor_fprt_ieee_64_to_ptr(c)->getResult());        \
     __raptor_fp *intermediate = __raptor_fprt_ieee_64_new_intermediate(         \
         exponent, significand, mode, loc);                                      \
     intermediate->setResult(res);                                               \
@@ -466,8 +466,8 @@ void __raptor_fprt_delete_all() {
       TYPE a, TYPE b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc) {                                                       \
     bool res = __raptor_fprt_original_##FROM_TYPE##_fcmp_##NAME(               \
-        __raptor_fprt_double_to_ptr(a)->getResult(),                           \
-        __raptor_fprt_double_to_ptr(b)->getResult());                          \
+        __raptor_fprt_ieee_64_to_ptr(a)->getResult(),                          \
+        __raptor_fprt_ieee_64_to_ptr(b)->getResult());                         \
     __raptor_fprt_trace_no_res_flop<TYPE, 2>({a, b}, "fcmp_" #NAME, loc);      \
     return res;                                                                \
   }
@@ -480,7 +480,7 @@ __RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_ieee_64_intr_llvm_is_fpclass_f64(
     int64_t mode, const char *loc) {
   __raptor_fprt_trace_no_res_flop<double, 1>({a}, "llvm_is_fpclass_f64", loc);
   return __raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(
-      __raptor_fprt_double_to_ptr(a)->getResult(), tests);
+      __raptor_fprt_ieee_64_to_ptr(a)->getResult(), tests);
 }
 
 #include <raptor/fprt/flops.def>
