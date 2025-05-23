@@ -12,10 +12,10 @@
 // CHECK: FLOP!
 // CHECK: FLOP!
 
-extern "C"
-void __raptor_fprt_64_52_count(int64_t exponent, int64_t significand,
-                               int64_t mode, const char *loc) {
-    puts("FLOP!");
+extern "C" void __raptor_fprt_ieee_64_count(int64_t exponent,
+                                            int64_t significand, int64_t mode,
+                                            const char *loc) {
+  puts("FLOP!");
 }
 
 #define N 10

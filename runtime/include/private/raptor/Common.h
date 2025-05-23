@@ -32,8 +32,8 @@ typedef struct __raptor_fp {
 } __raptor_fp;
 
 __RAPTOR_MPFR_ATTRIBUTES __raptor_fp *
-__raptor_fprt_64_52_new_intermediate(int64_t exponent, int64_t significand,
-                                     int64_t mode, const char *loc);
+__raptor_fprt_ieee_64_new_intermediate(int64_t exponent, int64_t significand,
+                                       int64_t mode, const char *loc);
 
 static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
   return mode & 0b0001;
