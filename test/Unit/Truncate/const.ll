@@ -22,7 +22,7 @@ entry:
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64to32_23_f(double %x) {
+; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double %x) {
 ; CHECK-NEXT:   %1 = call double @__raptor_fprt_ieee_64_const(double 1.000000e+00, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-NEXT:   %res = call double @__raptor_fprt_ieee_64_binop_fadd(double %x, double %1, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-NEXT:   ret double %res

@@ -35,19 +35,19 @@
                        d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                 \
   __RAPTOR_MPFR_SINGOP(func, __##LLVM_NAME##_finite, MPFR_NAME, ieee_64, double, \
                        d, double, d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)      \
-  __RAPTOR_MPFR_SINGOP(TYPE, LLVM_NAME, MPFR_NAME, 32_23, float, d, float, d,  \
+  __RAPTOR_MPFR_SINGOP(TYPE, LLVM_NAME, MPFR_NAME, ieee_32, float, d, float, d,  \
                        __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                    \
-  __RAPTOR_MPFR_SINGOP(intr, LLVM_NAME, MPFR_NAME, 32_23, float, d, float, d,  \
+  __RAPTOR_MPFR_SINGOP(intr, LLVM_NAME, MPFR_NAME, ieee_32, float, d, float, d,  \
                        __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                    \
-  __RAPTOR_MPFR_SINGOP(intr, llvm_##LLVM_NAME##_f32, MPFR_NAME, 32_23, float,  \
+  __RAPTOR_MPFR_SINGOP(intr, llvm_##LLVM_NAME##_f32, MPFR_NAME, ieee_32, float,  \
                        d, float, d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)       \
-  __RAPTOR_MPFR_SINGOP(func, LLVM_NAME, MPFR_NAME, 32_23, float, d, float, d,  \
+  __RAPTOR_MPFR_SINGOP(func, LLVM_NAME, MPFR_NAME, ieee_32, float, d, float, d,  \
                        __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_FCMP(NAME, ORDERED, CMP)                                 \
   __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, ieee_64, double, d,                \
                           __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)                 \
-  __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, 32_23, double, d,                \
+  __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, ieee_32, double, d,                \
                           __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 // Binary operations
@@ -119,7 +119,7 @@ __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(nearbyint, rint);
 __RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, ieee_64, double, d, double,
                      d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
-__RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, 32_23, float, d, float,
+__RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, ieee_32, float, d, float,
                      d, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 // TODO This returns an int and is a rounding operation.
@@ -128,7 +128,7 @@ __RAPTOR_MPFR_SINGOP(unaryop, fneg, neg, 32_23, float, d, float,
 // It may make sense to just ignore this op overall.
 __RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f64, ieee_64, int32_t, double,
                      d, MPFR_RNDA);
-__RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f32, 32_23, int32_t, float,
+__RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f32, ieee_32, int32_t, float,
                      d, MPFR_RNDA);
 
 // Ternary operation

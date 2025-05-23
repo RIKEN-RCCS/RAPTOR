@@ -41,7 +41,7 @@ entry:
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64to32_23_f(double %x, double %y) {
+; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double %x, double %y) {
 ; CHECK-DAG:   %1 = call double @__raptor_fprt_ieee_64_func_pow(double %x, double %y, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-DAG:   %2 = call double @__raptor_fprt_ieee_64_intr_llvm_pow_f64(double %x, double %y, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-DAG:   %3 = call double @__raptor_fprt_ieee_64_intr_llvm_powi_f64_i16(double %x, i16 2, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
@@ -50,7 +50,7 @@ entry:
 ; CHECK-DAG:   ret double %res
 ; CHECK-DAG: }
 
-; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64to32_23_f(double %x, double %y) {
+; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64toieee_32_f(double %x, double %y) {
 ; CHECK-DAG:   %1 = call double @__raptor_fprt_ieee_64_func_pow(double %x, double %y, i64 8, i64 23, i64 2, {{.*}}i8{{.*}})
 ; CHECK-DAG:   %2 = call double @__raptor_fprt_ieee_64_intr_llvm_pow_f64(double %x, double %y, i64 8, i64 23, i64 2, {{.*}}i8{{.*}})
 ; CHECK-DAG:   %3 = call double @__raptor_fprt_ieee_64_intr_llvm_powi_f64_i16(double %x, i16 2, i64 8, i64 23, i64 2, {{.*}}i8{{.*}})

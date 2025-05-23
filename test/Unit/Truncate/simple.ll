@@ -34,14 +34,14 @@ entry:
   ret void
 }
 
-; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64to32_23_f(double* %x) {
+; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double* %x) {
 ; CHECK-DAG:   %y = load double, double* %x, align 8
 ; CHECK-DAG:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
 ; CHECK-DAG:   store double %m, double* %x, align 8
 ; CHECK-DAG:   ret void
 ; CHECK-DAG: }
 
-; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64to32_23_f(double* %x) {
+; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64toieee_32_f(double* %x) {
 ; CHECK-DAG:   %y = load double, double* %x, align 8
 ; CHECK-DAG:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 2, {{.*}}i8{{.*}})
 ; CHECK-DAG:   store double %m, double* %x, align 8
