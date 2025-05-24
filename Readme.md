@@ -91,8 +91,20 @@ To use RAPTOR to truncate floating-pint operations in the call to `foo`, one can
   auto f = __raptor_truncate_op_func(
     /* function */    foo,
     /* from_type */   32,
+    /* to_type: 0 for builtin IEEE type, 1 for MPFR */   1,
     /* to_exponent */ 5,
     /* to_mantissa */ 8);
+  f(a, b)
+  ...
+```
+
+``` c++
+  ...
+  auto f = __raptor_truncate_op_func(
+    /* function */    foo,
+    /* from_type */   64,
+    /* to_type: 0 for builtin IEEE type, 1 for MPFR */   0,
+    /* to_width */ 32);
   f(a, b)
   ...
 ```
