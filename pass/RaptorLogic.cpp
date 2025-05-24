@@ -904,53 +904,53 @@ bool RaptorLogic::CreateTruncateValue(RequestContext context, Value *v,
   return true;
 }
 
-llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext context,
-                                                llvm::Function *totrunc,
-                                                FloatTruncation truncation,
-                                                TruncateMode mode, bool root) {
-  TruncateCacheKey tup(totrunc, truncation, mode, root);
+llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext Context,
+                                                llvm::Function *ToTrunc,
+                                                FloatTruncation Truncation,
+                                                TruncateMode Mode, bool Root) {
+  TruncateCacheKey tup(ToTrunc, Truncation, Mode, Root);
   if (TruncateCachedFunctions.find(tup) != TruncateCachedFunctions.end()) {
     return TruncateCachedFunctions.find(tup)->second;
   }
 
-  IRBuilder<> B(totrunc->getContext());
+  IRBuilder<> B(ToTrunc->getContext());
 
-  FunctionType *orig_FTy = totrunc->getFunctionType();
-  SmallVector<Type *, 4> params;
+  FunctionType *OrigFTy = ToTrunc->getFunctionType();
+  SmallVector<Type *, 4> Params;
 
-  for (unsigned i = 0; i < orig_FTy->getNumParams(); ++i) {
-    params.push_back(orig_FTy->getParamType(i));
+  for (unsigned i = 0; i < OrigFTy->getNumParams(); ++i) {
+    Params.push_back(OrigFTy->getParamType(i));
   }
 
-  if (mode == TruncOpMode && !root) {
+  if (Mode == TruncOpMode && !Root) {
     // void *scratch
-    params.push_back(B.getPtrTy());
+    Params.push_back(B.getPtrTy());
   }
 
-  Type *NewTy = totrunc->getReturnType();
+  Type *NewTy = ToTrunc->getReturnType();
 
-  FunctionType *FTy = FunctionType::get(NewTy, params, totrunc->isVarArg());
+  FunctionType *FTy = FunctionType::get(NewTy, Params, ToTrunc->isVarArg());
   std::string truncName =
-      std::string("__raptor_done_truncate_") + truncateModeStr(mode) +
-      "_func_" + truncation.mangleTruncation() + "_" + totrunc->getName().str();
-  Function *NewF = Function::Create(FTy, totrunc->getLinkage(), truncName,
-                                    totrunc->getParent());
+      std::string("__raptor_done_truncate_") + truncateModeStr(Mode) +
+      "_func_" + Truncation.mangleTruncation() + "_" + ToTrunc->getName().str();
+  Function *NewF = Function::Create(FTy, ToTrunc->getLinkage(), truncName,
+                                    ToTrunc->getParent());
 
-  if (mode != TruncOpFullModuleMode && mode != TruncCountMode)
+  if (Mode != TruncOpFullModuleMode && Mode != TruncCountMode)
     NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
 
   TruncateCachedFunctions[tup] = NewF;
 
-  if (totrunc->empty()) {
+  if (ToTrunc->empty()) {
     std::string s;
     llvm::raw_string_ostream ss(s);
-    ss << "No truncate mode found for " + totrunc->getName() << "\n";
+    ss << "No truncate mode found for " + ToTrunc->getName() << "\n";
     // llvm::Value *toshow = totrunc;
-    if (context.req) {
+    if (Context.req) {
       // toshow = context.req;
-      ss << " at context: " << *context.req;
+      ss << " at context: " << *Context.req;
     } else {
-      ss << *totrunc << "\n";
+      ss << *ToTrunc << "\n";
     }
     // if (CustomErrorHandler) {
     //   CustomErrorHandler(ss.str().c_str(), wrap(toshow),
@@ -958,20 +958,20 @@ llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext context,
     //                      wrap(context.ip));
     //   return NewF;
     // }
-    if (context.req) {
-      EmitFailure("NoTruncate", context.req->getDebugLoc(), context.req,
+    if (Context.req) {
+      EmitFailure("NoTruncate", Context.req->getDebugLoc(), Context.req,
                   ss.str());
       return NewF;
     }
-    llvm::errs() << "mod: " << *totrunc->getParent() << "\n";
-    llvm::errs() << *totrunc << "\n";
+    llvm::errs() << "mod: " << *ToTrunc->getParent() << "\n";
+    llvm::errs() << *ToTrunc << "\n";
     llvm_unreachable("attempting to truncate function without definition");
   }
 
   ValueToValueMapTy originalToNewFn;
 
-  for (auto i = totrunc->arg_begin(), j = NewF->arg_begin();
-       i != totrunc->arg_end();) {
+  for (auto i = ToTrunc->arg_begin(), j = NewF->arg_begin();
+       i != ToTrunc->arg_end();) {
     originalToNewFn[i] = j;
     j->setName(i->getName());
     ++j;
@@ -979,20 +979,20 @@ llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext context,
   }
 
   SmallVector<ReturnInst *, 4> Returns;
-  CloneFunctionInto(NewF, totrunc, originalToNewFn,
+  CloneFunctionInto(NewF, ToTrunc, originalToNewFn,
                     CloneFunctionChangeType::LocalChangesOnly, Returns, "",
                     nullptr);
 
   NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
 
-  TruncateGenerator handle(originalToNewFn, truncation, totrunc, NewF, *this,
-                           root);
-  for (auto &BB : *totrunc)
+  TruncateGenerator Handle(originalToNewFn, Truncation, ToTrunc, NewF, *this,
+                           Root);
+  for (auto &BB : *ToTrunc)
     for (auto &I : BB)
-      handle.visit(&I);
+      Handle.visit(&I);
 
   if (llvm::verifyFunction(*NewF, &llvm::errs())) {
-    llvm::errs() << *totrunc << "\n";
+    llvm::errs() << *ToTrunc << "\n";
     llvm::errs() << *NewF << "\n";
     report_fatal_error("function failed verification (5)");
   }
