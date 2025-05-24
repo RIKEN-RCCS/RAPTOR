@@ -11,24 +11,20 @@ declare double (double)* @__raptor_truncate_op_func(...)
 
 define double @tester(double %x) {
 entry:
-  %ptr = call double (double)* (...) @__raptor_truncate_mem_func(double (double)* @f, i64 64, i64 32)
+  %ptr = call double (double)* (...) @__raptor_truncate_mem_func(double (double)* @f, i64 64, i64 0, i64 32)
   %res = call double %ptr(double %x)
   ret double %res
 }
 define double @tester_op_mpfr(double %x) {
 entry:
-  %ptr = call double (double)* (...) @__raptor_truncate_op_func(double (double)* @f, i64 64, i64 3, i64 7)
+  %ptr = call double (double)* (...) @__raptor_truncate_op_func(double (double)* @f, i64 64, i64 1, i64 3, i64 7)
   %res = call double %ptr(double %x)
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double %x) {
-; CHECK-NEXT:   %1 = call double @__raptor_fprt_ieee_64_const(double 1.000000e+00, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
-; CHECK-NEXT:   %res = call double @__raptor_fprt_ieee_64_binop_fadd(double %x, double %1, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
-; CHECK-NEXT:   ret double %res
-; CHECK-NEXT: }
+; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(double %x) {
+; CHECK:   call double @__raptor_fprt_ieee_64_const(double 1.000000e+00, i64 8, i64 23, i64 1, {{.*}}
+; CHECK:   call double @__raptor_fprt_ieee_64_binop_fadd(double {{.*}}, double %1, i64 8, i64 23, i64 1, {{.*}}
 
-; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64to11_7_f(double %x) {
-; CHECK-NEXT:   %res = call double @__raptor_fprt_ieee_64_binop_fadd(double %x, double 1.000000e+00, i64 3, i64 7, i64 2, {{.*}}i8{{.*}})
-; CHECK-NEXT:   ret double %res
-; CHECK-NEXT: }
+; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64_to_mpfr_3_7_f(double %x) {
+; CHECK:   call double @__raptor_fprt_ieee_64_binop_fadd(double {{.*}}, double 1.000000e+00, i64 3, i64 7, i64 2
