@@ -513,7 +513,7 @@ public:
                     "Expected IEEE width to be constant");
       return {FloatTruncation(FRFrom,
                               FloatRepresentation::getIEEE(
-                                  (unsigned)Cfrom->getValue().getZExtValue()),
+                                  (unsigned)Cto->getValue().getZExtValue()),
                               Mode),
               3};
     } else if (Cty->getValue().getZExtValue() == FloatRepresentation::MPFR) {
