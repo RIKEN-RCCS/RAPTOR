@@ -12,10 +12,10 @@ RAPTOR requires LLVM version 20 with clang and flang support for C/C++ and Fortr
 
 ``` shell
 export LLVM_INSTALL_DIR="<path-to-llvm-install-dir>"
-export INSTALL_DIR="<path-to-raptor-install-dir>"
+export RAPTOR_INSTALL_DIR="<path-to-raptor-install-dir>"
 cmake --fresh \
   -DLLVM_DIR="$LLVM_INSTALL_DIR/lib/cmake/llvm" \
-  -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
+  -DCMAKE_INSTALL_PREFIX="$RAPTOR_INSTALL_DIR" \
   -DCMAKE_BUILD_TYPE=Release \
   -B build -G Ninja
 ninja -C ./build install
@@ -52,19 +52,19 @@ The following can be used to enable RAPTOR's compilation remarks:
 ### Usage in LTO
 
 ``` shell
--Wl,-mllvm -Wl,-load=$RAPTOR_BUILD_DIR/Raptor/LLDRaptor-$LLVM_VER.so -L$RAPTOR_BUILD_DIR/Raptor/Runtimes/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
+-Wl,-mllvm -Wl,-load=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so -L$RAPTOR_INSTALL_DIR/lib/ -lRaptor-FPRT-Count-$LLVM_VER
 ```
 
 ### Usage in single-file compilation
 
 When compiling:
 ``` shell
--fplugin=/path/to/Raptor/raptor/build/Raptor/ClangRaptor-$LLVM_VER.so
+-fplugin=$RAPTOR_INSTALL_DIR/lib/ClangRaptor-$LLVM_VER.so
 ```
 
 When linking:
 ``` shell
--L$RAPTOR_BUILD_DIR/Raptor/Runtimes/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
+-L$RAPTOR_INSTALL_DIR/lib/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
 ```
 
 
