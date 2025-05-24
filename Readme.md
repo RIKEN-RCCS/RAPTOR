@@ -52,7 +52,7 @@ The following can be used to enable RAPTOR's compilation remarks:
 ### Usage in LTO
 
 ``` shell
--Wl,-mllvm -Wl,-load=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so -L$RAPTOR_INSTALL_DIR/lib/ -lRaptor-FPRT-Count-$LLVM_VER
+-Wl,-mllvm -Wl,-load=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so -L$RAPTOR_INSTALL_DIR/lib/ -lRaptor-RT-$LLVM_VER
 ```
 
 ### Usage in single-file compilation
@@ -64,7 +64,7 @@ When compiling:
 
 When linking:
 ``` shell
--L$RAPTOR_INSTALL_DIR/lib/FPRT/ -lRaptor-FPRT-Count-$LLVM_VER
+-L$RAPTOR_INSTALL_DIR/lib/FPRT/ -lRaptor-RT-$LLVM_VER
 ```
 
 
