@@ -559,45 +559,6 @@ public:
       return false;
     res = Builder.CreatePointerCast(res, CI->getType());
 
-    Module *M = F->getParent();
-    auto fname = std::string(RaptorFPRTPrefix) + "trunc_change";
-    Function *ChangeF = M->getFunction(fname);
-    if (!ChangeF) {
-      FunctionType *FnTy = FunctionType::get(
-          Type::getVoidTy(M->getContext()),
-          {Type::getInt64Ty(M->getContext()), Type::getInt64Ty(M->getContext()),
-           Type::getInt64Ty(M->getContext()),
-           Type::getInt64Ty(M->getContext())},
-          /*is_vararg*/ false);
-      ChangeF = Function::Create(FnTy, Function::ExternalLinkage, fname, M);
-    }
-
-    for (auto &Use : CI->uses()) {
-      if (CallInst *UserCI = dyn_cast<CallInst>(Use.getUser())) {
-        if (UserCI->getCalledOperand() == CI) {
-          IRBuilder<> B(UserCI);
-          B.CreateCall(ChangeF,
-                       {
-                           B.getInt64(1),
-                           B.getInt64(Truncation.getTo().getExponentWidth()),
-                           B.getInt64(Truncation.getTo().getSignificandWidth()),
-                           B.getInt64(Truncation.getMode()),
-                       });
-          B.SetInsertPoint(UserCI->getNextNode());
-          B.CreateCall(ChangeF,
-                       {
-                           B.getInt64(0),
-                           B.getInt64(Truncation.getTo().getExponentWidth()),
-                           B.getInt64(Truncation.getTo().getSignificandWidth()),
-                           B.getInt64(Truncation.getMode()),
-                       });
-        }
-      } else {
-        llvm::errs()
-            << "ERROR: FOUND NON CallInst USER OF TRUNCATED FUNCTION\n";
-        llvm_unreachable("aborting");
-      }
-    }
     CI->replaceAllUsesWith(res);
     CI->eraseFromParent();
     return true;

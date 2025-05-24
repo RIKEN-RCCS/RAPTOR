@@ -228,6 +228,8 @@ public:
   // runtime can check whether two operations are the same with a simple pointer
   // comparison. However, we need LTO for this to be the case across different
   // compilation units.
+  // TODO is there some linker hackery that can merge the symbols with the same
+  // content at linking time?
   GlobalValue *getUniquedLocStr(Instruction *I) {
     std::string FileName = "unknown";
     unsigned LineNo = 0;
@@ -301,48 +303,56 @@ public:
 class TruncateGenerator : public llvm::InstVisitor<TruncateGenerator>,
                           public TruncateUtils {
 private:
-  ValueToValueMapTy &originalToNewFn;
-  FloatTruncation truncation;
-  TruncateMode mode;
+  ValueToValueMapTy &OriginalToNewFn;
+  FloatTruncation Truncation;
+  TruncateMode Mode;
   RaptorLogic &Logic;
-  LLVMContext &ctx;
+  LLVMContext &Ctx;
 
 public:
   TruncateGenerator(ValueToValueMapTy &originalToNewFn,
-                    FloatTruncation truncation, Function *oldFunc,
-                    Function *newFunc, RaptorLogic &Logic, bool root)
-      : TruncateUtils(truncation, newFunc->getParent(), Logic),
-        originalToNewFn(originalToNewFn), truncation(truncation),
-        mode(truncation.getMode()), Logic(Logic), ctx(newFunc->getContext()) {
+                    FloatTruncation Truncation, Function *oldFunc,
+                    Function *newFunc, RaptorLogic &Logic, bool Root)
+      : TruncateUtils(Truncation, newFunc->getParent(), Logic),
+        OriginalToNewFn(originalToNewFn), Truncation(Truncation),
+        Mode(Truncation.getMode()), Logic(Logic), Ctx(newFunc->getContext()) {
 
-    auto allocScratch = [&]() {
+    auto AllocScratch = [&]() {
       // TODO we should check at the end if we never used the scracth we should
       // remove the runtime calls for allocation.
-      auto getName = "get_scratch";
-      auto freeName = "free_scratch";
+      auto GetName = "get_scratch";
+      auto FreeName = "free_scratch";
+      auto TruncChangeName = "trunc_change";
       IRBuilder<> B(newFunc->getContext());
       B.SetInsertPointPastAllocas(newFunc);
-      SmallVector<Value *> args;
-      scratch = createFPRTGeneric(B, getName, args, B.getPtrTy(),
-                                  getUniquedLocStr(nullptr));
+      SmallVector<Value *> scratchArgs;
+      SmallVector<Value *> changePushArgs = {B.getInt64(1)};
+      SmallVector<Value *> changePopArgs = {B.getInt64(0)};
+      // TODO should be the callsite or the function location itself
+      Value *Loc = getUniquedLocStr(
+          &*newFunc->getEntryBlock().getFirstNonPHIOrDbgOrAlloca());
+      createFPRTGeneric(B, TruncChangeName, changePushArgs, B.getVoidTy(), Loc);
+      scratch = createFPRTGeneric(B, GetName, scratchArgs, B.getPtrTy(), Loc);
       for (auto &BB : *newFunc) {
         if (ReturnInst *ret = dyn_cast<ReturnInst>(BB.getTerminator())) {
           B.SetInsertPoint(ret);
-          createFPRTGeneric(B, freeName, args, B.getPtrTy(),
-                            getUniquedLocStr(nullptr));
+          createFPRTGeneric(B, FreeName, scratchArgs, B.getPtrTy(), Loc);
+          createFPRTGeneric(B, "trunc_change", changePopArgs, B.getVoidTy(),
+                            Loc);
         }
       }
     };
-    if (mode == TruncOpMode) {
-      if (root) {
-        allocScratch();
+    if (Mode == TruncOpMode) {
+      if (Root) {
+        AllocScratch();
       } else {
+        // make sure we passed in `void *scratch` as the final parameter
         assert(newFunc->arg_size() == oldFunc->arg_size() + 1);
         scratch = newFunc->getArg(newFunc->arg_size() - 1);
         assert(scratch->getType()->isPointerTy());
       }
-    } else if (mode == TruncOpFullModuleMode) {
-      allocScratch();
+    } else if (Mode == TruncOpFullModuleMode) {
+      AllocScratch();
     }
   }
 
@@ -352,7 +362,7 @@ public:
         I.getType() != fromType)
       return;
 
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode:
       llvm::errs() << I << "\n";
       EmitFailure("FPEscaping", I.getDebugLoc(), &I, "FP value escapes!");
@@ -383,14 +393,14 @@ public:
   }
 
   Value *truncate(IRBuilder<> &B, Value *v) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode:
       if (isa<ConstantFP>(v))
         return createFPRTConstCall(B, v);
-      return floatMemTruncate(B, v, truncation);
+      return floatMemTruncate(B, v, Truncation);
     case TruncOpMode:
     case TruncOpFullModuleMode:
-      return floatValTruncate(B, v, truncation);
+      return floatValTruncate(B, v, Truncation);
     case TruncCountMode:
       return nullptr;
     }
@@ -398,12 +408,12 @@ public:
   }
 
   Value *expand(IRBuilder<> &B, Value *v) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode:
-      return floatMemExpand(B, v, truncation);
+      return floatMemExpand(B, v, Truncation);
     case TruncOpMode:
     case TruncOpFullModuleMode:
-      return floatValExpand(B, v, truncation);
+      return floatValExpand(B, v, Truncation);
     case TruncCountMode:
       return nullptr;
     }
@@ -420,7 +430,7 @@ public:
       IRBuilder<> B(newI);
       SmallVector<Value *, 2> Args = {newI->getOperand(0)};
       auto nres = createFPRTOpCall(B, I, newI->getType(), Args);
-      if (mode != TruncCountMode) {
+      if (Mode != TruncCountMode) {
         nres->takeName(newI);
         nres->copyIRFlags(newI);
         newI->replaceAllUsesWith(nres);
@@ -437,7 +447,7 @@ public:
   void visitAllocaInst(llvm::AllocaInst &I) { return; }
   void visitICmpInst(llvm::ICmpInst &I) { return; }
   void visitFCmpInst(llvm::FCmpInst &CI) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       auto LHS = getNewFromOriginal(CI.getOperand(0));
       auto RHS = getNewFromOriginal(CI.getOperand(1));
@@ -453,12 +463,12 @@ public:
       Args.push_back(truncLHS);
       Args.push_back(truncRHS);
       Instruction *nres;
-      if (truncation.isToFPRT())
+      if (Truncation.isToFPRT())
         nres = createFPRTOpCall(B, CI, B.getInt1Ty(), Args);
       else
         nres =
             cast<FCmpInst>(B.CreateFCmp(CI.getPredicate(), truncLHS, truncRHS));
-      if (mode != TruncCountMode) {
+      if (Mode != TruncCountMode) {
         nres->takeName(newI);
         nres->copyIRFlags(newI);
         newI->replaceAllUsesWith(nres);
@@ -486,7 +496,7 @@ public:
   void visitGetElementPtrInst(llvm::GetElementPtrInst &gep) { return; }
   void visitCastInst(llvm::CastInst &CI) {
     // TODO Try to follow fps through trunc/exts
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       auto newI = getNewFromOriginal(&CI);
       auto newSrc = newI->getOperand(0);
@@ -502,12 +512,12 @@ public:
         EmitWarning("FPNoFollow", CI, "Will not follow FP through this cast.",
                     CI);
         auto nres = createFPRTNewCall(B, newI);
-        if (mode != TruncCountMode) {
+        if (Mode != TruncCountMode) {
           nres->takeName(newI);
           nres->copyIRFlags(newI);
           newI->replaceUsesWithIf(nres,
                                   [&](Use &U) { return U.getUser() != nres; });
-          originalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
+          OriginalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
         }
       }
       return;
@@ -519,7 +529,7 @@ public:
     }
   }
   void visitSelectInst(llvm::SelectInst &SI) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       if (SI.getType() != getFromType())
         return;
@@ -529,7 +539,7 @@ public:
       auto newF = truncate(B, getNewFromOriginal(SI.getFalseValue()));
       auto nres = cast<SelectInst>(
           B.CreateSelect(getNewFromOriginal(SI.getCondition()), newT, newF));
-      if (mode != TruncCountMode) {
+      if (Mode != TruncCountMode) {
         nres->takeName(newI);
         nres->copyIRFlags(newI);
         newI->replaceAllUsesWith(expand(B, nres));
@@ -582,13 +592,13 @@ public:
     auto newLHS = truncate(B, getNewFromOriginal(oldLHS));
     auto newRHS = truncate(B, getNewFromOriginal(oldRHS));
     Instruction *nres = nullptr;
-    if (truncation.isToFPRT()) {
+    if (Truncation.isToFPRT()) {
       SmallVector<Value *, 2> Args({newLHS, newRHS});
-      nres = createFPRTOpCall(B, BO, truncation.getToType(ctx), Args);
+      nres = createFPRTOpCall(B, BO, Truncation.getToType(Ctx), Args);
     } else {
       nres = cast<Instruction>(B.CreateBinOp(BO.getOpcode(), newLHS, newRHS));
     }
-    if (mode != TruncCountMode) {
+    if (Mode != TruncCountMode) {
       nres->takeName(newI);
       nres->copyIRFlags(newI);
       newI->replaceAllUsesWith(expand(B, nres));
@@ -647,7 +657,7 @@ public:
 
     Instruction *intr = nullptr;
     Value *nres = nullptr;
-    if (truncation.isToFPRT()) {
+    if (Truncation.isToFPRT()) {
       nres = intr = createFPRTOpCall(B, CI, retTy, new_ops);
     } else {
       // TODO check that the intrinsic is overloaded
@@ -656,7 +666,7 @@ public:
     }
     if (newI->getType() == getFromType())
       nres = expand(B, nres);
-    if (mode != TruncCountMode) {
+    if (Mode != TruncCountMode) {
       intr->copyIRFlags(newI);
       newI->replaceAllUsesWith(nres);
       newI->eraseFromParent();
@@ -669,7 +679,7 @@ public:
   }
 
   void visitReturnInst(llvm::ReturnInst &I) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       if (I.getNumOperands() == 0)
         return;
@@ -703,7 +713,7 @@ public:
                         llvm::Value *orig_val, llvm::MaybeAlign prevalign,
                         bool isVolatile, llvm::AtomicOrdering ordering,
                         llvm::SyncScope::ID syncScope, llvm::Value *mask) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       if (orig_val->getType() != getFromType())
         return;
@@ -725,8 +735,8 @@ public:
   }
 
   llvm::Value *getNewFromOriginal(llvm::Value *v) {
-    auto found = originalToNewFn.find(v);
-    assert(found != originalToNewFn.end());
+    auto found = OriginalToNewFn.find(v);
+    assert(found != OriginalToNewFn.end());
     return found->second;
   }
 
@@ -742,7 +752,7 @@ public:
 
   Value *GetShadow(RequestContext &ctx, Value *v, bool root) {
     if (auto F = dyn_cast<Function>(v))
-      return Logic.CreateTruncateFunc(ctx, F, truncation, mode, root);
+      return Logic.CreateTruncateFunc(ctx, F, Truncation, Mode, root);
     llvm::errs() << " unknown get truncated func: " << *v << "\n";
     llvm_unreachable("unknown get truncated func");
     return v;
@@ -776,7 +786,7 @@ public:
     //                                        ContainingF->getSubprogram()));
     // }
 
-    if (mode == TruncOpMode || mode == TruncMemMode) {
+    if (Mode == TruncOpMode || Mode == TruncMemMode) {
       RequestContext ctx(&CI, &BuilderZ);
       Function *Func = CI.getCalledFunction();
       if (Func && !Func->empty()) {
@@ -784,10 +794,10 @@ public:
         bool truncMemIgnore =
             Func->getName().contains("raptor_trunc_mem_ignore");
         bool truncIgnore = Func->getName().contains("raptor_trunc_ignore");
-        truncIgnore |= truncOpIgnore && mode == TruncOpMode;
-        truncIgnore |= truncMemIgnore && mode == TruncMemMode;
+        truncIgnore |= truncOpIgnore && Mode == TruncOpMode;
+        truncIgnore |= truncMemIgnore && Mode == TruncMemMode;
         if (!truncIgnore) {
-          if (scratch && mode == TruncOpMode && isa<CallInst>(&CI)) {
+          if (scratch && Mode == TruncOpMode && isa<CallInst>(&CI)) {
             auto val = GetShadow(ctx, getNewFromOriginal(CI.getCalledOperand()),
                                  false);
             Function *F = cast<Function>(val);
@@ -811,7 +821,7 @@ public:
           }
         }
       } else if (!Func) {
-        switch (mode) {
+        switch (Mode) {
         case TruncMemMode:
         case TruncOpMode:
           // fprintf(stderr, "Won't follow indirect call.\n");
@@ -822,7 +832,7 @@ public:
           llvm_unreachable("Unknown trunc mode");
         }
       } else {
-        switch (mode) {
+        switch (Mode) {
         case TruncMemMode:
           EmitWarning("FPNoFollow", CI,
                       "Will not follow FP through this function call as the "
@@ -843,7 +853,7 @@ public:
     return;
   }
   void visitPHINode(llvm::PHINode &PN) {
-    switch (mode) {
+    switch (Mode) {
     case TruncMemMode: {
       if (PN.getType() != getFromType())
         return;
@@ -912,8 +922,10 @@ llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext context,
     params.push_back(orig_FTy->getParamType(i));
   }
 
-  if (mode == TruncOpMode && !root)
+  if (mode == TruncOpMode && !root) {
+    // void *scratch
     params.push_back(B.getPtrTy());
+  }
 
   Type *NewTy = totrunc->getReturnType();
 

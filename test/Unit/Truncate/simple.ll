@@ -1,5 +1,4 @@
-; RUN: if [ %llvmver -lt 16 ]; then %opt < %s %loadRaptor -raptor -S | FileCheck %s; fi
-; RUN: %opt < %s %newLoadRaptor -passes="raptor" -S | FileCheck %s
+; RUN: %opt %s %newLoadRaptor -passes="raptor" -S | FileCheck %s
 
 define void @f(double* %x) {
   %y = load double, double* %x
@@ -13,7 +12,7 @@ declare void (double*)* @__raptor_truncate_op_func(...)
 
 define void @tester(double* %data) {
 entry:
-  %ptr = call void (double*)* (...) @__raptor_truncate_mem_func(void (double*)* @f, i64 64, i64 32)
+  %ptr = call void (double*)* (...) @__raptor_truncate_mem_func(void (double*)* @f, i64 64, i64 0, i64 32)
   call void %ptr(double* %data)
   ret void
 }
@@ -23,13 +22,13 @@ entry:
 ; types
 define void @tester_op(double* %data) {
 entry:
-  %ptr = call void (double*)* (...) @__raptor_truncate_op_func(void (double*)* @f, i64 64, i64 32)
+  %ptr = call void (double*)* (...) @__raptor_truncate_op_func(void (double*)* @f, i64 64, i64 0, i64 32)
   call void %ptr(double* %data)
   ret void
 }
 define void @tester_op_mpfr(double* %data) {
 entry:
-  %ptr = call void (double*)* (...) @__raptor_truncate_op_func(void (double*)* @f, i64 64, i64 3, i64 7)
+  %ptr = call void (double*)* (...) @__raptor_truncate_op_func(void (double*)* @f, i64 64, i64 1, i64 8, i64 23)
   call void %ptr(double* %data)
   ret void
 }
