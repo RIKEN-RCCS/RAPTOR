@@ -33,23 +33,62 @@ entry:
   ret void
 }
 
-; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64toieee_32_f(double* %x) {
-; CHECK-DAG:   %y = load double, double* %x, align 8
-; CHECK-DAG:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 1, {{.*}}i8{{.*}})
-; CHECK-DAG:   store double %m, double* %x, align 8
-; CHECK-DAG:   ret void
-; CHECK-DAG: }
+; CHECK: define void @f(ptr %x) {
+; CHECK-NEXT:   %y = load double, ptr %x, align 8
+; CHECK-NEXT:   %m = fmul double %y, %y
+; CHECK-NEXT:   store double %m, ptr %x, align 8
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
 
-; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64toieee_32_f(double* %x) {
-; CHECK-DAG:   %y = load double, double* %x, align 8
-; CHECK-DAG:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 2, {{.*}}i8{{.*}})
-; CHECK-DAG:   store double %m, double* %x, align 8
-; CHECK-DAG:   ret void
-; CHECK-DAG: }
+; CHECK: define void @tester(ptr %data) {
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   call void @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(ptr %data)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
 
-; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64to11_7_f(double* %x) {
-; CHECK-DAG:   %y = load double, double* %x, align 8
-; CHECK-DAG:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 3, i64 7, i64 2, {{.*}}i8{{.*}})
-; CHECK-DAG:   store double %m, double* %x, align 8
-; CHECK-DAG:   ret void
-; CHECK-DAG: }
+; CHECK: define void @tester_op(ptr %data) {
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   call void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_f(ptr %data)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+
+; CHECK: define void @tester_op_mpfr(ptr %data) {
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   call void @__raptor_done_truncate_op_func_ieee_64_to_mpfr_8_23_f(ptr %data)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+
+; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(ptr %x) {
+; CHECK-NEXT:   %y = load double, ptr %x, align 8
+; CHECK-NEXT:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 1, ptr @0, ptr null)
+; CHECK-NEXT:   store double %m, ptr %x, align 8
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+
+; CHECK: define weak_odr double @__raptor_fprt_original_ieee_64_binop_fmul(double %0, double %1) {
+; CHECK-NEXT: entry:
+; CHECK-NEXT:   %2 = fmul double %0, %1
+; CHECK-NEXT:   ret double %2
+; CHECK-NEXT: }
+
+; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_f(ptr %x) {
+; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 1, i64 8, i64 23, i64 2, ptr @0, ptr null)
+; CHECK-NEXT:   %1 = call ptr @__raptor_fprt_ieee_64_get_scratch(i64 8, i64 23, i64 2, ptr @0, ptr null)
+; CHECK-NEXT:   %y = load double, ptr %x, align 8
+; CHECK-NEXT:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   store double %m, ptr %x, align 8
+; CHECK-NEXT:   %2 = call ptr @__raptor_fprt_ieee_64_free_scratch(i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 0, i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
+
+; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64_to_mpfr_8_23_f(ptr %x) {
+; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 1, i64 8, i64 23, i64 2, ptr @0, ptr null)
+; CHECK-NEXT:   %1 = call ptr @__raptor_fprt_ieee_64_get_scratch(i64 8, i64 23, i64 2, ptr @0, ptr null)
+; CHECK-NEXT:   %y = load double, ptr %x, align 8
+; CHECK-NEXT:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   store double %m, ptr %x, align 8
+; CHECK-NEXT:   %2 = call ptr @__raptor_fprt_ieee_64_free_scratch(i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 0, i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   ret void
+; CHECK-NEXT: }
