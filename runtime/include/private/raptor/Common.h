@@ -13,6 +13,7 @@
 #define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
 extern std::atomic<long long> shadow_err_counter;
+extern std::atomic<bool> global_is_truncating;
 
 typedef struct __raptor_op {
   const char *op;             // Operation name
@@ -37,6 +38,9 @@ static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
 }
 static inline bool __raptor_fprt_is_op_mode(int64_t mode) {
   return mode & 0b0010;
+}
+static inline bool __raptor_fprt_is_full_module_op_mode(int64_t mode) {
+  return mode & 0b0100;
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -97,7 +101,23 @@ void raptor_fprt_excl_trunc_end();
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   void __raptor_fprt_##FROM_TY##_delete(CPP_TY a, int64_t exponent,            \
                                         int64_t significand, int64_t mode,     \
-                                        const char *loc, void *scratch);
+                                        const char *loc, void *scratch);       \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void *__raptor_fprt_##FROM_TY##_get_scratch(int64_t to_e, int64_t to_m,      \
+                                              int64_t mode, const char *loc,   \
+                                              void *scratch);                  \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_free_scratch(int64_t to_e, int64_t to_m,      \
+                                              int64_t mode, const char *loc,   \
+                                              void *scratch);                  \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_trunc_change(int64_t is_push, int64_t to_e,   \
+                                              int64_t to_m, int64_t mode,      \
+                                              const char *loc, void *scratch);
+
 #include "raptor/FloatTypes.def"
 #undef RAPTOR_FLOAT_TYPE
 

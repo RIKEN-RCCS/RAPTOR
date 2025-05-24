@@ -13,7 +13,7 @@
 // RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,23)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_28_23 %s
 // TO_28_23: 900000000.000000
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(3,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
 // TO_3_7: 897581056.000000
 
 // TODO revive the location check

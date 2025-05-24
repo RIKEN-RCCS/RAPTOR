@@ -89,6 +89,36 @@
   } while (0)
 #endif
 
+__RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
+                                int64_t mode, const char *loc, void *scratch) {
+  if (global_is_truncating && is_push &&
+      !__raptor_fprt_is_full_module_op_mode(mode)) {
+    puts("Nested truncation is unsupported");
+    abort();
+  }
+  global_is_truncating.store(is_push);
+
+  // If we are starting to truncate, set the max and min exponents
+  // Can't do it for mem mode currently because we may have truncated variables
+  // with unsupported exponent lengths, and those would result in undefined
+  // behaviour.
+  if (is_push && __raptor_fprt_is_op_mode(mode)) {
+    // TODO we need a stack if we want to support nested truncations
+    // int64_t max_e = 1 << (to_e - 1);
+    // int64_t min_e = -max_e - to_m;
+    // https://www.mpfr.org/mpfr-current/mpfr.html
+    // https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
+    int64_t max_e = 1 << (to_e - 1);
+    int64_t min_e = -max_e + 2 - to_m + 2;
+    // TODO currently in full module truncation mode we assume that all of the
+    // exponents we truncate to are the same. Otherwise we need to have a stack
+    // which we pop and restore previous values.
+    mpfr_set_emax(max_e);
+    mpfr_set_emin(min_e);
+  }
+}
+
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   CPP_TY __raptor_fprt_##FROM_TY##_abs_err(CPP_TY a, CPP_TY b) {               \
     return std::abs(a - b);                                                    \
@@ -114,7 +144,15 @@
     d = __raptor_fprt_##FROM_TY##_check_zero(d, exponent, significand, mode,   \
                                              loc, scratch);                    \
     return __raptor_fprt_##FROM_TY##_to_ptr(d);                                \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_trunc_change(                                 \
+      int64_t is_push, int64_t to_e, int64_t to_m, int64_t mode,               \
+      const char *loc, void *scratch) {                                        \
+    __raptor_fprt_trunc_change(is_push, to_e, to_m, mode, loc, scratch);       \
   }
+
 #include "raptor/FloatTypes.def"
 #undef RAPTOR_FLOAT_TYPE
 
@@ -202,20 +240,6 @@ __RAPTOR_MPFR_ATTRIBUTES
 void __raptor_fprt_ieee_16_count(int64_t exponent, int64_t significand,
                                  int64_t mode, const char *loc,
                                  mpfr_t *scratch);
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_trunc_change(int64_t is_truncating, int64_t to_e,
-                                int64_t to_m, int64_t mode);
-
-__RAPTOR_MPFR_ATTRIBUTES
-void *__raptor_fprt_ieee_64_get_scratch(int64_t to_e, int64_t to_m,
-                                        int64_t mode, const char *loc,
-                                        void *scratch);
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_ieee_64_free_scratch(int64_t to_e, int64_t to_m,
-                                        int64_t mode, const char *loc,
-                                        void *scratch);
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_reset_shadow_trace();

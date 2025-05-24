@@ -30,24 +30,16 @@ extern std::map<const char *, struct __raptor_op> opdata;
 std::atomic<bool> global_is_truncating = false;
 
 __RAPTOR_MPFR_ATTRIBUTES
-long long __raptor_get_trunc_flop_count() {
-  return trunc_flop_counter;
-}
+long long __raptor_get_trunc_flop_count() { return trunc_flop_counter; }
 
 __RAPTOR_MPFR_ATTRIBUTES
-long long __raptor_get_double_flop_count() {
-  return double_flop_counter;
-}
+long long __raptor_get_double_flop_count() { return double_flop_counter; }
 
 __RAPTOR_MPFR_ATTRIBUTES
-long long __raptor_get_float_flop_count() {
-  return float_flop_counter;
-}
+long long __raptor_get_float_flop_count() { return float_flop_counter; }
 
 __RAPTOR_MPFR_ATTRIBUTES
-long long __raptor_get_half_flop_count() {
-  return half_flop_counter;
-}
+long long __raptor_get_half_flop_count() { return half_flop_counter; }
 
 __RAPTOR_MPFR_ATTRIBUTES
 long long f_raptor_get_trunc_flop_count() {
@@ -73,7 +65,7 @@ __RAPTOR_MPFR_ATTRIBUTES
 void __raptor_fprt_trunc_count(int64_t exponent, int64_t significand,
                                int64_t mode, const char *loc, mpfr_t *scratch) {
 #ifndef RAPTOR_FPRT_DISABLE_TRUNC_FLOP_COUNT
-  trunc_flop_counter.fetch_add(1,  std::memory_order_relaxed);
+  trunc_flop_counter.fetch_add(1, std::memory_order_relaxed);
 #endif
 }
 
@@ -110,9 +102,8 @@ long long f_raptor_reset_shadow_trace() {
   return __raptor_reset_shadow_trace();
 }
 
-
-bool __op_dump_cmp(std::pair<const char *, __raptor_op>& a,
-                   std::pair<const char *, __raptor_op>& b) {
+bool __op_dump_cmp(std::pair<const char *, __raptor_op> &a,
+                   std::pair<const char *, __raptor_op> &b) {
   return a.second.count_thresh > b.second.count_thresh;
 }
 
@@ -122,11 +113,11 @@ void raptor_fprt_op_dump_status(unsigned num) {
   // MPI_Comm_size(MPI_COMM_WORLD, &size);
   // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (opdata.size() < num) num = opdata.size();
+  if (opdata.size() < num)
+    num = opdata.size();
 
   // if (rank == 0) {
-    std::cerr << "Information about top " << num
-              << " operations." << std::endl;
+  std::cerr << "Information about top " << num << " operations." << std::endl;
   // }
   // std::vector<unsigned long long> key_recvcounts(size);
   // std::vector<unsigned long long> key_displs(size);
@@ -174,11 +165,11 @@ void raptor_fprt_op_dump_status(unsigned num) {
   // std::vector<char> key_chars_recv(char_recvcounts_sum);
 
   // MPI_Allgatherv(key_sizes.data(), key_sizes.size(), MPI_UNSIGNED_LONG_LONG,
-  //                key_sizes_recv.data(), key_recvcounts.data(), key_displs.data(),
-  //                MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+  //                key_sizes_recv.data(), key_recvcounts.data(),
+  //                key_displs.data(), MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
   // MPI_Allgatherv(key_chars.data(), key_chars.size(), MPI_CHAR,
-  //                key_chars_recv.data(), char_recvcounts.data(), char_displs.data(),
-  //                MPI_CHAR, MPI_COMM_WORLD);
+  //                key_chars_recv.data(), char_recvcounts.data(),
+  //                char_displs.data(), MPI_CHAR, MPI_COMM_WORLD);
 
   // // Build strings
   // std::vector<std::string> keys;
@@ -194,7 +185,7 @@ void raptor_fprt_op_dump_status(unsigned num) {
   // }
 
   // The order of iteration over keys will be the same on all processes.
-  for (auto& it : opdata) {
+  for (auto &it : opdata) {
     od_vec.push_back(it);
     l1_vec.push_back(it.second.l1_err);
     ct_vec.push_back(it.second.count_thresh);
@@ -203,32 +194,35 @@ void raptor_fprt_op_dump_status(unsigned num) {
 
   // Perform an allreduce over opdata elements stored in the vector.
   // if (rank == 0) {
-  //   MPI_Reduce(MPI_IN_PLACE, l1_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  //   MPI_Reduce(MPI_IN_PLACE, ct_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  //   MPI_Reduce(MPI_IN_PLACE,  c_vec.data(), od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(MPI_IN_PLACE, l1_vec.data(), od_vec.size(), MPI_DOUBLE,
+  //   MPI_SUM, 0, MPI_COMM_WORLD); MPI_Reduce(MPI_IN_PLACE, ct_vec.data(),
+  //   od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(MPI_IN_PLACE,  c_vec.data(), od_vec.size(), MPI_DOUBLE,
+  //   MPI_SUM, 0, MPI_COMM_WORLD);
   // } else {
-  //   MPI_Reduce(l1_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  //   MPI_Reduce(ct_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  //   MPI_Reduce( c_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  //   MPI_Reduce(l1_vec.data(), NULL, od_vec.size(), MPI_DOUBLE, MPI_SUM, 0,
+  //   MPI_COMM_WORLD); MPI_Reduce(ct_vec.data(), NULL, od_vec.size(),
+  //   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); MPI_Reduce( c_vec.data(), NULL,
+  //   od_vec.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   // }
 
   // if (rank == 0) {
-    // for (int i = 0; i < od_vec.size(); ++i) {
-    //   od_vec[i].second.l1_err = l1_vec[i];
-    //   od_vec[i].second.count_thresh = ct_vec[i];
-    //   od_vec[i].second.count = c_vec[i];
-    // }
+  // for (int i = 0; i < od_vec.size(); ++i) {
+  //   od_vec[i].second.l1_err = l1_vec[i];
+  //   od_vec[i].second.count_thresh = ct_vec[i];
+  //   od_vec[i].second.count = c_vec[i];
+  // }
 
-    std::sort(od_vec.begin(), od_vec.end(), __op_dump_cmp);
+  std::sort(od_vec.begin(), od_vec.end(), __op_dump_cmp);
 
-    auto end = od_vec.begin() + num;
-    for (auto it = od_vec.begin(); it != end; ++it) {
-      std::cout << it->first << ": " << it->second.count << "x" << it->second.op
-                << " L1 Error Norm: " << it->second.l1_err
-                << " Number of violations: " << it->second.count_thresh
-                << " Ignored " << it->second.count_ignore << " times."
-                << std::endl;
-    }
+  auto end = od_vec.begin() + num;
+  for (auto it = od_vec.begin(); it != end; ++it) {
+    std::cout << it->first << ": " << it->second.count << "x" << it->second.op
+              << " L1 Error Norm: " << it->second.l1_err
+              << " Number of violations: " << it->second.count_thresh
+              << " Ignored " << it->second.count_ignore << " times."
+              << std::endl;
+  }
   // }
 }
 
@@ -280,33 +274,7 @@ void __raptor_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_op_clear() {
-  opdata.clear();
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_trunc_change(int64_t is_truncating,
-                                int64_t to_e,
-                                int64_t to_m,
-                                int64_t mode) {
-  global_is_truncating.store(is_truncating);
-
-  // If we are starting to truncate, set the max and min exponents
-  // Can't do it for mem mode currently because we may have truncated variables
-  // with unsupported exponent lengths, and those would result in undefined
-  // behaviour.
-  if (is_truncating && __raptor_fprt_is_op_mode(mode)) {
-    // TODO we need a stack if we want to support nested truncations
-    // int64_t max_e = 1 << (to_e - 1);
-    // int64_t min_e = -max_e - to_m;
-    // https://www.mpfr.org/mpfr-current/mpfr.html
-    // https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
-    int64_t max_e = 1 << (to_e - 1);
-    int64_t min_e = -max_e + 2 - to_m + 2;
-    mpfr_set_emax(max_e);
-    mpfr_set_emin(min_e);
-  }
-}
+void raptor_fprt_op_clear() { opdata.clear(); }
 
 __RAPTOR_MPFR_ATTRIBUTES
 void *__raptor_fprt_ieee_64_get_scratch(int64_t to_e, int64_t to_m,

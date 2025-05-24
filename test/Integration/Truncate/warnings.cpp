@@ -1,3 +1,4 @@
+// clang-format off
 // RUN: %clang -c -DTRUNC_MEM -O2    %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
 // RUN: %clang -c -DTRUNC_MEM -O2 -g %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
 // COM: %clang -c -DTRUNC_OP  -O2    %s -o /dev/null -emit-llvm %loadClangRaptor -Xclang -verify -Rpass=raptor
@@ -7,7 +8,7 @@
 #include <stdio.h>
 
 #define FROM 64
-#define TO 32
+#define TO 1, 8, 32
 
 double bithack(double a) {
   return *((int64_t *)&a) + 1; // expected-remark {{Will not follow FP through this cast.}}, expected-remark {{Will not follow FP through this cast.}}
@@ -28,7 +29,8 @@ typedef double (*fty)(double *, double *, double *, int);
 
 typedef double (*fty2)(double, double);
 
-template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int);
+template <typename fty>
+fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
 extern fty __raptor_truncate_op_func_2(...);
 extern fty2 __raptor_truncate_op_func(...);
 extern double __raptor_truncate_mem_value(...);
