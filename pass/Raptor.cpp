@@ -503,6 +503,7 @@ public:
     if (!Cty)
       EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                   "Expected type argument to be constant");
+
     if (Cty->getValue().getZExtValue() == FloatRepresentation::IEEE) {
       if (ArgNum != 4)
         EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
@@ -511,11 +512,17 @@ public:
       if (!Cto)
         EmitFailure("NotConstant", CI->getDebugLoc(), CI,
                     "Expected IEEE width to be constant");
-      return {FloatTruncation(FRFrom,
-                              FloatRepresentation::getIEEE(
-                                  (unsigned)Cto->getValue().getZExtValue()),
-                              Mode),
-              3};
+      auto Constructor = FloatRepresentation::getIEEE;
+      if (Mode == TruncMemMode) {
+        Constructor = FloatRepresentation::getMPFR;
+        EmitWarning("UnsupportedTruncation", *CI,
+                    "Mem mode truncation to IEEE not supported, switching to "
+                    "equivalent MPFR.");
+      }
+      FloatRepresentation FRTo =
+          Constructor((unsigned)Cto->getValue().getZExtValue());
+      return {FloatTruncation(FRFrom, FRTo, Mode), 3};
+
     } else if (Cty->getValue().getZExtValue() == FloatRepresentation::MPFR) {
       if (ArgNum != 5)
         EmitFailure("WrongArgNum", CI->getDebugLoc(), CI,
@@ -535,6 +542,7 @@ public:
                               Mode),
               4};
     }
+
     EmitFailure("NotConstant", CI->getDebugLoc(), CI, "Unknown float type");
     llvm_unreachable("Unknown float type");
   }

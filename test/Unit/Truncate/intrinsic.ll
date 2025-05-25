@@ -1,5 +1,4 @@
-; RUN: if [ %llvmver -gt 12 ]; then if [ %llvmver -lt 16 ]; then %opt < %s %loadRaptor -raptor -S | FileCheck %s; fi; fi
-; RUN: if [ %llvmver -gt 12 ]; then %opt < %s %newLoadRaptor -passes="raptor" -S | FileCheck %s; fi
+; RUN: %opt %s %newLoadRaptor -passes="raptor" -S | FileCheck %s
 
 declare double @pow(double %Val, double %Power)
 declare double @llvm.pow.f64(double %Val, double %Power)
@@ -41,7 +40,7 @@ entry:
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(
+; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_f(
 ; CHECK-DAG:   call double @__raptor_fprt_ieee_64_func_pow(
 ; CHECK-DAG:   call double @__raptor_fprt_ieee_64_intr_llvm_pow_f64(
 ; CHECK-DAG:   call double @__raptor_fprt_ieee_64_intr_llvm_powi_f64_i16(

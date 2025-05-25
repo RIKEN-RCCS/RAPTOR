@@ -23,7 +23,7 @@ entry:
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(
+; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_f(
 
 ; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_f(
 

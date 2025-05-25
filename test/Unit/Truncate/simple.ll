@@ -42,7 +42,7 @@ entry:
 
 ; CHECK: define void @tester(ptr %data) {
 ; CHECK-NEXT: entry:
-; CHECK-NEXT:   call void @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(ptr %data)
+; CHECK-NEXT:   call void @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_f(ptr %data)
 ; CHECK-NEXT:   ret void
 ; CHECK-NEXT: }
 
@@ -58,7 +58,7 @@ entry:
 ; CHECK-NEXT:   ret void
 ; CHECK-NEXT: }
 
-; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64_to_ieee_32_f(ptr %x) {
+; CHECK: define internal void @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_f(ptr %x) {
 ; CHECK-NEXT:   %y = load double, ptr %x, align 8
 ; CHECK-NEXT:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 1, ptr @0, ptr null)
 ; CHECK-NEXT:   store double %m, ptr %x, align 8

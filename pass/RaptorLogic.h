@@ -121,6 +121,12 @@ public:
   FloatRepresentation(const FloatRepresentation &) = default;
   ~FloatRepresentation() {}
 
+  static FloatRepresentation getMPFR(unsigned W) {
+    FloatRepresentation Repr = getIEEE(W);
+    Repr.Ty = MPFR;
+    return Repr;
+  }
+
   static FloatRepresentation getMPFR(unsigned E, unsigned S) {
     FloatRepresentation Repr;
     Repr.ExponentWidth = E;
