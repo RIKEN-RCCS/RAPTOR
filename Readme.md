@@ -6,7 +6,7 @@ This is achieved using an LLVM pass and an accompanying runtime.
 
 ## Dependencies
 
-RAPTOR requires LLVM version 20 with clang, flang, and lld for full capabilities.
+RAPTOR requires LLVM version 20 with `clang`, `flang`, and `lld` for full capabilities.
 
 In addition, it requires the MPFR library for emulating various floating point precisions.
 
@@ -59,13 +59,19 @@ Regardless of which configuration RAPTOR is used in, the following flags need to
 
 ### LTO flags
 
-Pass the following to the compiler when linking if using clang or fortran:
+Pass the following to the compiler (`clang` or `flang`) when compiling:
 
 ``` shell
--Wl,--load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
+-flto=full
 ```
 
-Or if using lld directly:
+and the following to the compiler when linking if using `clang` or `flang`:
+
+``` shell
+-fuse-ld=lld -Wl,--load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
+```
+
+or if using `lld` directly:
 ``` shell
 --load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
 ```
@@ -74,12 +80,12 @@ Or if using lld directly:
 
 These flags need to be specified when compiling the file:
 
-#### Clang
+#### `clang`
 ``` shell
 -Xclang -load -Xclang $RAPTOR_INSTALL_DIR/lib/ClangRaptor-$LLVM_VER.so
 ```
 
-#### Flang
+#### `flang`
 ``` shell
 -fpass-plugin=$RAPTOR_INSTALL_DIR/lib/LLVMRaptor-$LLVM_VER.so
 ```
