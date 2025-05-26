@@ -5,8 +5,8 @@
 get_target_property(TBL_LINKED_LIBS LLVMSupport INTERFACE_LINK_LIBRARIES)
 if (NOT TBL_LINKED_LIBS)
 else()
-list(REMOVE_ITEM TBL_LINKED_LIBS "ZLIB::ZLIB")
-set_property(TARGET LLVMSupport PROPERTY INTERFACE_LINK_LIBRARIES ${TBL_LINKED_LIBS})
+    list(REMOVE_ITEM TBL_LINKED_LIBS "ZLIB::ZLIB")
+    set_property(TARGET LLVMSupport PROPERTY INTERFACE_LINK_LIBRARIES ${TBL_LINKED_LIBS})
 endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
@@ -31,31 +31,30 @@ if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)
         MODULE
         DEPENDS
         intrinsics_gen
-	LINK_COMPONENTS
-	LLVM
+	    LINK_COMPONENTS
+	    LLVM
     )
-if (${Clang_FOUND})
-    add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
-        ${RAPTOR_SRC} Clang/RaptorClang.cpp
-        PARTIAL_SOURCES_INTENDED
-        MODULE
-        DEPENDS
-        intrinsics_gen
-	LINK_COMPONENTS
-	LLVM
-    )
-target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
-endif()
-        add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
+    if (${Clang_FOUND})
+        add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
+            ${RAPTOR_SRC} Clang/RaptorClang.cpp
+            PARTIAL_SOURCES_INTENDED
+            MODULE
+            DEPENDS
+            intrinsics_gen
+	        LINK_COMPONENTS
+	        LLVM
+        )
+    endif()
+    add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
         ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
         intrinsics_gen
-	LINK_COMPONENTS
-	LLVM
+	    LINK_COMPONENTS
+	    LLVM
     )
-target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
+    target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_AUGMENT_PASS_BUILDER)
 else()
     add_llvm_library( LLVMRaptor-${LLVM_VERSION_MAJOR}
         ${RAPTOR_SRC}
@@ -65,21 +64,21 @@ else()
         intrinsics_gen
         PLUGIN_TOOL
         opt
-      )
-target_compile_definitions(LLVMRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
-if (${Clang_FOUND})
-    add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
-        ${RAPTOR_SRC} Clang/RaptorClang.cpp
-        PARTIAL_SOURCES_INTENDED
-        MODULE
-        DEPENDS
-        intrinsics_gen
-        PLUGIN_TOOL
-        clang
     )
-target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
-endif()
-add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
+    target_compile_definitions(LLVMRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_AUGMENT_PASS_BUILDER)
+    if (${Clang_FOUND})
+        add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
+            ${RAPTOR_SRC} Clang/RaptorClang.cpp
+            PARTIAL_SOURCES_INTENDED
+            MODULE
+            DEPENDS
+            intrinsics_gen
+            PLUGIN_TOOL
+            clang
+        )
+        target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_AUGMENT_PASS_BUILDER)
+    endif()
+    add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
         ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
@@ -88,7 +87,7 @@ add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
         PLUGIN_TOOL
         opt
     )
-target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
+    target_compile_definitions(LLDRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_AUGMENT_PASS_BUILDER)
 endif()
 
 if (${RAPTOR_STATIC_LIB})
@@ -124,14 +123,14 @@ if (${RAPTOR_EXTERNAL_SHARED_LIB})
 endif()
 
 if (APPLE)
-# Darwin-specific linker flags for loadable modules.
-set_target_properties(LLVMRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
-    LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
-if (${Clang_FOUND})
-set_target_properties(ClangRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
+    # Darwin-specific linker flags for loadable modules.
+    set_target_properties(LLVMRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
         LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
-endif()
-set_target_properties(LLDRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
+    if (${Clang_FOUND})
+        set_target_properties(ClangRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
+            LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
+    endif()
+    set_target_properties(LLDRaptor-${LLVM_VERSION_MAJOR} PROPERTIES
         LINK_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif()
 
@@ -182,11 +181,11 @@ install(TARGETS LLVMRaptor-${LLVM_VERSION_MAJOR}
     COMPONENT dev)
 
 if (${Clang_FOUND})
-install(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
-    EXPORT RaptorTargets
-    LIBRARY DESTINATION lib COMPONENT shlib
-    PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
-    COMPONENT dev)
+    install(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
+        EXPORT RaptorTargets
+        LIBRARY DESTINATION lib COMPONENT shlib
+        PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}/Raptor"
+        COMPONENT dev)
 endif()
 install(TARGETS LLDRaptor-${LLVM_VERSION_MAJOR}
     EXPORT RaptorTargets

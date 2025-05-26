@@ -1595,7 +1595,9 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
 }
 
 void registerRaptor(llvm::PassBuilder &PB) {
+#ifdef RAPTOR_AUGMENT_PASS_BUILDER
   augmentPassBuilder(PB);
+#endif
   PB.registerPipelineParsingCallback(
       [](llvm::StringRef Name, llvm::ModulePassManager &MPM,
          llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
