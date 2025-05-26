@@ -19,7 +19,7 @@ set(RAPTOR_SRC
     Utils.cpp
     TypeAnalysis/TypeAnalysis.cpp
 )
-list(REMOVE_ITEM RAPTOR_SRC "eopt.cpp")
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -37,7 +37,6 @@ if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)
 if (${Clang_FOUND})
     add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
         ${RAPTOR_SRC} Clang/RaptorClang.cpp
-        Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -48,7 +47,7 @@ if (${Clang_FOUND})
 target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 endif()
         add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
-        ${RAPTOR_SRC} Clang/RaptorPassLoader.cpp
+        ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -71,7 +70,6 @@ target_compile_definitions(LLVMRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPAS
 if (${Clang_FOUND})
     add_llvm_library( ClangRaptor-${LLVM_VERSION_MAJOR}
         ${RAPTOR_SRC} Clang/RaptorClang.cpp
-        Clang/RaptorPassLoader.cpp
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS
@@ -81,8 +79,8 @@ if (${Clang_FOUND})
     )
 target_compile_definitions(ClangRaptor-${LLVM_VERSION_MAJOR} PUBLIC RAPTOR_RUNPASS)
 endif()
-    add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
-        ${RAPTOR_SRC} Clang/RaptorPassLoader.cpp
+add_llvm_library( LLDRaptor-${LLVM_VERSION_MAJOR}
+        ${RAPTOR_SRC}
         PARTIAL_SOURCES_INTENDED
         MODULE
         DEPENDS

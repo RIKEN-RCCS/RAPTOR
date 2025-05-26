@@ -1639,9 +1639,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
 }
 
 void registerRaptor(llvm::PassBuilder &PB) {
-#ifdef RAPTOR_RUNPASS
   augmentPassBuilder(PB);
-#endif
   PB.registerPipelineParsingCallback(
       [](llvm::StringRef Name, llvm::ModulePassManager &MPM,
          llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
@@ -1651,12 +1649,9 @@ void registerRaptor(llvm::PassBuilder &PB) {
         }
         return false;
       });
-  PB.registerPipelineParsingCallback(
-      [](llvm::StringRef Name, llvm::FunctionPassManager &FPM,
-         llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) { return false; });
 }
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "RaptorNewPM", "v0.1", registerRaptor};
+  return {LLVM_PLUGIN_API_VERSION, "Raptor", "v0.1", registerRaptor};
 }
