@@ -25,6 +25,10 @@ ninja -C ./build install
 
 Running the tests requires either specifying an LLVM build directory instead of an install one, or specifying the lit path using `-DLLVM_EXTERNAL_LIT="path/to/llvm-project/llvm/utils/lit/lit.py"`.
 
+To run the tests:
+``` shell
+ninja -C ./build check-all
+```
 ## Usage
 
 To use RAPTOR in `clang` (for C and C++) or `flang` (for Fortran), first, the RAPTOR plugin must be loaded, which is done using flags to the compiler.

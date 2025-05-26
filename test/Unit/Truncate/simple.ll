@@ -72,13 +72,12 @@ entry:
 ; CHECK-NEXT: }
 
 ; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_f(ptr %x) {
-; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 1, i64 8, i64 23, i64 2, ptr @0, ptr null)
-; CHECK-NEXT:   %1 = call ptr @__raptor_fprt_ieee_64_get_scratch(i64 8, i64 23, i64 2, ptr @0, ptr null)
 ; CHECK-NEXT:   %y = load double, ptr %x, align 8
-; CHECK-NEXT:   %m = call double @__raptor_fprt_ieee_64_binop_fmul(double %y, double %y, i64 8, i64 23, i64 2, ptr @0, ptr %1)
-; CHECK-NEXT:   store double %m, ptr %x, align 8
-; CHECK-NEXT:   %2 = call ptr @__raptor_fprt_ieee_64_free_scratch(i64 8, i64 23, i64 2, ptr @0, ptr %1)
-; CHECK-NEXT:   call void @__raptor_fprt_ieee_64_trunc_change(i64 0, i64 8, i64 23, i64 2, ptr @0, ptr %1)
+; CHECK-NEXT:   %raptor_trunc = fptrunc double %y to float
+; CHECK-NEXT:   %raptor_trunc1 = fptrunc double %y to float
+; CHECK-NEXT:   %m = fmul float %raptor_trunc, %raptor_trunc1
+; CHECK-NEXT:   %raptor_exp = fpext float %m to double
+; CHECK-NEXT:   store double %raptor_exp, ptr %x, align 8
 ; CHECK-NEXT:   ret void
 ; CHECK-NEXT: }
 

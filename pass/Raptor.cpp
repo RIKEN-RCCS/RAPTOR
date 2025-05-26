@@ -650,23 +650,8 @@ public:
 
     for (auto Repr :
          {FloatRepresentation::getIEEE(16), FloatRepresentation::getIEEE(32),
-          FloatRepresentation::getIEEE(64)}) {
-      IRBuilder<> Builder(F.getContext());
-      RequestContext context(&*F.getEntryBlock().begin(), &Builder);
-      Function *TruncatedFunc = Logic.CreateTruncateFunc(
-          context, &F, FloatTruncation(Repr, TruncCountMode), TruncCountMode);
-
-      ValueToValueMapTy Mapping;
-      for (auto &&[Arg, TArg] : llvm::zip(F.args(), TruncatedFunc->args()))
-        Mapping[&TArg] = &Arg;
-
-      // Move the truncated body into the original function
-      F.deleteBody();
-      F.splice(F.begin(), TruncatedFunc);
-      RemapFunction(F, Mapping,
-                    RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
-      TruncatedFunc->deleteBody();
-    }
+          FloatRepresentation::getIEEE(64)})
+      Logic.CountInFunc(&F, Repr);
     return true;
   }
 

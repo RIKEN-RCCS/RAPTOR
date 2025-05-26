@@ -84,7 +84,6 @@ enum TruncateMode {
   TruncMemMode = 0b0001,
   TruncOpMode = 0b0010,
   TruncOpFullModuleMode = 0b0110,
-  TruncCountMode = 0b1000,
 };
 [[maybe_unused]] static const char *truncateModeStr(TruncateMode mode) {
   switch (mode) {
@@ -94,8 +93,6 @@ enum TruncateMode {
     return "op";
   case TruncOpFullModuleMode:
     return "op_full_module";
-  case TruncCountMode:
-    return "count";
   }
   llvm_unreachable("Invalid truncation mode");
 }
@@ -243,11 +240,6 @@ private:
   TruncateMode Mode;
 
 public:
-  FloatTruncation(FloatRepresentation From, TruncateMode Mode)
-      : From(From), To(From), Mode(Mode) {
-    if (Mode != TruncCountMode)
-      llvm::report_fatal_error("Only count mode allowed in this constructor");
-  }
   FloatTruncation(FloatRepresentation From, FloatRepresentation To,
                   TruncateMode mode)
       : From(From), To(To), Mode(mode) {
@@ -276,12 +268,13 @@ public:
   llvm::Type *getFromType(llvm::LLVMContext &ctx) {
     return From.getBuiltinType(ctx);
   }
-  bool isToFPRT() {
-    // TODO maybe add new mode in which we directly truncate to native fp ops,
-    // for now everything goes through the runtime
-    return true;
+  bool isToFPRT() { return To.isMPFR(); }
+  llvm::Type *getToType(llvm::LLVMContext &ctx) {
+    if (isToFPRT())
+      return getFromType(ctx);
+    else
+      return To.getBuiltinType(ctx);
   }
-  llvm::Type *getToType(llvm::LLVMContext &ctx) { return getFromType(ctx); }
   auto getTuple() const { return std::tuple(From, To, Mode); }
   bool operator==(const FloatTruncation &other) const {
     return getTuple() == other.getTuple();
@@ -290,8 +283,6 @@ public:
     return getTuple() < other.getTuple();
   }
   std::string mangleTruncation() const {
-    if (Mode == TruncCountMode)
-      return "count";
     return From.getMangling() + "_to_" + To.getMangling();
   }
   std::string mangleFrom() const { return From.getMangling(); }
@@ -320,6 +311,7 @@ public:
                                      TruncateMode mode, bool root = true);
   bool CreateTruncateValue(RequestContext context, llvm::Value *addr,
                            FloatTruncation Truncation, bool isTruncate);
+  bool CountInFunc(llvm::Function *F, FloatRepresentation FR);
 
   void clear();
 };

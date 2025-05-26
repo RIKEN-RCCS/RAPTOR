@@ -18,6 +18,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
@@ -191,8 +192,6 @@ public:
       : truncation(truncation), M(M), ctx(M->getContext()), Logic(Logic) {
     fromType = truncation.getFromType(ctx);
     toType = truncation.getToType(ctx);
-    if (fromType == toType)
-      assert(truncation.isToFPRT());
 
     UnknownLoc = getUniquedLocStr(nullptr);
     scratch = ConstantPointerNull::get(PointerType::get(M->getContext(), 0));
@@ -260,11 +259,6 @@ public:
   CallInst *createFPRTOpCall(llvm::IRBuilderBase &B, llvm::Instruction &I,
                              llvm::Type *RetTy,
                              SmallVectorImpl<Value *> &ArgsIn) {
-    if (truncation.getMode() == TruncCountMode) {
-      SmallVector<Value *> EmptyArgs;
-      return createFPRTGeneric(B, "count", EmptyArgs, B.getVoidTy(),
-                               getUniquedLocStr(&I));
-    }
     std::string Name;
     if (auto BO = dyn_cast<BinaryOperator>(&I)) {
       Name = "binop_" + std::string(BO->getOpcodeName());
@@ -290,6 +284,121 @@ public:
     }
     createOriginalFPRTFunc(I, Name, ArgsIn, RetTy);
     return createFPRTGeneric(B, Name, ArgsIn, RetTy, getUniquedLocStr(&I));
+  }
+};
+
+// TODO we should add an integer parameter to the count function and pass in the
+// instruction cost.
+class CountGenerator : public llvm::InstVisitor<CountGenerator> {
+private:
+  FloatRepresentation FR;
+  LLVMContext &Ctx;
+  Module &M;
+  Function *CountFunc;
+
+public:
+  CountGenerator(FloatRepresentation FR, Function *F)
+      : FR(FR), Ctx(F->getContext()), M(*F->getParent()) {
+    CountFunc = getCountFunc();
+  }
+
+  Function *getCountFunc() {
+    auto MangledName =
+        std::string(RaptorFPRTPrefix) + FR.getMangling() + "_count";
+    auto F = M.getFunction(MangledName);
+    if (!F) {
+      SmallVector<Type *, 4> ArgTypes;
+      IRBuilder<> B(Ctx);
+      FunctionType *FnTy =
+          FunctionType::get(B.getVoidTy(), ArgTypes, /*is_vararg*/ false);
+      F = Function::Create(FnTy, Function::ExternalLinkage, MangledName, M);
+    }
+    return F;
+  }
+
+  void flop(Instruction &I) {
+    IRBuilder B(&I);
+    B.CreateCall(CountFunc);
+  }
+
+  void visitFCmpInst(llvm::FCmpInst &CI) { flop(CI); }
+
+  Type *getFloatType() { return FR.getBuiltinType(Ctx); }
+
+  void visitCastInst(llvm::CastInst &CI) {
+    auto src = CI.getOperand(0);
+    if (CI.getSrcTy() == getFloatType() || CI.getDestTy() == getFloatType()) {
+      if (isa<Constant>(src))
+        return;
+      if (Instruction::FPToUI <= CI.getOpcode() &&
+          CI.getOpcode() <= Instruction::FPExt)
+        flop(CI);
+    }
+  }
+
+  void visitBinaryOperator(llvm::BinaryOperator &BO) {
+    auto oldLHS = BO.getOperand(0);
+    auto oldRHS = BO.getOperand(1);
+
+    if (oldLHS->getType() != getFloatType() &&
+        oldRHS->getType() != getFloatType())
+      return;
+
+    switch (BO.getOpcode()) {
+    default:
+      break;
+    case BinaryOperator::Add:
+    case BinaryOperator::Sub:
+    case BinaryOperator::Mul:
+    case BinaryOperator::UDiv:
+    case BinaryOperator::SDiv:
+    case BinaryOperator::URem:
+    case BinaryOperator::SRem:
+    case BinaryOperator::AShr:
+    case BinaryOperator::LShr:
+    case BinaryOperator::Shl:
+    case BinaryOperator::And:
+    case BinaryOperator::Or:
+    case BinaryOperator::Xor:
+      assert(0 && "Invalid binop opcode for float arg");
+      return;
+    }
+
+    flop(BO);
+
+    return;
+  }
+
+  bool handleIntrinsic(llvm::CallBase &CI, Intrinsic::ID ID) {
+    if (isDbgInfoIntrinsic(ID))
+      return true;
+
+    bool hasFromType = false;
+    for (unsigned i = 0; i < CI.arg_size(); ++i)
+      if (CI.getOperand(i)->getType() == getFloatType())
+        hasFromType = true;
+    if (CI.getType() == getFloatType()) {
+      hasFromType = true;
+    }
+
+    if (!hasFromType)
+      return false;
+
+    flop(CI);
+
+    return true;
+  }
+
+  void visitIntrinsicInst(llvm::IntrinsicInst &II) {
+    handleIntrinsic(II, II.getIntrinsicID());
+  }
+
+  void visitCallBase(llvm::CallBase &CI) {
+    Intrinsic::ID ID;
+    StringRef funcName = getFuncNameFromCall(const_cast<CallBase *>(&CI));
+    if (isMemFreeLibMFunction(funcName, &ID))
+      if (handleIntrinsic(CI, ID))
+        return;
   }
 };
 
@@ -342,17 +451,19 @@ public:
         }
       }
     };
-    if (Mode == TruncOpMode) {
-      if (Root) {
+    if (Truncation.isToFPRT()) {
+      if (Mode == TruncOpMode) {
+        if (Root) {
+          AllocScratch();
+        } else {
+          // make sure we passed in `void *scratch` as the final parameter
+          assert(newFunc->arg_size() == oldFunc->arg_size() + 1);
+          scratch = newFunc->getArg(newFunc->arg_size() - 1);
+          assert(scratch->getType()->isPointerTy());
+        }
+      } else if (Mode == TruncOpFullModuleMode) {
         AllocScratch();
-      } else {
-        // make sure we passed in `void *scratch` as the final parameter
-        assert(newFunc->arg_size() == oldFunc->arg_size() + 1);
-        scratch = newFunc->getArg(newFunc->arg_size() - 1);
-        assert(scratch->getType()->isPointerTy());
       }
-    } else if (Mode == TruncOpFullModuleMode) {
-      AllocScratch();
     }
   }
 
@@ -369,7 +480,6 @@ public:
       break;
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       EmitWarning(
           "UnhandledTrunc", I,
           "Operation not handled - it will be executed in the original way.",
@@ -401,8 +511,6 @@ public:
     case TruncOpMode:
     case TruncOpFullModuleMode:
       return floatValTruncate(B, v, Truncation);
-    case TruncCountMode:
-      return nullptr;
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -414,8 +522,6 @@ public:
     case TruncOpMode:
     case TruncOpFullModuleMode:
       return floatValExpand(B, v, Truncation);
-    case TruncCountMode:
-      return nullptr;
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -430,12 +536,10 @@ public:
       IRBuilder<> B(newI);
       SmallVector<Value *, 2> Args = {newI->getOperand(0)};
       auto nres = createFPRTOpCall(B, I, newI->getType(), Args);
-      if (Mode != TruncCountMode) {
-        nres->takeName(newI);
-        nres->copyIRFlags(newI);
-        newI->replaceAllUsesWith(nres);
-        newI->eraseFromParent();
-      }
+      nres->takeName(newI);
+      nres->copyIRFlags(newI);
+      newI->replaceAllUsesWith(nres);
+      newI->eraseFromParent();
       return;
     }
     default:
@@ -468,17 +572,14 @@ public:
       else
         nres =
             cast<FCmpInst>(B.CreateFCmp(CI.getPredicate(), truncLHS, truncRHS));
-      if (Mode != TruncCountMode) {
-        nres->takeName(newI);
-        nres->copyIRFlags(newI);
-        newI->replaceAllUsesWith(nres);
-        newI->eraseFromParent();
-      }
+      nres->takeName(newI);
+      nres->copyIRFlags(newI);
+      newI->replaceAllUsesWith(nres);
+      newI->eraseFromParent();
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       return;
     }
   }
@@ -512,19 +613,16 @@ public:
         EmitWarning("FPNoFollow", CI, "Will not follow FP through this cast.",
                     CI);
         auto nres = createFPRTNewCall(B, newI);
-        if (Mode != TruncCountMode) {
-          nres->takeName(newI);
-          nres->copyIRFlags(newI);
-          newI->replaceUsesWithIf(nres,
-                                  [&](Use &U) { return U.getUser() != nres; });
-          OriginalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
-        }
+        nres->takeName(newI);
+        nres->copyIRFlags(newI);
+        newI->replaceUsesWithIf(nres,
+                                [&](Use &U) { return U.getUser() != nres; });
+        OriginalToNewFn[const_cast<const Value *>(cast<Value>(&CI))] = nres;
       }
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       return;
     }
   }
@@ -539,17 +637,14 @@ public:
       auto newF = truncate(B, getNewFromOriginal(SI.getFalseValue()));
       auto nres = cast<SelectInst>(
           B.CreateSelect(getNewFromOriginal(SI.getCondition()), newT, newF));
-      if (Mode != TruncCountMode) {
-        nres->takeName(newI);
-        nres->copyIRFlags(newI);
-        newI->replaceAllUsesWith(expand(B, nres));
-        newI->eraseFromParent();
-      }
+      nres->takeName(newI);
+      nres->copyIRFlags(newI);
+      newI->replaceAllUsesWith(expand(B, nres));
+      newI->eraseFromParent();
       return;
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       return;
     }
     llvm_unreachable("");
@@ -598,12 +693,10 @@ public:
     } else {
       nres = cast<Instruction>(B.CreateBinOp(BO.getOpcode(), newLHS, newRHS));
     }
-    if (Mode != TruncCountMode) {
-      nres->takeName(newI);
-      nres->copyIRFlags(newI);
-      newI->replaceAllUsesWith(expand(B, nres));
-      newI->eraseFromParent();
-    }
+    nres->takeName(newI);
+    nres->copyIRFlags(newI);
+    newI->replaceAllUsesWith(expand(B, nres));
+    newI->eraseFromParent();
     return;
   }
   void visitMemSetInst(llvm::MemSetInst &MS) { visitMemSetCommon(MS); }
@@ -666,11 +759,9 @@ public:
     }
     if (newI->getType() == getFromType())
       nres = expand(B, nres);
-    if (Mode != TruncCountMode) {
-      intr->copyIRFlags(newI);
-      newI->replaceAllUsesWith(nres);
-      newI->eraseFromParent();
-    }
+    intr->copyIRFlags(newI);
+    newI->replaceAllUsesWith(nres);
+    newI->eraseFromParent();
     return true;
   }
 
@@ -693,7 +784,6 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -726,7 +816,6 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -760,9 +849,9 @@ public:
   // void visitInvokeInst(llvm::InvokeInst &CI) {
   //   // fprintf(stderr, "Won't handle invoke instruction.\n");
   //   EmitWarning("FPNoInvoke", CI,
-  //               "Will not handle invoke instruction.", CI);    
+  //               "Will not handle invoke instruction.", CI);
   // }
-  
+
   // Return
   void visitCallBase(llvm::CallBase &CI) {
     Intrinsic::ID ID;
@@ -858,8 +947,10 @@ public:
       if (PN.getType() != getFromType())
         return;
       auto NewPN = cast<llvm::PHINode>(getNewFromOriginal(&PN));
-      IRBuilder<> B(
-          &*NewPN->getParent()->getParent()->getEntryBlock().getFirstNonPHIIt());
+      IRBuilder<> B(&*NewPN->getParent()
+                          ->getParent()
+                          ->getEntryBlock()
+                          .getFirstNonPHIIt());
       for (unsigned It = 0; It < NewPN->getNumIncomingValues(); It++) {
         if (isa<ConstantFP>(NewPN->getIncomingValue(It))) {
           NewPN->setOperand(
@@ -870,7 +961,6 @@ public:
     }
     case TruncOpMode:
     case TruncOpFullModuleMode:
-    case TruncCountMode:
       break;
     default:
       llvm_unreachable("Unknown trunc mode");
@@ -900,6 +990,21 @@ bool RaptorLogic::CreateTruncateValue(RequestContext context, Value *v,
 
   context.req->replaceAllUsesWith(converted);
   context.req->eraseFromParent();
+
+  return true;
+}
+
+bool RaptorLogic::CountInFunc(llvm::Function *F, FloatRepresentation FR) {
+
+  CountGenerator Handle(FR, F);
+  for (auto &BB : *F)
+    for (auto &I : BB)
+      Handle.visit(&I);
+
+  if (llvm::verifyFunction(*F, &llvm::errs())) {
+    llvm::errs() << *F << "\n";
+    report_fatal_error("function failed verification (5)");
+  }
 
   return true;
 }
@@ -936,7 +1041,7 @@ llvm::Function *RaptorLogic::CreateTruncateFunc(RequestContext Context,
   Function *NewF = Function::Create(FTy, ToTrunc->getLinkage(), truncName,
                                     ToTrunc->getParent());
 
-  if (Mode != TruncOpFullModuleMode && Mode != TruncCountMode)
+  if (Mode != TruncOpFullModuleMode)
     NewF->setLinkage(Function::LinkageTypes::InternalLinkage);
 
   TruncateCachedFunctions[tup] = NewF;
