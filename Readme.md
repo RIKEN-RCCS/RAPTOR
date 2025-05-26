@@ -109,7 +109,7 @@ void foo(float *a, float b) {
   ...
 ```
 
-To use RAPTOR to truncate floating-pint operations in the call to `foo`, one can replace the call to `foo` with the following:
+To use RAPTOR to truncate floating-point operations in the call to `foo`, one can replace the call to `foo` with the following:
 ``` c++
   ...
   auto f = __raptor_truncate_op_func(
