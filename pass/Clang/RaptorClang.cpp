@@ -199,7 +199,6 @@ public:
 static clang::FrontendPluginRegistry::Add<RaptorAction<RaptorPlugin>>
     X("raptor", "Raptor Plugin");
 
-#if LLVM_VERSION_MAJOR > 10
 namespace {
 
 struct RaptorFunctionLikeAttrInfo : public ParsedAttrInfo {
@@ -208,15 +207,10 @@ struct RaptorFunctionLikeAttrInfo : public ParsedAttrInfo {
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "raptor_function_like"},
-#if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "raptor_function_like"},
-#else
-      {ParsedAttr::AS_C2x, "raptor_function_like"},
-#endif
-      {ParsedAttr::AS_CXX11, "raptor_function_like"},
-      {ParsedAttr::AS_CXX11, "raptor::function_like"}
-    };
+        {ParsedAttr::AS_GNU, "raptor_function_like"},
+        {ParsedAttr::AS_C23, "raptor_function_like"},
+        {ParsedAttr::AS_CXX11, "raptor_function_like"},
+        {ParsedAttr::AS_CXX11, "raptor::function_like"}};
     Spellings = S;
   }
 
@@ -249,84 +243,10 @@ struct RaptorFunctionLikeAttrInfo : public ParsedAttrInfo {
       S.Diag(Attr.getLoc(), ID);
       return AttributeNotApplied;
     }
-#if LLVM_VERSION_MAJOR >= 12
     D->addAttr(AnnotateAttr::Create(
         S.Context, ("raptor_function_like=" + Literal->getString()).str(),
         nullptr, 0, Attr.getRange()));
     return AttributeApplied;
-#else
-    auto FD = cast<FunctionDecl>(D);
-    // if (FD->isLateTemplateParsed()) return;
-    auto &AST = S.getASTContext();
-    DeclContext *declCtx = FD->getDeclContext();
-    for (auto tmpCtx = declCtx; tmpCtx; tmpCtx = tmpCtx->getParent()) {
-      if (tmpCtx->isRecord()) {
-        declCtx = tmpCtx->getParent();
-      }
-    }
-    auto loc = FD->getLocation();
-    RecordDecl *RD;
-    if (S.getLangOpts().CPlusPlus)
-      RD = CXXRecordDecl::Create(AST, StructKind, declCtx, loc, loc,
-                                 nullptr); // rId);
-    else
-      RD = RecordDecl::Create(AST, StructKind, declCtx, loc, loc,
-                              nullptr); // rId);
-    RD->setAnonymousStructOrUnion(true);
-    RD->setImplicit();
-    RD->startDefinition();
-    auto Tinfo = nullptr;
-    auto Tinfo0 = nullptr;
-    auto FT = AST.getPointerType(FD->getType());
-    auto CharTy = AST.getIntTypeForBitwidth(8, false);
-    auto FD0 = FieldDecl::Create(AST, RD, loc, loc, /*Ud*/ nullptr, FT, Tinfo0,
-                                 /*expr*/ nullptr, /*mutable*/ true,
-                                 /*inclassinit*/ ICIS_NoInit);
-    FD0->setAccess(AS_public);
-    RD->addDecl(FD0);
-    auto FD1 = FieldDecl::Create(
-        AST, RD, loc, loc, /*Ud*/ nullptr, AST.getPointerType(CharTy), Tinfo0,
-        /*expr*/ nullptr, /*mutable*/ true, /*inclassinit*/ ICIS_NoInit);
-    FD1->setAccess(AS_public);
-    RD->addDecl(FD1);
-    RD->completeDefinition();
-    assert(RD->getDefinition());
-    auto &Id = AST.Idents.get("__raptor_function_like_autoreg_" +
-                              FD->getNameAsString());
-    auto T = AST.getRecordType(RD);
-    auto V = VarDecl::Create(AST, declCtx, loc, loc, &Id, T, Tinfo, SC_None);
-    V->setStorageClass(SC_PrivateExtern);
-    V->addAttr(clang::UsedAttr::CreateImplicit(AST));
-    TemplateArgumentListInfo *TemplateArgs = nullptr;
-    auto DR = DeclRefExpr::Create(AST, NestedNameSpecifierLoc(), loc, FD, false,
-                                  loc, FD->getType(), ExprValueKind::VK_LValue,
-                                  FD, TemplateArgs);
-    auto rval = ExprValueKind::VK_PRValue;
-    StringRef cstr = Literal->getString();
-    Expr *exprs[2] = {
-        ImplicitCastExpr::Create(AST, FT, CastKind::CK_FunctionToPointerDecay,
-                                 DR, nullptr, rval, FPOptionsOverride()),
-        ImplicitCastExpr::Create(
-            AST, AST.getPointerType(CharTy), CastKind::CK_ArrayToPointerDecay,
-            StringLiteral::Create(
-                AST, cstr, stringkind,
-                /*Pascal*/ false,
-                AST.getStringLiteralArrayType(CharTy, cstr.size()), loc),
-            nullptr, rval, FPOptionsOverride())};
-    auto IL = new (AST) InitListExpr(AST, loc, exprs, loc);
-    V->setInit(IL);
-    IL->setType(T);
-    if (IL->isValueDependent()) {
-      unsigned ID = S.getDiagnostics().getCustomDiagID(
-          DiagnosticsEngine::Error, "use of attribute 'raptor_function_like' "
-                                    "in a templated context not yet supported");
-      S.Diag(Attr.getLoc(), ID);
-      return AttributeNotApplied;
-    }
-    S.MarkVariableReferenced(loc, V);
-    S.getASTConsumer().HandleTopLevelDecl(DeclGroupRef(V));
-    return AttributeApplied;
-#endif
   }
 };
 
@@ -337,15 +257,10 @@ struct RaptorShouldRecomputeAttrInfo : public ParsedAttrInfo {
   RaptorShouldRecomputeAttrInfo() {
     OptArgs = 1;
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "raptor_shouldrecompute"},
-#if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "raptor_shouldrecompute"},
-#else
-      {ParsedAttr::AS_C2x, "raptor_shouldrecompute"},
-#endif
-      {ParsedAttr::AS_CXX11, "raptor_shouldrecompute"},
-      {ParsedAttr::AS_CXX11, "raptor::shouldrecompute"}
-    };
+        {ParsedAttr::AS_GNU, "raptor_shouldrecompute"},
+        {ParsedAttr::AS_C23, "raptor_shouldrecompute"},
+        {ParsedAttr::AS_CXX11, "raptor_shouldrecompute"},
+        {ParsedAttr::AS_CXX11, "raptor::shouldrecompute"}};
     Spellings = S;
   }
 
@@ -387,15 +302,10 @@ struct RaptorInactiveAttrInfo : public ParsedAttrInfo {
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "raptor_inactive"},
-#if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "raptor_inactive"},
-#else
-      {ParsedAttr::AS_C2x, "raptor_inactive"},
-#endif
-      {ParsedAttr::AS_CXX11, "raptor_inactive"},
-      {ParsedAttr::AS_CXX11, "raptor::inactive"}
-    };
+        {ParsedAttr::AS_GNU, "raptor_inactive"},
+        {ParsedAttr::AS_C23, "raptor_inactive"},
+        {ParsedAttr::AS_CXX11, "raptor_inactive"},
+        {ParsedAttr::AS_CXX11, "raptor::inactive"}};
     Spellings = S;
   }
 
@@ -491,16 +401,10 @@ struct RaptorNoFreeAttrInfo : public ParsedAttrInfo {
     OptArgs = 1;
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
-    static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "raptor_nofree"},
-#if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "raptor_nofree"},
-#else
-      {ParsedAttr::AS_C2x, "raptor_nofree"},
-#endif
-      {ParsedAttr::AS_CXX11, "raptor_nofree"},
-      {ParsedAttr::AS_CXX11, "raptor::nofree"}
-    };
+    static constexpr Spelling S[] = {{ParsedAttr::AS_GNU, "raptor_nofree"},
+                                     {ParsedAttr::AS_C23, "raptor_nofree"},
+                                     {ParsedAttr::AS_CXX11, "raptor_nofree"},
+                                     {ParsedAttr::AS_CXX11, "raptor::nofree"}};
     Spellings = S;
   }
 
@@ -596,15 +500,10 @@ struct RaptorSparseAccumulateAttrInfo : public ParsedAttrInfo {
     // GNU-style __attribute__(("example")) and C++/C2x-style [[example]] and
     // [[plugin::example]] supported.
     static constexpr Spelling S[] = {
-      {ParsedAttr::AS_GNU, "raptor_sparse_accumulate"},
-#if LLVM_VERSION_MAJOR > 17
-      {ParsedAttr::AS_C23, "raptor_sparse_accumulate"},
-#else
-      {ParsedAttr::AS_C2x, "raptor_sparse_accumulate"},
-#endif
-      {ParsedAttr::AS_CXX11, "raptor_sparse_accumulate"},
-      {ParsedAttr::AS_CXX11, "raptor::sparse_accumulate"}
-    };
+        {ParsedAttr::AS_GNU, "raptor_sparse_accumulate"},
+        {ParsedAttr::AS_C23, "raptor_sparse_accumulate"},
+        {ParsedAttr::AS_CXX11, "raptor_sparse_accumulate"},
+        {ParsedAttr::AS_CXX11, "raptor::sparse_accumulate"}};
     Spellings = S;
   }
 
@@ -682,5 +581,3 @@ struct RaptorSparseAccumulateAttrInfo : public ParsedAttrInfo {
 static ParsedAttrInfoRegistry::Add<RaptorSparseAccumulateAttrInfo>
     SparseX("raptor_sparse_accumulate", "");
 } // namespace
-
-#endif
