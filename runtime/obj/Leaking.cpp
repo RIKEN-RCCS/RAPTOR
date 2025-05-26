@@ -15,7 +15,7 @@ double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
   __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
   if (!a)
     exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
-  mpfr_init2(a->result, significand);
+  mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */
   mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
   a->excl_result = _a;
   a->shadow = _a;
@@ -40,7 +40,7 @@ __raptor_fp *__raptor_fprt_ieee_64_new_intermediate(int64_t exponent,
   __raptor_fp *a = (__raptor_fp *)malloc(sizeof(__raptor_fp));
   if (!a)
     exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
-  mpfr_init2(a->result, significand);
+  mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */
   return a;
 }
 

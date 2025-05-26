@@ -71,7 +71,7 @@ struct {
                                        const char *loc, void *scratch) {       \
     __raptor_mpfr_fps.all.push_back({});                                       \
     __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
-    mpfr_init2(a->result, significand);                                        \
+    mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */        \
     mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);            \
     a->excl_result = _a;                                                       \
     a->shadow = _a;                                                            \
@@ -94,7 +94,7 @@ struct {
       void *scratch) {                                                         \
     __raptor_mpfr_fps.all.push_back({});                                       \
     __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
-    mpfr_init2(a->result, significand);                                        \
+    mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */        \
     return a;                                                                  \
   }                                                                            \
                                                                                \

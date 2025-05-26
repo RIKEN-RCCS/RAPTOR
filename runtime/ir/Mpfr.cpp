@@ -33,15 +33,13 @@
 //
 // (for MPFR ver. 2.1)
 //
-// We need to set the range of the allowed exponent using `mpfr_set_emin` and
-// `mpfr_set_emax`. (This means we can also play with whether the range is
-// centered around 0 (1?) or somewhere else)
-//
-// (also these need to be mutex'ed as the exponent change is global in mpfr and
-// not float-specific) ... (mpfr seems to have thread safe mode - check if it is
+// We set the range of the allowed exponent using `mpfr_set_emin` and
+// `mpfr_set_emax`.
+// But these need to be mutex'ed as the exponent change is global in mpfr and
+// not float-specific ... (mpfr seems to have thread safe mode - check if it is
 // enabled or if it is enabled by default)
 //
-// For that we need to do this check:
+// For that we need to do this check for mem mode:
 //   If the user changes the exponent range, it is her/his responsibility to
 //   check that all current floating-point variables are in the new allowed
 //   range (for example using mpfr_check_range), otherwise the subsequent
@@ -57,17 +55,12 @@
 // MPFR also has this limitation that we need to address for accurate
 // simulation:
 //   [...] subnormal numbers are not implemented.
-//
-// TODO we need to provide f32 versions, and also instrument the
-// truncation/expansion between f32/f64/etc
 
-// typedef struct __raptor_fp {
-//   mpfr_t result;
-// #ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
-//   double excl_result;
-//   double shadow;
-// #endif
-// } __raptor_fp;
+// NOTE: MPFR_FP_EMULATION
+// We need to add 1 to the mantissa width to get faithful fp emulation. See here
+// https://www.mpfr.org/mpfr-3.1.4/mpfr.html#index-mpfr_005fsubnormalize
+// and here
+// https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
 
 #ifdef RAPTOR_FPRT_ENABLE_DUMPING
 #define RAPTOR_DUMP(X, OP_TYPE, LLVM_OP_NAME, TAG)                             \
@@ -105,10 +98,7 @@ void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
   // behaviour.
   if (is_push && __raptor_fprt_is_op_mode(mode)) {
     // TODO we need a stack if we want to support nested truncations
-    // int64_t max_e = 1 << (to_e - 1);
-    // int64_t min_e = -max_e - to_m;
-    // https://www.mpfr.org/mpfr-current/mpfr.html
-    // https://stackoverflow.com/questions/38664778/subnormal-numbers-in-different-precisions-with-mpfr
+    // see MPFR_FP_EMULATION
     int64_t max_e = 1 << (to_e - 1);
     int64_t min_e = -max_e + 2 - to_m + 2;
     // TODO currently in full module truncation mode we assume that all of the
@@ -158,7 +148,7 @@ void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
                                               void *scratch) {                 \
     mpfr_t *mem = (mpfr_t *)malloc(sizeof(mem[0]) * MAX_MPFR_OPERANDS);        \
     for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)                           \
-      mpfr_init2(mem[i], to_m);                                                \
+      mpfr_init2(mem[i], to_m + 1); /* see MPFR_FP_EMULATION */                \
     return mem;                                                                \
   }                                                                            \
                                                                                \
@@ -490,7 +480,7 @@ void raptor_fprt_op_clear();
       } else {                                                                 \
         __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);  \
         mpfr_t mmul;                                                           \
-        mpfr_init2(mmul, significand);                                         \
+        mpfr_init2(mmul, significand + 1); /* see MPFR_FP_EMULATION */         \
         mpfr_mul(madd->result, ma->result, mb->result, ROUNDING_MODE);         \
         mpfr_add(madd->result, madd->result, mc->result, ROUNDING_MODE);       \
         mpfr_clear(mmul);                                                      \
