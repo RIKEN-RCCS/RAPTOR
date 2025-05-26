@@ -92,14 +92,16 @@ config.substitutions.append(('%BClibdir', '@RAPTOR_SOURCE_DIR@/bclib/'))
 
 assert len("@RAPTOR_BINARY_DIR@") != 0
 
-newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext
-          + ' -Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+newPM = ('-Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 config.substitutions.append(('%loadClangRaptor', newPM))
 
-newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+newPM = ('-fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 config.substitutions.append(('%loadFlangRaptor', newPM))
 
-link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lRaptor-RT-" + config.llvm_ver
+newPM = ('-Wl,--load-pass-plugin=@RAPTOR_BINARY_DIR@/pass/LLDRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+config.substitutions.append(('%loadLLDRaptor', newPM))
+
+link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lmpfr -lRaptor-RT-" + config.llvm_ver
 config.substitutions.append(('%linkRaptorRT', link))
 
 config.substitutions.append(('%hasMPFR', has_mpfr))

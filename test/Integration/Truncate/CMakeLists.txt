@@ -6,6 +6,12 @@ add_lit_testsuite(check-raptor-integration-truncate-cpp "Running cpp raptor fp t
     ARGS -v
 )
 
+add_lit_testsuite(check-raptor-integration-truncate-lld "Running lld raptor fp truncation integration tests"
+    ${CMAKE_CURRENT_BINARY_DIR}/LLD
+    DEPENDS ${RAPTOR_TEST_DEPS}
+    ARGS -v
+)
+
 add_lit_testsuite(check-raptor-integration-truncate-fortran "Running fortran raptor fp truncation integration tests"
     ${CMAKE_CURRENT_BINARY_DIR}/Fortran
     DEPENDS ${RAPTOR_TEST_DEPS}

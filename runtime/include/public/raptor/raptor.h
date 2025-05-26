@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
+#endif
 
 #ifdef __cplusplus
 extern "C" {

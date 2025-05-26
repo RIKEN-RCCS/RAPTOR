@@ -6,7 +6,9 @@ This is achieved using an LLVM pass and an accompanying runtime.
 
 ## Dependencies
 
-RAPTOR requires LLVM version 20 with clang and flang support for C/C++ and Fortran respectively.
+RAPTOR requires LLVM version 20 with clang, flang, and lld for full capabilities.
+
+In addition, it requires the MPFR library for emulating various floating point precisions.
 
 ## Building
 
@@ -48,31 +50,47 @@ The following can be used to enable RAPTOR's compilation remarks:
 -Rpass=raptor
 ```
 
+### Linking flags
 
-### Usage in LTO
-
+Regardless of which configuration RAPTOR is used in, the following flags need to be specified when linking:
 ``` shell
--Wl,-mllvm -Wl,-load=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so -L$RAPTOR_INSTALL_DIR/lib/ -lRaptor-RT-$LLVM_VER
+-lRaptor-RT-$LLVM_VER -lmpfr -lstdc++
 ```
 
-### Usage in single-file compilation
+### LTO flags
 
-When compiling:
+Pass the following to the compiler when linking if using clang or fortran:
+
 ``` shell
--fplugin=$RAPTOR_INSTALL_DIR/lib/ClangRaptor-$LLVM_VER.so
+-Wl,--load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
 ```
 
-When linking:
+Or if using lld directly:
 ``` shell
--L$RAPTOR_INSTALL_DIR/lib/FPRT/ -lRaptor-RT-$LLVM_VER
+--load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
 ```
 
+### Single-file compilation flags
 
-### Usage in source code
+These flags need to be specified when compiling the file:
+
+#### Clang
+``` shell
+-Xclang -load -Xclang $RAPTOR_INSTALL_DIR/lib/ClangRaptor-$LLVM_VER.so
+```
+
+#### Flang
+``` shell
+-fpass-plugin=$RAPTOR_INSTALL_DIR/lib/LLVMRaptor-$LLVM_VER.so
+```
+
+### Changes in source code
+
+### C++
 
 Suppose your original code looks like this:
 ``` c++
-void bar(float a, flaot b) {
+void bar(float a, float b) {
   return a + b;
 }
 void foo(float *a, float b) {
@@ -110,3 +128,14 @@ To use RAPTOR to truncate floating-pint operations in the call to `foo`, one can
 ```
 
 At compile time, RAPTOR will replace the call to `__raptor_truncate_op_func` with a version of `foo` with floating-point operations truncated to the specified precision.
+
+
+You need to declare the `__raptor_truncate_op_func`, which can be done as such:
+``` c++
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
+```
+
+### Fortran
+
+TODO
