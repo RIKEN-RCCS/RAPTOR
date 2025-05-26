@@ -144,4 +144,48 @@ template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
 
 ### Fortran
 
-TODO
+The usage is analogous to C++.
+
+#### Original code
+
+``` f90
+  double precision function simple_sum(a, b) result(c) bind(c)
+    implicit none
+
+    double precision, intent(in) :: a, b
+
+    c = a + b
+
+    return
+  end function simple_sum
+```
+
+``` f90
+  c = simple_sum(a, b)
+```
+
+#### With RAPTOR
+
+``` f90
+  cfty = c_funloc(simple_sum)
+  cfty = f__raptor_truncate_op_func(cfty, 64, 1, 10, 4)
+  call c_f_procpointer(cfty, ffty)
+  c = ffty(a, b)
+```
+
+The `f__raptor_truncate_op_func` must be declared:
+
+``` f90
+  interface
+     function f__raptor_truncate_op_func(tfunc, from_ieee, to_type, to_exponent, to_significand) result (fty) bind (c)
+       use iso_c_binding
+       implicit none
+
+       integer(c_int), intent(in), value :: from_ieee, to_type, to_exponent, to_significand
+       type(c_funptr), intent(in), value :: tfunc
+       type(c_funptr) :: fty
+     end function f__raptor_truncate_op_func
+  end interface
+```
+
+See `test/Integration/Truncate/Fortran/simple.f90` for an example.
