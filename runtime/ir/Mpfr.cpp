@@ -151,6 +151,25 @@ void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
       int64_t is_push, int64_t to_e, int64_t to_m, int64_t mode,               \
       const char *loc, void *scratch) {                                        \
     __raptor_fprt_trunc_change(is_push, to_e, to_m, mode, loc, scratch);       \
+  }                                                                            \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void *__raptor_fprt_##FROM_TY##_get_scratch(int64_t to_e, int64_t to_m,      \
+                                              int64_t mode, const char *loc,   \
+                                              void *scratch) {                 \
+    mpfr_t *mem = (mpfr_t *)malloc(sizeof(mem[0]) * MAX_MPFR_OPERANDS);        \
+    for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)                           \
+      mpfr_init2(mem[i], to_m);                                                \
+    return mem;                                                                \
+  }                                                                            \
+                                                                               \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  void __raptor_fprt_##FROM_TY##_free_scratch(int64_t to_e, int64_t to_m,      \
+                                              int64_t mode, const char *loc,   \
+                                              void *scratch) {                 \
+    mpfr_t *mem = (mpfr_t *)scratch;                                           \
+    for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)                           \
+      mpfr_clear(mem[i]);                                                      \
+    free(mem);                                                                 \
   }
 
 #include "raptor/FloatTypes.def"

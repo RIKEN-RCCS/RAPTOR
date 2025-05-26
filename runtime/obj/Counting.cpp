@@ -275,23 +275,3 @@ void __raptor_fprt_memory_access(void *ptr, int64_t size, int64_t is_store) {
 
 __RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_op_clear() { opdata.clear(); }
-
-__RAPTOR_MPFR_ATTRIBUTES
-void *__raptor_fprt_ieee_64_get_scratch(int64_t to_e, int64_t to_m,
-                                        int64_t mode, const char *loc,
-                                        void *scratch) {
-  mpfr_t *mem = (mpfr_t *)malloc(sizeof(mem[0]) * MAX_MPFR_OPERANDS);
-  for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)
-    mpfr_init2(mem[i], to_m);
-  return mem;
-}
-
-__RAPTOR_MPFR_ATTRIBUTES
-void __raptor_fprt_ieee_64_free_scratch(int64_t to_e, int64_t to_m,
-                                        int64_t mode, const char *loc,
-                                        void *scratch) {
-  mpfr_t *mem = (mpfr_t *)scratch;
-  for (unsigned i = 0; i < MAX_MPFR_OPERANDS; i++)
-    mpfr_clear(mem[i]);
-  free(mem);
-}
