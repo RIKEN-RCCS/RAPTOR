@@ -36,7 +36,7 @@
 
 #include "truncate-all-header.h"
 
-#include "../test_utils.h"
+#include "../../test_utils.h"
 
 __attribute__((noinline))
 floatty simple_add(floatty a, floatty b) {

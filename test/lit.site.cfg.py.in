@@ -71,6 +71,10 @@ config.substitutions.append(('%FileCheck', config.llvm_tools_dir + "/FileCheck")
 config.substitutions.append(('%clang', eclang))
 config.substitutions.append(('%O0TBAA', "-O1 -Xclang -disable-llvm-passes"))
 
+eflang = config.llvm_tools_dir + "/flang"
+
+config.substitutions.append(('%flang', eflang))
+
 newPM = (' -load-pass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext
          + ' -load=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 
@@ -85,14 +89,17 @@ config.substitutions.append(('%loadBC', ''
                                  ))
 config.substitutions.append(('%BClibdir', '@RAPTOR_SOURCE_DIR@/bclib/'))
 
+
+assert len("@RAPTOR_BINARY_DIR@") != 0
+
 newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext
           + ' -Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+config.substitutions.append(('%loadClangRaptor', newPM))
 
-if len("@RAPTOR_BINARY_DIR@") == 0:
-  newPM = ""
+newPM = (' -fpass-plugin=@RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+config.substitutions.append(('%loadFlangRaptor', newPM))
 
 link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lRaptor-RT-" + config.llvm_ver
-config.substitutions.append(('%loadClangRaptor', newPM))
 config.substitutions.append(('%linkRaptorRT', link))
 
 config.substitutions.append(('%hasMPFR', has_mpfr))
