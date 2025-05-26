@@ -40,11 +40,7 @@
 
 using namespace clang;
 
-#if LLVM_VERSION_MAJOR >= 18
 constexpr auto StructKind = clang::TagTypeKind::Struct;
-#else
-constexpr auto StructKind = clang::TagTypeKind::TTK_Struct;
-#endif
 
 template <typename ConsumerType>
 class RaptorAction final : public clang::PluginASTAction {
@@ -79,9 +75,7 @@ struct Visitor : public RecursiveASTVisitor<Visitor> {
   }
 };
 
-#if LLVM_VERSION_MAJOR >= 18
 void registerRaptor(llvm::PassBuilder &PB);
-#endif
 
 class RaptorPlugin final : public clang::ASTConsumer {
   clang::CompilerInstance &CI;
@@ -93,14 +87,8 @@ public:
     CodeGenOptions &CGOpts = CI.getCodeGenOpts();
     auto PluginName = "ClangRaptor-" + std::to_string(LLVM_VERSION_MAJOR);
     bool contains = false;
-#if LLVM_VERSION_MAJOR < 18
-    std::string pluginPath;
-#endif
     for (auto P : Opts.Plugins)
       if (llvm::sys::path::stem(P).ends_with(PluginName)) {
-#if LLVM_VERSION_MAJOR < 18
-        pluginPath = P;
-#endif
         for (auto passPlugin : CGOpts.PassPlugins) {
           if (llvm::sys::path::stem(passPlugin).ends_with(PluginName)) {
             contains = true;
@@ -110,11 +98,7 @@ public:
       }
 
     if (!contains) {
-#if LLVM_VERSION_MAJOR >= 18
       CGOpts.PassBuilderCallbacks.push_back(registerRaptor);
-#else
-      CGOpts.PassPlugins.push_back(pluginPath);
-#endif
     }
     CI.getPreprocessorOpts().Includes.push_back("/raptor/raptor/version");
 
