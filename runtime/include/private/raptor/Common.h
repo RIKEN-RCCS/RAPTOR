@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <cstdlib>
+#include <cstring>
 #include <mpfr.h>
 
 #define MAX_MPFR_OPERANDS 3
@@ -55,24 +56,33 @@ void raptor_fprt_excl_trunc_start();
 __RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_excl_trunc_end();
 
+template <typename To, typename From> To raptor_bitcast(From from) {
+  static_assert(sizeof(From) == sizeof(To));
+  size_t size = sizeof(From);
+  To to;
+  std::memcpy(&to, &from, size);
+  return to;
+}
+
+template <typename To, typename From> To checked_raptor_bitcast(From from) {
+  if constexpr (sizeof(From) == sizeof(To))
+    return raptor_bitcast<To, From>(from);
+  else
+    abort();
+}
+
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   static inline CPP_TY __raptor_fprt_idx_to_##FROM_TY(uint64_t p) {            \
-    return *((CPP_TY *)(&p));                                                  \
+    return checked_raptor_bitcast<CPP_TY>(p);                                  \
   }                                                                            \
   static inline uint64_t __raptor_fprt_##FROM_TY##_to_idx(CPP_TY d) {          \
-    return *((uint64_t *)(&d));                                                \
+    return checked_raptor_bitcast<uint64_t>(d);                                \
   }                                                                            \
   static inline CPP_TY __raptor_fprt_ptr_to_##FROM_TY(__raptor_fp *p) {        \
-    if constexpr (sizeof(void *) == sizeof(CPP_TY))                            \
-      return *((CPP_TY *)(&p));                                                \
-    else                                                                       \
-      abort();                                                                 \
+    return checked_raptor_bitcast<CPP_TY>(p);                                  \
   }                                                                            \
   static inline __raptor_fp *__raptor_fprt_##FROM_TY##_to_ptr(CPP_TY d) {      \
-    if constexpr (sizeof(void *) == sizeof(CPP_TY))                            \
-      return *((__raptor_fp **)(&d));                                          \
-    else                                                                       \
-      abort();                                                                 \
+    return checked_raptor_bitcast<__raptor_fp *>(d);                           \
   }
 #include "raptor/FloatTypes.def"
 #undef RAPTOR_FLOAT_TYPE
