@@ -31,9 +31,6 @@ jobs:
     - uses: actions/checkout@v4
     - name: mkdir
       run: rm -rf build && mkdir build
-    - name: check
-      working-directory: build
-      run: tree /usr/lib/llvm-${{ matrix.llvm }}
     - name: cmake
       working-directory: build
       run: cmake ../ -DCMAKE_BUILD_TYPE=${{ matrix.build }} -DLLVM_EXTERNAL_LIT=`which lit` -DLLVM_DIR=/usr/lib/llvm-${{ matrix.llvm }}/lib/cmake/llvm
