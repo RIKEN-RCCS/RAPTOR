@@ -63,17 +63,18 @@ raptor-clang++
 raptor-flang
 ```
 
-These can be used in place of `clang`, `clang++`, and `flang` respectively, and they automatically add the required arguments.
+These can be used in place of `clang`, `clang++`, and `flang` respectively, and they automatically add the required compiler and linker flags.
 
+### Details about required flags
 
-### Linker flags
+#### Linker flags
 
 Regardless of which configuration RAPTOR is used in, the following flags need to be specified when linking:
 ``` shell
 -lRaptor-RT-$LLVM_VER -lmpfr -lstdc++
 ```
 
-### Compilation flags
+#### Compilation flags
 
 These flags need to be specified when compiling (the same for flang and clang):
 
@@ -82,7 +83,7 @@ These flags need to be specified when compiling (the same for flang and clang):
 ```
 
 
-### LTO compilation flags
+#### LTO compilation flags
 
 Pass the following to the compiler (`clang` or `flang`) when compiling:
 
@@ -101,9 +102,9 @@ or if using `lld` directly:
 --load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
 ```
 
-### Changes in source code
+### Changes to source code
 
-### C++
+#### C++
 
 Suppose your original code looks like this:
 ``` c++
@@ -153,11 +154,11 @@ template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int
 template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
 ```
 
-### Fortran
+#### Fortran
 
 The usage is analogous to C++.
 
-#### Original code
+##### Original code
 
 ``` f90
   double precision function simple_sum(a, b) result(c) bind(c)
@@ -175,7 +176,7 @@ The usage is analogous to C++.
   c = simple_sum(a, b)
 ```
 
-#### With RAPTOR
+##### With RAPTOR
 
 ``` f90
   cfty = c_funloc(simple_sum)
