@@ -54,14 +54,35 @@ The following can be used to enable RAPTOR's compilation remarks:
 -Rpass=raptor
 ```
 
-### Linking flags
+### Compilation (recommended)
+
+RAPTOR installs the three following compiler shims.
+```
+raptor-clang
+raptor-clang++
+raptor-flang
+```
+
+These can be used in place of `clang`, `clang++`, and `flang` respectively, and they automatically add the required arguments.
+
+
+### Linker flags
 
 Regardless of which configuration RAPTOR is used in, the following flags need to be specified when linking:
 ``` shell
 -lRaptor-RT-$LLVM_VER -lmpfr -lstdc++
 ```
 
-### LTO flags
+### Compilation flags
+
+These flags need to be specified when compiling (the same for flang and clang):
+
+``` shell
+-fpass-plugin=$RAPTOR_INSTALL_DIR/lib/LLVMRaptor-$LLVM_VER.so
+```
+
+
+### LTO compilation flags
 
 Pass the following to the compiler (`clang` or `flang`) when compiling:
 
@@ -78,20 +99,6 @@ and the following to the compiler when linking if using `clang` or `flang`:
 or if using `lld` directly:
 ``` shell
 --load-pass-plugin=$RAPTOR_INSTALL_DIR/lib/LLDRaptor-$LLVM_VER.so
-```
-
-### Single-file compilation flags
-
-These flags need to be specified when compiling the file:
-
-#### `clang`
-``` shell
--Xclang -load -Xclang $RAPTOR_INSTALL_DIR/lib/ClangRaptor-$LLVM_VER.so
-```
-
-#### `flang`
-``` shell
--fpass-plugin=$RAPTOR_INSTALL_DIR/lib/LLVMRaptor-$LLVM_VER.so
 ```
 
 ### Changes in source code
