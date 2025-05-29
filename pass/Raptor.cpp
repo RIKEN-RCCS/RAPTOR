@@ -456,8 +456,10 @@ Function *GetFunctionFromValue(Value *fn) {
 class RaptorBase {
 public:
   RaptorLogic Logic;
-  RaptorBase(bool PostOpt)
-      : Logic(RaptorPostOpt.getNumOccurrences() ? RaptorPostOpt : PostOpt) {
+  ThinOrFullLTOPhase Phase;
+  RaptorBase(bool PostOpt, ThinOrFullLTOPhase Phase)
+      : Logic(RaptorPostOpt.getNumOccurrences() ? RaptorPostOpt : PostOpt),
+        Phase(Phase) {
     // initializeLowerAutodiffIntrinsicPass(*PassRegistry::getPassRegistry());
   }
 
@@ -1089,6 +1091,11 @@ public:
   }
 
   bool run(Module &M) {
+
+    if (Phase == llvm::ThinOrFullLTOPhase::FullLTOPreLink ||
+        Phase == llvm::ThinOrFullLTOPhase::ThinLTOPreLink)
+      return false;
+
     if (char *Name = getenv("RAPTOR_DUMP_MODULE_PRE")) {
       std::error_code EC;
       raw_fd_stream Out(Name, EC);
@@ -1200,40 +1207,7 @@ public:
   }
 };
 
-class RaptorOldPM : public RaptorBase, public ModulePass {
-public:
-  static char ID;
-  RaptorOldPM(bool PostOpt = false) : RaptorBase(PostOpt), ModulePass(ID) {}
-
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<TargetLibraryInfoWrapperPass>();
-
-    // AU.addRequiredID(LCSSAID);
-
-    // LoopInfo is required to ensure that all loops have preheaders
-    // AU.addRequired<LoopInfoWrapperPass>();
-
-    // AU.addRequiredID(llvm::LoopSimplifyID);//<LoopSimplifyWrapperPass>();
-  }
-  bool runOnModule(Module &M) override { return run(M); }
-};
-
 } // namespace
-
-char RaptorOldPM::ID = 0;
-
-static RegisterPass<RaptorOldPM> X("raptor", "Raptor Pass");
-
-ModulePass *createRaptorPass(bool PostOpt) { return new RaptorOldPM(PostOpt); }
-
-#include <llvm-c/Core.h>
-#include <llvm-c/Types.h>
-
-#include "llvm/IR/LegacyPassManager.h"
-
-extern "C" void AddRaptorPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createRaptorPass(/*PostOpt*/ false));
-}
 
 #include "llvm/Passes/PassPlugin.h"
 
@@ -1246,7 +1220,8 @@ private:
 
 public:
   using Result = llvm::PreservedAnalyses;
-  RaptorNewPM(bool PostOpt = false) : RaptorBase(PostOpt) {}
+  RaptorNewPM(bool PostOpt, ThinOrFullLTOPhase Phase)
+      : RaptorBase(PostOpt, Phase) {}
 
   Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
     return RaptorBase::run(M) ? PreservedAnalyses::none()
@@ -1360,7 +1335,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     OptimizerPM.addPass(llvm::GVNPass());
     OptimizerPM.addPass(llvm::SROAPass(llvm::SROAOptions::PreserveCFG));
     MPM.addPass(createModuleToFunctionPassAdaptor(std::move(OptimizerPM)));
-    MPM.addPass(RaptorNewPM(/*PostOpt=*/true));
+    MPM.addPass(RaptorNewPM(/*PostOpt=*/true, Phase));
     OptimizerPM2.addPass(llvm::GVNPass());
     OptimizerPM2.addPass(llvm::SROAPass(llvm::SROAOptions::PreserveCFG));
 
@@ -1587,7 +1562,7 @@ void registerRaptor(llvm::PassBuilder &PB) {
       [](llvm::StringRef Name, llvm::ModulePassManager &MPM,
          llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
         if (Name == "raptor") {
-          MPM.addPass(RaptorNewPM());
+          MPM.addPass(RaptorNewPM(false, ThinOrFullLTOPhase::None));
           return true;
         }
         return false;
