@@ -29,8 +29,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(RAPTOR_CLANG "Build raptor clang plugin" ON)
-option(RAPTOR_FLANG "Build raptor flang symlink" OFF)
-option(RAPTOR_MLIR "Build raptor mlir plugin" OFF)
+option(RAPTOR_MLIR "Build raptor mlir plugin" ON)
 option(RAPTOR_IFX "Enable raptor support for the Intel Fortran compiler IFX" OFF)
 option(RAPTOR_EXTERNAL_SHARED_LIB "Build external shared library" OFF)
 option(RAPTOR_STATIC_LIB "Build static library" OFF)
@@ -40,15 +39,15 @@ list(APPEND CMAKE_MODULE_PATH "${RAPTOR_SOURCE_DIR}/cmake/modules")
 
 set(LLVM_SHLIBEXT "${CMAKE_SHARED_MODULE_SUFFIX}")
 if (APPLE)
-    set(LLVM_SHLIBEXT ".dylib")
+  set(LLVM_SHLIBEXT ".dylib")
 endif()
 message( LLVM_SHLIBEXT = ${LLVM_SHLIBEXT} )
 
 set(LLVM_MAIN_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 get_filename_component(LLVM_ABSOLUTE_DIR
-    "${LLVM_DIR}"
-    REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+  "${LLVM_DIR}"
+  REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
 
 if (NOT EXISTS "${LLVM_DIR}")
   message("Looking for LLVM_DIR at ${LLVM_DIR}")
@@ -69,7 +68,7 @@ find_package(LLVM REQUIRED CONFIG)
 
 if (NOT DEFINED LLVM_EXTERNAL_LIT)
   if(LLVM_DIR MATCHES ".*/cmake/llvm/?$")
-      message("found llvm match ${CMAKE_MATCH_1} dir ${LLVM_DIR}")
+    message("found llvm match ${CMAKE_MATCH_1} dir ${LLVM_DIR}")
     if (EXISTS ${LLVM_DIR}/../../../bin/llvm-lit) 
       set(LLVM_EXTERNAL_LIT ${LLVM_DIR}/../../../bin/llvm-lit) 
     else()
@@ -85,115 +84,152 @@ if (NOT DEFINED LLVM_EXTERNAL_LIT)
 endif()
 
 get_filename_component(LLVM_ABSOLUTE_LIT
-                       "${LLVM_EXTERNAL_LIT}"
-                       REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+  "${LLVM_EXTERNAL_LIT}"
+  REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
 
-                   set(LLVM_EXTERNAL_LIT "${LLVM_ABSOLUTE_LIT}" CACHE FILEPATH "a" FORCE)
+set(LLVM_EXTERNAL_LIT "${LLVM_ABSOLUTE_LIT}" CACHE FILEPATH "a" FORCE)
 message("found llvm lit " ${LLVM_EXTERNAL_LIT})
 
 list(INSERT CMAKE_PREFIX_PATH 0 "${LLVM_DIR}")
 message("LLVM dir ${LLVM_DIR}")
 if (RAPTOR_CLANG)
-if (DEFINED Clang_DIR)
+  if (DEFINED Clang_DIR)
     get_filename_component(Clang_ABSOLUTE_DIR
       "${Clang_DIR}"
+      REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+    set(Clang_DIR "${Clang_ABSOLUTE_DIR}" CACHE FILEPATH "b" FORCE)
+    list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+    message("clang dir defined ${Clang_DIR}")
+  else()
+    if(LLVM_DIR MATCHES ".*/cmake/llvm/?$")
+      if (EXISTS ${LLVM_DIR}/../clang)
+        set(Clang_DIR ${LLVM_DIR}/../clang)
+        list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+      endif()
+    elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/?$")
+      if (EXISTS ${LLVM_DIR}/lib/cmake/clang)
+        set(Clang_DIR ${LLVM_DIR}/lib/cmake/clang)
+        list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+      endif()
+    elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/cmake/?$")
+      get_filename_component(LLDIR "${LLVM_DIR}" DIRECTORY)
+      if (EXISTS ${LLDIR}/lib/cmake/clang)
+        set(Clang_DIR ${LLDIR}/lib/cmake/clang)
+        list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+      endif()
+    endif()
+    message("clang dir from llvm ${Clang_DIR}")
+  endif()
+endif()
+
+if (DEFINED Flang_DIR)
+  get_filename_component(Flang_ABSOLUTE_DIR
+    "${Flang_DIR}"
     REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
-set(Clang_DIR "${Clang_ABSOLUTE_DIR}" CACHE FILEPATH "b" FORCE)
-  list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
-  message("clang dir defined ${Clang_DIR}")
+  set(Flang_DIR "${Flang_ABSOLUTE_DIR}" CACHE FILEPATH "b" FORCE)
+  list(INSERT CMAKE_PREFIX_PATH 0 "${Flang_DIR}")
+  message("flang dir defined ${Flang_DIR}")
 else()
   if(LLVM_DIR MATCHES ".*/cmake/llvm/?$")
-    if (EXISTS ${LLVM_DIR}/../clang/../../libclangBasic.a)
-      set(Clang_DIR ${LLVM_DIR}/../clang)
-     list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+    if (EXISTS ${LLVM_DIR}/../flang)
+      set(Flang_DIR ${LLVM_DIR}/../flang)
+      list(INSERT CMAKE_PREFIX_PATH 0 "${Flang_DIR}")
     endif()
   elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/?$")
-    if (EXISTS ${LLVM_DIR}/lib/libclangBasic.a)
-      set(Clang_DIR ${LLVM_DIR}/lib/cmake/clang)
-     list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+    if (EXISTS ${LLVM_DIR}/lib/cmake/flang)
+      set(Flang_DIR ${LLVM_DIR}/lib/cmake/flang)
+      list(INSERT CMAKE_PREFIX_PATH 0 "${Flang_DIR}")
     endif()
   elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/cmake/?$")
-      get_filename_component(LLDIR "${LLVM_DIR}" DIRECTORY)
-    if (EXISTS ${LLDIR}/lib/libclangBasic.a)
-      set(Clang_DIR ${LLDIR}/lib/cmake/clang)
-     list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
-    endif()
-  else()
-    if (EXISTS ${LLVM_DIR}/lib/libclangBasic.a)
-      set(Clang_DIR ${LLVM_DIR})
-      list(INSERT CMAKE_PREFIX_PATH 0 "${Clang_DIR}")
+    get_filename_component(LLDIR "${LLVM_DIR}" DIRECTORY)
+    if (EXISTS ${LLDIR}/lib/cmake/flang)
+      set(Flang_DIR ${LLDIR}/lib/cmake/flang)
+      list(INSERT CMAKE_PREFIX_PATH 0 "${Flang_DIR}")
     endif()
   endif()
-  message("clang dir from llvm ${Clang_DIR}")
-endif()
-else()
+  message("flang dir from llvm ${Flang_DIR}")
 endif()
 
 if (RAPTOR_MLIR)
-    if (DEFINED MLIR_DIR)
-        get_filename_component(MLIR_ABSOLUTE_DIR
-        "${MLIR_DIR}"
-        REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
-        set(MLIR_DIR "${MLIR_ABSOLUTE_DIR}" CACHE FILEPATH "b" FORCE)
+  if (DEFINED MLIR_DIR)
+    get_filename_component(MLIR_ABSOLUTE_DIR
+      "${MLIR_DIR}"
+      REALPATH BASE_DIR "${CMAKE_BINARY_DIR}")
+    set(MLIR_DIR "${MLIR_ABSOLUTE_DIR}" CACHE FILEPATH "b" FORCE)
+    list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
+    message("MLIR dir defined ${MLIR_DIR}")
+  else()
+    if(LLVM_DIR MATCHES ".*/cmake/llvm/?$")
+      if (EXISTS ${LLVM_DIR}/../mlir/../../libMLIRIR.a)
+        set(MLIR_DIR ${LLVM_DIR}/../mlir)
         list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
-        message("MLIR dir defined ${MLIR_DIR}")
-    else()
-      if(LLVM_DIR MATCHES ".*/cmake/llvm/?$")
-        if (EXISTS ${LLVM_DIR}/../mlir/../../libMLIRIR.a)
-            set(MLIR_DIR ${LLVM_DIR}/../mlir)
-            list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
-        else()
-            message(SEND_ERROR "MLIR requested but not found")
-        endif()
-      elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/?$")
-        if (EXISTS ${LLVM_DIR}/lib/libMLIRIR.a)
-            set(MLIR_DIR ${LLVM_DIR}/lib/cmake/mlir)
-          list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
-        else()
-            message(SEND_ERROR "MLIR requested but not found")
-        endif()
-      elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/cmake/?$")
-          get_filename_component(LLDIR "${LLVM_DIR}" DIRECTORY)
-        if (EXISTS ${LLDIR}/lib/libMLIRIR.a)
-            set(MLIR_DIR ${LLDIR}/lib/cmake/mlir)
-            list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
-        else()
-            message(SEND_ERROR "MLIR requested but not found")
-        endif()
       else()
-        if (EXISTS ${LLVM_DIR}/lib/libMLIRIR.a)
-          set(MLIR_DIR ${LLVM_DIR})
-          list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
-        else()
-            message(SEND_ERROR "MLIR requested but not found")
-        endif()
+        message(SEND_ERROR "MLIR requested but not found")
       endif()
-      message("mlir dir from llvm ${MLIR_DIR}")
+    elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/?$")
+      if (EXISTS ${LLVM_DIR}/lib/libMLIRIR.a)
+        set(MLIR_DIR ${LLVM_DIR}/lib/cmake/mlir)
+        list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
+      else()
+        message(SEND_ERROR "MLIR requested but not found")
+      endif()
+    elseif(LLVM_DIR MATCHES ".*/llvm-([0-9]+)/cmake/?$")
+      get_filename_component(LLDIR "${LLVM_DIR}" DIRECTORY)
+      if (EXISTS ${LLDIR}/lib/libMLIRIR.a)
+        set(MLIR_DIR ${LLDIR}/lib/cmake/mlir)
+        list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
+      else()
+        message(SEND_ERROR "MLIR requested but not found")
+      endif()
+    else()
+      if (EXISTS ${LLVM_DIR}/lib/libMLIRIR.a)
+        set(MLIR_DIR ${LLVM_DIR})
+        list(INSERT CMAKE_PREFIX_PATH 0 "${MLIR_DIR}")
+      else()
+        message(SEND_ERROR "MLIR requested but not found")
+      endif()
     endif()
+    message("mlir dir from llvm ${MLIR_DIR}")
+  endif()
 endif()
 
 if(RAPTOR_IFX)
-    add_definitions(-DRAPTOR_IFX=1)
-    message("Building with support for the Intel Fortran compiler IFX")
+  add_definitions(-DRAPTOR_IFX=1)
+  message("Building with support for the Intel Fortran compiler IFX")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 
 message("clang dir ${Clang_DIR}")
+message("flang dir ${Flang_DIR}")
 message("mlir dir ${MLIR_DIR}")
 
 if (DEFINED Clang_DIR)
-    find_package(Clang REQUIRED CONFIG PATHS ${Clang_DIR} NO_DEFAULT_PATH)
-if (${Clang_FOUND})
+  find_package(Clang REQUIRED CONFIG PATHS ${Clang_DIR} NO_DEFAULT_PATH)
+  if (${Clang_FOUND})
     include_directories(${CLANG_INCLUDE_DIRS})
     message("clang inc dir ${CLANG_INCLUDE_DIRS}")
     add_definitions(${CLANG_DEFINITIONS})
-endif()
+  endif()
 else()
-    set(Clang_FOUND 0) 
+  set(Clang_FOUND 0)
 endif()
 message("found Clang ${Clang_FOUND}")
+
+if (DEFINED MLIR_DIR)
+  find_package(MLIR REQUIRED CONFIG PATHS ${MLIR_DIR} NO_DEFAULT_PATH)
+else()
+  set(MLIR_FOUND 0)
+endif()
+message("found MLIR ${MLIR_FOUND}")
+
+if (DEFINED Flang_DIR)
+  find_package(Flang REQUIRED CONFIG PATHS ${Flang_DIR} NO_DEFAULT_PATH)
+else()
+  set(Flang_FOUND 0)
+endif()
+message("found Flang ${Flang_FOUND}")
 
 add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -240,69 +276,61 @@ add_subdirectory(pass)
 # The benchmarks data are not in git-exported source archives to minimize size.
 # Only add the benchmarks if the directory exists.
 if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks")
-    add_subdirectory(benchmarks)
+  add_subdirectory(benchmarks)
 endif()
 
 
 # Make relative paths absolute (needed later on)
 foreach(p LIB BIN INCLUDE CMAKE)
-set(var INSTALL_${p}_DIR)
-if(NOT IS_ABSOLUTE "${${var}}")
-  set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
-endif()
+  set(var INSTALL_${p}_DIR)
+  if(NOT IS_ABSOLUTE "${${var}}")
+    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+  endif()
 endforeach()
 
 export(TARGETS LLVMRaptor-${LLVM_VERSION_MAJOR}
   FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 if (${Clang_FOUND})
-export(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
+  export(TARGETS ClangRaptor-${LLVM_VERSION_MAJOR}
     APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
-export(TARGETS ClangRaptorFlags
+  export(TARGETS ClangRaptorFlags
     APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
-set(RAPTOR_INCLUDES
-  "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor/raptor.h"
-)
-
-set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")
-list(APPEND RAPTOR_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
-add_custom_command(OUTPUT ${bundled_includes}
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh
-  ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor
-  ${bundled_includes}
-  DEPENDS ${RAPTOR_INCLUDES}
-  COMMENT "Bundling includes"
-  VERBATIM
-)
-add_custom_target(bundled_includes_target DEPENDS ${bundled_includes})
-add_dependencies(ClangRaptor-${LLVM_VERSION_MAJOR} bundled_includes_target)
-target_include_directories(ClangRaptor-${LLVM_VERSION_MAJOR} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/")
-endif()
-
-if (${RAPTOR_FLANG} AND ${Clang_FOUND})
-	add_custom_target(link_target ALL
-  COMMAND ${CMAKE_COMMAND} -E create_symlink
-	  ClangRaptor-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
-	  ${PROJECT_BINARY_DIR}/Raptor/FlangRaptor-${LLVM_VERSION_MAJOR}${LLVM_SHLIBEXT}
+  set(RAPTOR_INCLUDES
+    "${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor/raptor.h"
   )
+
+  set(bundled_includes "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/bundled_includes.h")
+  list(APPEND RAPTOR_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh)
+  add_custom_command(OUTPUT ${bundled_includes}
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/bundle-includes.sh
+    ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include/public/raptor
+    ${bundled_includes}
+    DEPENDS ${RAPTOR_INCLUDES}
+    COMMENT "Bundling includes"
+    VERBATIM
+  )
+  add_custom_target(bundled_includes_target DEPENDS ${bundled_includes})
+  add_dependencies(ClangRaptor-${LLVM_VERSION_MAJOR} bundled_includes_target)
+  target_include_directories(ClangRaptor-${LLVM_VERSION_MAJOR} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/Raptor/Clang/")
 endif()
 
 export(TARGETS LLDRaptor-${LLVM_VERSION_MAJOR}
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 export(TARGETS LLDRaptorFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 export(TARGETS LLDRaptorAssumeUnknownNoFree
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 export(TARGETS LLDRaptorLooseTypeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 export(TARGETS LLDRaptorPrintTypeFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 export(TARGETS LLDRaptorPrintFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 export(TARGETS LLDRaptorNoStrictAliasingFlags
-    APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
+  APPEND FILE "${PROJECT_BINARY_DIR}/RaptorTargets.cmake")
 
 export(PACKAGE Raptor)
 
@@ -312,30 +340,31 @@ set(CONF_LLVM_VERSION_PATCH ${LLVM_VERSION_PATCH})
 set(CONF_LLVM_DIR ${LLVM_DIR})
 set(CONF_LLVM_BINARY_DIR ${LLVM_BINARY_DIR})
 if (${Clang_FOUND})
-    get_property(CONF_CLANG_EXE TARGET clang PROPERTY LOCATION)
+  get_property(CONF_CLANG_EXE TARGET clang PROPERTY LOCATION)
 else()
-    set(CONF_CLANG_EXE "")
+  set(CONF_CLANG_EXE "")
 endif()
 
 set(CONF_INCLUDE_DIRS lib)
 configure_file(cmake/RaptorConfig.cmake.in
-     "${PROJECT_BINARY_DIR}/RaptorConfig.cmake" @ONLY)
-   
+  "${PROJECT_BINARY_DIR}/RaptorConfig.cmake" @ONLY)
+
 set(CONF_INCLUDE_DIRS lib)
 configure_file(cmake/RaptorConfig.cmake.in
-     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake" @ONLY)
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake" @ONLY)
 
 configure_file(cmake/RaptorConfigVersion.cmake.in
-     "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake" @ONLY)
-   
+  "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake" @ONLY)
+
 install(FILES
-     "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake"
-     "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake"
-     DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
-   
+  "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/RaptorConfig.cmake"
+  "${PROJECT_BINARY_DIR}/RaptorConfigVersion.cmake"
+  DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
+
 install(EXPORT RaptorTargets
   DESTINATION "${INSTALL_CMAKE_DIR}"
   COMPONENT   dev)
 
 add_subdirectory(runtime)
 add_subdirectory(test)
+add_subdirectory(wrappers)
