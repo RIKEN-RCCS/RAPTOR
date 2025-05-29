@@ -10,6 +10,11 @@ RAPTOR requires LLVM version 20 with `clang`, `flang`, and `lld` for full capabi
 
 In addition, it requires the MPFR library for emulating various floating point precisions.
 
+To install the dependencies on Debian and Ubuntu, [this repository](https://apt.llvm.org/) can be used.
+```
+sudo apt-get install -y cmake gcc g++ llvm-20-dev libclang-20-dev clang-20 lld-20 mlir-20-tools libmlir-20 libmlir-20-dev libflang-20-dev flang-20 libmpfr-dev
+```
+
 ## Building
 
 ``` shell
