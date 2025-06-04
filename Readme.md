@@ -15,6 +15,11 @@ To install the dependencies on Debian and Ubuntu, [this repository](https://apt.
 sudo apt-get install -y cmake gcc g++ llvm-20-dev libclang-20-dev clang-20 lld-20 mlir-20-tools libmlir-20 libmlir-20-dev libflang-20-dev flang-20 libmpfr-dev
 ```
 
+LLVM can also be installed using spack as such:
+```
+spack install llvm+clang+flang+lld+mlir@20
+```
+
 ## Building
 
 ``` shell
