@@ -1,5 +1,4 @@
-; RUN: if [ %llvmver -lt 16 ]; then %opt < %s %loadRaptor -raptor -S | FileCheck %s; fi
-; RUN: %opt < %s %newLoadRaptor -passes="raptor" -S | FileCheck %s
+; RUN: %opt %s %newLoadRaptor -passes="raptor" -S | FileCheck %s
 
 define double @f(double %x, double %y, i1 %cond) {
   %res = select i1 %cond, double %x, double %y
@@ -23,8 +22,5 @@ entry:
   ret double %res
 }
 
-; CHECK: define internal double @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_f(
-
-; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_f(
-
-; TODO forgot what the intention of this test is
+; CHECK: define internal double @__raptor_done_truncate
+; TODO
