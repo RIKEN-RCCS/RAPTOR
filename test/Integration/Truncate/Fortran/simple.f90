@@ -1,3 +1,4 @@
+! RUN: %flang -O0 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
 ! RUN: %flang -O1 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
 ! RUN: %flang -O2 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
 ! RUN: %flang -O3 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
