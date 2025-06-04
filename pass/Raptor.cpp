@@ -564,7 +564,8 @@ public:
     auto [Truncation, NumArgsParsed] = parseTruncation(CI, Mode, 1);
 
     RequestContext context(CI, &Builder);
-    llvm::Value *res = Logic.CreateTruncateFunc(context, F, Truncation, Mode);
+    llvm::Value *res = Logic.CreateTruncateFunc(
+        context, F, TruncationConfiguration::getInitial(Truncation, Mode));
     if (!res)
       return false;
     res = Builder.CreatePointerCast(res, CI->getType());
@@ -696,8 +697,10 @@ public:
     for (auto Truncation : FullModuleTruncs) {
       IRBuilder<> Builder(F.getContext());
       RequestContext context(&*F.getEntryBlock().begin(), &Builder);
-      Function *TruncatedFunc = Logic.CreateTruncateFunc(
-          context, &F, Truncation, TruncOpFullModuleMode);
+      Function *TruncatedFunc =
+          Logic.CreateTruncateFunc(context, &F,
+                                   TruncationConfiguration::getInitial(
+                                       Truncation, TruncOpFullModuleMode));
 
       ValueToValueMapTy Mapping;
       for (auto &&[Arg, TArg] : llvm::zip(F.args(), TruncatedFunc->args()))

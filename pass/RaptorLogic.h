@@ -288,6 +288,44 @@ public:
   std::string mangleFrom() const { return From.getMangling(); }
 };
 
+class TruncationConfiguration {
+public:
+  FloatTruncation Truncation;
+  TruncateMode Mode;
+  bool NeedNewScratch;
+  bool NeedTruncChange;
+  bool ScratchFromArgs;
+  std::string mangle() {
+    return std::string(truncateModeStr(Mode)) + "_func_" +
+           Truncation.mangleTruncation() + "_" +
+           std::to_string(NeedTruncChange) + "_" +
+           std::to_string(NeedNewScratch) + "_" +
+           std::to_string(ScratchFromArgs);
+  }
+  static auto toTuple(const TruncationConfiguration &TC) {
+    return std::tuple(TC.Truncation, TC.Mode, TC.NeedNewScratch,
+                      TC.NeedTruncChange, TC.ScratchFromArgs);
+  }
+  bool operator==(const TruncationConfiguration &Other) const {
+    return toTuple(*this) == toTuple(Other);
+  }
+  bool operator<(const TruncationConfiguration &Other) const {
+    return toTuple(*this) < toTuple(Other);
+  }
+
+  static TruncationConfiguration getInitial(FloatTruncation Truncation,
+                                            TruncateMode Mode) {
+    if (Mode == TruncOpMode)
+      return TruncationConfiguration{Truncation, Mode, true, true, false};
+    else if (Mode == TruncMemMode)
+      return TruncationConfiguration{Truncation, Mode, false, false, false};
+    else if (Mode == TruncOpFullModuleMode)
+      return TruncationConfiguration{Truncation, Mode, true, false, false};
+    else
+      llvm_unreachable("");
+  }
+};
+
 typedef std::map<std::tuple<std::string, unsigned, unsigned>,
                  llvm::GlobalValue *>
     UniqDebugLocStrsTy;
@@ -303,12 +341,11 @@ public:
   RaptorLogic(bool PostOpt) : PostOpt(PostOpt) {}
 
   using TruncateCacheKey =
-      std::tuple<llvm::Function *, FloatTruncation, unsigned, bool>;
+      std::tuple<llvm::Function *, TruncationConfiguration>;
   std::map<TruncateCacheKey, llvm::Function *> TruncateCachedFunctions;
-  llvm::Function *CreateTruncateFunc(RequestContext context,
-                                     llvm::Function *tobatch,
-                                     FloatTruncation truncation,
-                                     TruncateMode mode, bool root = true);
+  llvm::Function *CreateTruncateFunc(RequestContext Context,
+                                     llvm::Function *ToTrunc,
+                                     TruncationConfiguration TC);
   bool CreateTruncateValue(RequestContext context, llvm::Value *addr,
                            FloatTruncation Truncation, bool isTruncate);
   bool CountInFunc(llvm::Function *F, FloatRepresentation FR);
