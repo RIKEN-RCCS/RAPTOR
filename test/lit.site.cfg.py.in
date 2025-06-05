@@ -95,7 +95,8 @@ assert len("@RAPTOR_BINARY_DIR@") != 0
 newPM = ('-Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 config.substitutions.append(('%loadClangRaptor', newPM))
 
-newPM = ('-fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+newPM = ('-fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext
+         + ' -Xflang -load -Xflang @RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 config.substitutions.append(('%loadFlangRaptor', newPM))
 
 newPM = ('-Wl,--load-pass-plugin=@RAPTOR_BINARY_DIR@/pass/LLDRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
