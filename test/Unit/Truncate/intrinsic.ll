@@ -47,7 +47,7 @@ entry:
 ; CHECK-DAG:   call double @__raptor_fprt_ieee_64_binop_fadd(
 ; CHECK-DAG:   call void @llvm.nvvm.barrier0()
 
-; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_1_1_0_f(
+; CHECK: define internal double @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_0_0_0_f(
 ; CHECK-DAG:   fptrunc
 ; CHECK-DAG:   call float @llvm.pow.f32(
 ; CHECK-DAG:   fpext float
