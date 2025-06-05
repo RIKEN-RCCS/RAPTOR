@@ -1,23 +1,23 @@
 // clang-format off
 // Baseline
 
-// RUN: %clang -O3 %s -S -emit-llvm -o - %linkRaptorRT %loadClangRaptor -S -mllvm --raptor-truncate-count=false -mllvm --raptor-truncate-all="" | %lli - | FileCheck --check-prefix BASELINE %s
+// RUN: %clang -O3 %s -S -emit-llvm -o - %linkRaptorRT %loadClangPluginRaptor -S -mllvm --raptor-truncate-count=false -mllvm --raptor-truncate-all="" | %lli - | FileCheck --check-prefix BASELINE %s
 // BASELINE: 900000000.560000
 
 
 // Truncated
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-ieee(32)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_32 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-all="ieee(64)-ieee(32)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_32 %s
 // TO_32: 900000000.000000
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,23)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_28_23 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,23)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_28_23 %s
 // TO_28_23: 900000000.000000
 
-// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
+// RUN: %clang -mllvm --raptor-truncate-count=false -O3 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(8,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix TO_3_7 %s
 // TO_3_7: 897581056.000000
 
 // TODO revive the location check
-// COM: %clang -mllvm --raptor-truncate-count=false -g -O3 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(3,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix CHECK-LOCS %s
+// COM: %clang -mllvm --raptor-truncate-count=false -g -O3 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-all="ieee(64)-mpfr(3,7)" -lmpfr -lm &&  %t.a.out | FileCheck --check-prefix CHECK-LOCS %s
 // CHECK-LOCS:      0x[[op1:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op1loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op2:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op2loc:.*]]
 // CHECK-LOCS-NEXT: 0x[[op3:[0-9a-f]*]], {{.*}}truncate-all.cpp:[[op3loc:.*]]

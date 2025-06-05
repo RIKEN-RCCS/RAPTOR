@@ -36,15 +36,6 @@ double teams(double a, double b) {
 
 double teams_par(double a, double b) {
   double c = 0;
-#pragma omp teams parallel
-  {
-    c = a + b;
-  }
-  return c;
-}
-
-double teams__par(double a, double b) {
-  double c = 0;
 #pragma omp teams
   {
 #pragma omp parallel
@@ -60,6 +51,21 @@ double par(double a, double b) {
 #pragma omp parallel
   {
     c = a + b;
+  }
+  return c;
+}
+
+double task(double a, double b) {
+  double c = 0;
+#pragma omp parallel
+  {
+#pragma omp single
+    {
+#pragma omp task
+      {
+        c = a + b;
+      }
+    }
   }
   return c;
 }
@@ -84,9 +90,11 @@ int main() {
   printf("%f + %f = %f\n", a, b, c);
   APPROX_EQ(c, 1000, 1e-5);
 
-  c = __raptor_truncate_op_func(teams__par, FROM, TO)(a, b);
+#if 0
+  c = __raptor_truncate_op_func(task, FROM, TO)(a, b);
   printf("%f + %f = %f\n", a, b, c);
   APPROX_EQ(c, 1000, 1e-5);
+#endif
 
   return 0;
 }

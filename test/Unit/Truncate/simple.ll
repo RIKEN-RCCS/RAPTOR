@@ -48,7 +48,7 @@ entry:
 
 ; CHECK: define void @tester_op(ptr %data) {
 ; CHECK-NEXT: entry:
-; CHECK-NEXT:   call void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_1_1_0_f(ptr %data)
+; CHECK-NEXT:   call void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_0_0_0_f(ptr %data)
 ; CHECK-NEXT:   ret void
 ; CHECK-NEXT: }
 
@@ -71,7 +71,7 @@ entry:
 ; CHECK-NEXT:   ret double %2
 ; CHECK-NEXT: }
 
-; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_1_1_0_f(ptr %x) {
+; CHECK: define internal void @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_0_0_0_f(ptr %x) {
 ; CHECK-NEXT:   %y = load double, ptr %x, align 8
 ; CHECK-NEXT:   %raptor_trunc = fptrunc double %y to float
 ; CHECK-NEXT:   %raptor_trunc1 = fptrunc double %y to float

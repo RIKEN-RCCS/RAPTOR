@@ -315,14 +315,19 @@ public:
 
   static TruncationConfiguration getInitial(FloatTruncation Truncation,
                                             TruncateMode Mode) {
-    if (Mode == TruncOpMode)
-      return TruncationConfiguration{Truncation, Mode, true, true, false};
-    else if (Mode == TruncMemMode)
+    if (Mode == TruncOpMode) {
+      if (Truncation.isToFPRT())
+        return TruncationConfiguration{Truncation, Mode, true, true, false};
+      else
+        return TruncationConfiguration{Truncation, Mode, false, false, false};
+    } else if (Mode == TruncMemMode) {
+      assert(Truncation.isToFPRT());
       return TruncationConfiguration{Truncation, Mode, false, false, false};
-    else if (Mode == TruncOpFullModuleMode)
+    } else if (Mode == TruncOpFullModuleMode) {
       return TruncationConfiguration{Truncation, Mode, true, false, false};
-    else
+    } else {
       llvm_unreachable("");
+    }
   }
 };
 

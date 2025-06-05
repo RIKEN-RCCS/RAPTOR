@@ -1,5 +1,5 @@
 // clang-format off
-// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangRaptor -mllvm --raptor-truncate-count -lm && %t.a.out | FileCheck %s
+// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-count -lm && %t.a.out | FileCheck %s
 
 #include <cstdio>
 #include <cmath>

@@ -92,11 +92,12 @@ config.substitutions.append(('%BClibdir', '@RAPTOR_SOURCE_DIR@/bclib/'))
 
 assert len("@RAPTOR_BINARY_DIR@") != 0
 
-newPM = ('-Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
-config.substitutions.append(('%loadClangRaptor', newPM))
+passPlugin = ('-fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 
-newPM = ('-fpass-plugin=@RAPTOR_BINARY_DIR@/pass/LLVMRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
-config.substitutions.append(('%loadFlangRaptor', newPM))
+newPM = ('-Xclang -load -Xclang @RAPTOR_BINARY_DIR@/pass/ClangRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
+config.substitutions.append(('%loadClangPluginRaptor', newPM))
+config.substitutions.append(('%loadClangRaptor', passPlugin))
+config.substitutions.append(('%loadFlangRaptor', passPlugin))
 
 newPM = ('-Wl,--load-pass-plugin=@RAPTOR_BINARY_DIR@/pass/LLDRaptor-' + config.llvm_ver + config.llvm_shlib_ext)
 config.substitutions.append(('%loadLLDRaptor', newPM))
@@ -111,3 +112,28 @@ cfgfile = "@RAPTOR_SOURCE_DIR@/test/lit.cfg.py"
 if len("@RAPTOR_SOURCE_DIR@") == 0:
   cfgfile = os.path.dirname(os.path.abspath(__file__)) + "/lit.cfg.py"
 lit_config.load_config(config, cfgfile)
+
+
+import subprocess
+
+def has_openmp_gpu():
+    try:
+        result = subprocess.run(
+            ["llvm-offload-device-info"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+
+        if result.returncode != 0:
+            return False
+        output = result.stdout
+        return "GPU" in output
+
+    except FileNotFoundError:
+        return False
+
+
+has_openmp_gpu = has_openmp_gpu()
+
+config.substitutions.append(('%hasOpenMPGPU', '1' if has_openmp_gpu else '0' ))

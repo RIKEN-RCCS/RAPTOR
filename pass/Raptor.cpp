@@ -88,18 +88,12 @@ llvm::cl::opt<bool>
     RaptorPostOpt("raptor-postopt", cl::init(false), cl::Hidden,
                   cl::desc("Run raptorpostprocessing optimizations"));
 
-llvm::cl::opt<bool> RaptorAttributor("raptor-attributor", cl::init(false),
-                                     cl::Hidden,
-                                     cl::desc("Run attributor post Raptor"));
-
 llvm::cl::opt<bool> RaptorOMPOpt("raptor-omp-opt", cl::init(false), cl::Hidden,
                                  cl::desc("Whether to enable openmp opt"));
 
-llvm::cl::opt<std::string> RaptorTruncateAll(
-    "raptor-truncate-all", cl::init(""), cl::Hidden,
-    cl::desc(
-        "Truncate all floating point operations. "
-        "E.g. \"64to32\" or \"64to<exponent_width>-<significand_width>\"."));
+llvm::cl::opt<std::string>
+    RaptorTruncateAll("raptor-truncate-all", cl::init(""), cl::Hidden,
+                      cl::desc("Truncate all floating point operations."));
 
 llvm::cl::opt<bool> RaptorTruncateCount(
     "raptor-truncate-count", cl::init(false), cl::Hidden,

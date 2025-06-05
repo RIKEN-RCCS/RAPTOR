@@ -31,7 +31,7 @@ entry:
 ; CHECK: define internal i1 @__raptor_done_truncate_mem_func_ieee_64_to_mpfr_8_23_0_0_0_f(
 ; CHECK:   call i1 @__raptor_fprt_ieee_64_fcmp_olt
 
-; CHECK: define internal i1 @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_1_1_0_f(
+; CHECK: define internal i1 @__raptor_done_truncate_op_func_ieee_64_to_ieee_32_0_0_0_f(
 ; CHECK:   fcmp olt double
 
 ; CHECK: define internal i1 @__raptor_done_truncate_op_func_ieee_64_to_mpfr_3_7_1_1_0_f(
