@@ -540,6 +540,8 @@ public:
     case UnaryOperator::FNeg: {
       if (I.getOperand(0)->getType() != getFromType())
         return;
+      if (!Truncation.isToFPRT())
+        return;
 
       auto newI = getNewFromOriginal(&I);
       IRBuilder<> B(newI);
