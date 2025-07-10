@@ -1,10 +1,16 @@
 // clang-format off
-// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-count -lm && %t.a.out | FileCheck %s
+// RUN: %clang -O2 %s -o %t.a.out %linkRaptorRT %loadClangPluginRaptor -mllvm --raptor-truncate-count -lm && %t.a.out
 
 #include <cstdio>
 #include <cmath>
 
+#include "../../test_utils.h"
+
 #define floatty double
+#define FROM 64
+#define TO 1, 8, 23
+
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
 
 // CHECK: FLOP!
 // CHECK: FLOP!
@@ -12,9 +18,8 @@
 // CHECK: FLOP!
 // CHECK: FLOP!
 
-extern "C" void __raptor_fprt_ieee_64_count() {
-  puts("FLOP!");
-}
+extern "C" long long __raptor_get_double_flop_count();
+extern "C" long long __raptor_get_trunc_flop_count();
 
 #define N 10
 
@@ -55,9 +60,30 @@ int main() {
         B[i] = 1 + i % 3;
     }
 
+    TEST_EQ(__raptor_get_double_flop_count(), 0);
+    TEST_EQ(__raptor_get_trunc_flop_count(), 0);
+
     compute2(A, B, C, N);
+
+    TEST_EQ(__raptor_get_double_flop_count(), 70);
+    TEST_EQ(__raptor_get_trunc_flop_count(), 0);
+
     for (int i = 0; i < N; i++)
         C[i] = 0;
+
     compute(A, B, C, N);
-    printf("%f\n", C[5]);
+
+    TEST_EQ(__raptor_get_double_flop_count(), 140);
+    TEST_EQ(__raptor_get_trunc_flop_count(), 0);
+
+
+    for (int i = 0; i < N; i++)
+        C[i] = 0;
+
+    __raptor_truncate_op_func(compute, FROM, TO)(A, B, C, N);
+
+    TEST_EQ(__raptor_get_double_flop_count(), 140);
+    TEST_EQ(__raptor_get_trunc_flop_count(), 70);
+
+
 }
