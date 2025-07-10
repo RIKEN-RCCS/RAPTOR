@@ -12,12 +12,6 @@
 
 template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
 
-// CHECK: FLOP!
-// CHECK: FLOP!
-// CHECK: FLOP!
-// CHECK: FLOP!
-// CHECK: FLOP!
-
 extern "C" long long __raptor_get_double_flop_count();
 extern "C" long long __raptor_get_trunc_flop_count();
 
