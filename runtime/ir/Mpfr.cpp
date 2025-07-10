@@ -712,15 +712,18 @@ void raptor_fprt_op_clear();
   }
 #endif // RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 
-__RAPTOR_MPFR_ORIGINAL_ATTRIBUTES __attribute__((weak)) bool
-__raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(double a,
-                                                        int32_t tests);
-__RAPTOR_MPFR_ATTRIBUTES bool __raptor_fprt_ieee_64_intr_llvm_is_fpclass_f64(
-    double a, int32_t tests, int64_t exponent, int64_t significand,
-    int64_t mode, const char *loc, mpfr_t *scratch) {
-  return __raptor_fprt_original_ieee_64_intr_llvm_is_fpclass_f64(
-      __raptor_fprt_ieee_64_get(a, exponent, significand, mode, loc, scratch),
-      tests);
-}
+#define __RAPTOR_MPFR_ISCLASS(FROM_TYPE, TYPE, LLVM_TYPE)                         \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES bool                                          \
+      __raptor_fprt_original_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(      \
+          TYPE a, int32_t tests);                                                 \
+  __RAPTOR_MPFR_ATTRIBUTES bool                                                   \
+      __raptor_fprt_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(               \
+          TYPE a, int32_t tests, int64_t exponent, int64_t significand,           \
+          int64_t mode, const char *loc, mpfr_t *scratch) {                       \
+    return __raptor_fprt_original_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE( \
+        __raptor_fprt_ieee_64_get(a, exponent, significand, mode, loc,            \
+                                  scratch),                                       \
+        tests);                                                                   \
+  }
 
 #include "Flops.def"

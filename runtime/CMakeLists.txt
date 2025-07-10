@@ -5,6 +5,7 @@ add_library(
   obj/GarbageCollection.cpp
   ir/Mpfr.cpp
   ir/Fprt.cpp
+  ir/Log.cpp
 )
 
 # add_library(

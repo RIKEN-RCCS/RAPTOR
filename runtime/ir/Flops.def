@@ -137,6 +137,10 @@ __RAPTOR_MPFR_FMULADD(llvm_fmuladd, ieee_64, double, d, f64,
 __RAPTOR_MPFR_FMULADD(llvm_fma, ieee_64, double, d, f64,
                       __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
 
+// llvm.is.fpclass
+__RAPTOR_MPFR_ISCLASS(ieee_64, double, f64)
+__RAPTOR_MPFR_ISCLASS(ieee_32, float, f32)
+
 // Comparisons
 __RAPTOR_MPFR_FCMP(oeq, 1, == 0);
 __RAPTOR_MPFR_FCMP(ueq, 0, == 0);

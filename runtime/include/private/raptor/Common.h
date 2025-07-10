@@ -9,7 +9,9 @@
 #define MAX_MPFR_OPERANDS 3
 
 #define __RAPTOR_MPFR_ATTRIBUTES extern "C"
-#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C"
+#define __RAPTOR_MPFR_DECL_ATTRIBUTES extern "C"
+#define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C" __attribute__((weak))
+
 #define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
 #define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
@@ -44,16 +46,16 @@ static inline bool __raptor_fprt_is_full_module_op_mode(int64_t mode) {
   return mode & 0b0100;
 }
 
-__RAPTOR_MPFR_ATTRIBUTES
+__RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_gc_dump_status();
-__RAPTOR_MPFR_ATTRIBUTES
+__RAPTOR_MPFR_DECL_ATTRIBUTES
 double raptor_fprt_gc_mark_seen(double a);
-__RAPTOR_MPFR_ATTRIBUTES
+__RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_gc_doit();
 
-__RAPTOR_MPFR_ATTRIBUTES
+__RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_excl_trunc_start();
-__RAPTOR_MPFR_ATTRIBUTES
+__RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_excl_trunc_end();
 
 template <typename To, typename From> To raptor_bitcast(From from) {
@@ -88,42 +90,42 @@ template <typename To, typename From> To checked_raptor_bitcast(From from) {
 #undef RAPTOR_FLOAT_TYPE
 
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   CPP_TY __raptor_fprt_##FROM_TY##_get(CPP_TY _a, int64_t exponent,            \
                                        int64_t significand, int64_t mode,      \
                                        const char *loc, void *scratch);        \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   CPP_TY __raptor_fprt_##FROM_TY##_new(CPP_TY _a, int64_t exponent,            \
                                        int64_t significand, int64_t mode,      \
                                        const char *loc, void *scratch);        \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   CPP_TY __raptor_fprt_##FROM_TY##_const(CPP_TY _a, int64_t exponent,          \
                                          int64_t significand, int64_t mode,    \
                                          const char *loc, void *scratch);      \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   __raptor_fp *__raptor_fprt_##FROM_TY##_new_intermediate(                     \
       int64_t exponent, int64_t significand, int64_t mode, const char *loc,    \
       void *scratch);                                                          \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   void __raptor_fprt_##FROM_TY##_delete(CPP_TY a, int64_t exponent,            \
                                         int64_t significand, int64_t mode,     \
                                         const char *loc, void *scratch);       \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   void *__raptor_fprt_##FROM_TY##_get_scratch(int64_t to_e, int64_t to_m,      \
                                               int64_t mode, const char *loc,   \
                                               void *scratch);                  \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   void __raptor_fprt_##FROM_TY##_free_scratch(int64_t to_e, int64_t to_m,      \
                                               int64_t mode, const char *loc,   \
                                               void *scratch);                  \
                                                                                \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
   void __raptor_fprt_##FROM_TY##_trunc_change(int64_t is_push, int64_t to_e,   \
                                               int64_t to_m, int64_t mode,      \
                                               const char *loc, void *scratch);
