@@ -30,6 +30,7 @@
 #include <memory>
 
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Transforms/Utils/Instrumentation.h"
 #include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 
 #include "llvm/ADT/ArrayRef.h"
@@ -567,6 +568,43 @@ public:
     llvm_unreachable("Unknown float type");
   }
 
+  bool HandleLogFlops(CallInst *CI) {
+    IRBuilder<> Builder(CI);
+    Function *F = parseFunctionParameter(CI);
+    if (!F)
+      return false;
+    unsigned ArgNum = CI->arg_size();
+    if (ArgNum != 1) {
+      EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
+                  "Had incorrect number of args ", *CI, " - expected 1");
+      return false;
+    }
+
+    RequestContext context(CI, &Builder);
+    for (auto FR :
+         {/* FloatRepresentation::getIEEE(16), */ FloatRepresentation::getIEEE(
+              32),
+          FloatRepresentation::getIEEE(64)}) {
+      FunctionType *Ty = FunctionType::get(
+          Builder.getVoidTy(), FR.getMustBeBuiltinType(Builder.getContext()),
+          false);
+      FunctionCallee FlopLogger = CI->getModule()->getOrInsertFunction(
+          std::string(RaptorPrefix) + "log_flops_" + FR.getMangling(), Ty);
+      llvm::Value *Res = Logic.CreateTruncateFunc(
+          context, F,
+          TruncationConfiguration::getInitialLogFlops(
+              FR, *cast<Function>(FlopLogger.getCallee())));
+      if (!Res)
+        return false;
+      F = cast<Function>(Res);
+    }
+    llvm::Value *Res = Builder.CreatePointerCast(F, CI->getType());
+
+    CI->replaceAllUsesWith(Res);
+    CI->eraseFromParent();
+    return true;
+  }
+
   bool HandleTruncateFunc(CallInst *CI, TruncateMode Mode) {
     IRBuilder<> Builder(CI);
     Function *F = parseFunctionParameter(CI);
@@ -583,7 +621,8 @@ public:
 
     RequestContext context(CI, &Builder);
     llvm::Value *res = Logic.CreateTruncateFunc(
-        context, F, TruncationConfiguration::getInitial(Truncation, Mode));
+        context, F,
+        TruncationConfiguration::getInitial(Truncation, Builder.getContext()));
     if (!res)
       return false;
     res = Builder.CreatePointerCast(res, CI->getType());
@@ -718,7 +757,7 @@ public:
       Function *TruncatedFunc =
           Logic.CreateTruncateFunc(context, &F,
                                    TruncationConfiguration::getInitial(
-                                       Truncation, TruncOpFullModuleMode));
+                                       Truncation, Builder.getContext()));
 
       ValueToValueMapTy Mapping;
       for (auto &&[Arg, TArg] : llvm::zip(F.args(), TruncatedFunc->args()))
@@ -790,6 +829,7 @@ public:
         Changed = true;
       }
 
+    SmallVector<CallInst *, 4> toLogFlops;
     SmallVector<CallInst *, 4> toTruncateFuncMem;
     SmallVector<CallInst *, 4> toTruncateFuncOp;
     SmallVector<CallInst *, 4> toTruncateValue;
@@ -1017,11 +1057,15 @@ public:
         }
 
         bool enableRaptor = false;
+        bool logFlops = false;
         bool truncateFuncOp = false;
         bool truncateFuncMem = false;
         bool truncateValue = false;
         bool expandValue = false;
         if (false) {
+        } else if (Fn->getName().contains("__raptor_log_flops")) {
+          enableRaptor = true;
+          logFlops = true;
         } else if (Fn->getName().contains("__raptor_truncate_mem_func")) {
           enableRaptor = true;
           truncateFuncMem = true;
@@ -1073,7 +1117,11 @@ public:
             }
             goto retry;
           }
-          if (truncateFuncOp)
+          if (false)
+            abort();
+          else if (logFlops)
+            toLogFlops.push_back(CI);
+          else if (truncateFuncOp)
             toTruncateFuncOp.push_back(CI);
           else if (truncateFuncMem)
             toTruncateFuncMem.push_back(CI);
@@ -1095,18 +1143,16 @@ public:
       }
     }
 
-    for (auto call : toTruncateFuncMem) {
+    for (auto call : toLogFlops)
+      HandleLogFlops(call);
+    for (auto call : toTruncateFuncMem)
       HandleTruncateFunc(call, TruncMemMode);
-    }
-    for (auto call : toTruncateFuncOp) {
+    for (auto call : toTruncateFuncOp)
       HandleTruncateFunc(call, TruncOpMode);
-    }
-    for (auto call : toTruncateValue) {
+    for (auto call : toTruncateValue)
       HandleTruncateValue(call, true);
-    }
-    for (auto call : toExpandValue) {
+    for (auto call : toExpandValue)
       HandleTruncateValue(call, false);
-    }
 
     return Changed;
   }

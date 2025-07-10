@@ -105,7 +105,6 @@ struct {
     /* ignore for now */                                                       \
   }
 #include "raptor/FloatTypes.def"
-#undef RAPTOR_FLOAT_TYPE
 
 __RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_gc_dump_status() {

@@ -17,8 +17,10 @@
 #include <set>
 #include <utility>
 
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
@@ -34,6 +36,7 @@ extern llvm::cl::opt<bool> RaptorPrint;
 extern llvm::cl::opt<bool> RaptorJuliaAddrLoad;
 }
 
+constexpr char RaptorPrefix[] = "__raptor_";
 constexpr char RaptorFPRTPrefix[] = "__raptor_fprt_";
 constexpr char RaptorFPRTOriginalPrefix[] = "__raptor_fprt_original_";
 
@@ -198,6 +201,11 @@ public:
            (w == F64Width && SignificandWidth == F64Significand);
   }
 
+  llvm::Type *getMustBeBuiltinType(llvm::LLVMContext &ctx) const {
+    assert(canBeBuiltin());
+    return getTypeForWidth(ctx, getWidth(), /*builtinFloat=*/true);
+  }
+
   llvm::Type *getBuiltinType(llvm::LLVMContext &ctx) const {
     if (!canBeBuiltin())
       return nullptr;
@@ -288,22 +296,31 @@ public:
   std::string mangleFrom() const { return From.getMangling(); }
 };
 
+using CustomArgsTy = llvm::SmallVector<llvm::Value *, 5>;
+
 class TruncationConfiguration {
 public:
-  FloatTruncation Truncation;
+  FloatRepresentation FromRepr;
   TruncateMode Mode;
   bool NeedNewScratch;
   bool NeedTruncChange;
   bool ScratchFromArgs;
+  CustomArgsTy CustomArgs;
+  std::string CustomMangle;
+  std::string RTName;
+
+  bool IsToFPRT;
+  std::optional<FloatRepresentation> ToRepr;
+
   std::string mangle() {
     return std::string(truncateModeStr(Mode)) + "_func_" +
-           Truncation.mangleTruncation() + "_" +
+           FromRepr.getMangling() + "_" + CustomMangle + "_" +
            std::to_string(NeedTruncChange) + "_" +
            std::to_string(NeedNewScratch) + "_" +
            std::to_string(ScratchFromArgs);
   }
   static auto toTuple(const TruncationConfiguration &TC) {
-    return std::tuple(TC.Truncation, TC.Mode, TC.NeedNewScratch,
+    return std::tuple(TC.FromRepr, TC.CustomMangle, TC.Mode, TC.NeedNewScratch,
                       TC.NeedTruncChange, TC.ScratchFromArgs);
   }
   bool operator==(const TruncationConfiguration &Other) const {
@@ -313,18 +330,99 @@ public:
     return toTuple(*this) < toTuple(Other);
   }
 
+  std::string mangleFrom() { return FromRepr.getMangling(); }
+
+  bool isToFPRT() { return IsToFPRT; }
+
+  TruncateMode getMode() { return Mode; }
+
+  llvm::Type *getFromType(llvm::LLVMContext &Ctx) {
+    return FromRepr.getBuiltinType(Ctx);
+  }
+
+  llvm::Type *getToType(llvm::LLVMContext &Ctx) {
+    if (isToFPRT() || !ToRepr.has_value())
+      return getFromType(Ctx);
+    assert(ToRepr.has_value());
+    return ToRepr->getBuiltinType(Ctx);
+  }
+
+  static TruncationConfiguration getInitialLogFlops(FloatRepresentation FR,
+                                                    llvm::Function &F) {
+    llvm::IRBuilder<> B(F.getContext());
+    CustomArgsTy Args;
+    Args.push_back(&F);
+    return TruncationConfiguration{FR,    TruncOpMode, true,  false,
+                                   false, Args,        "log", "fprtlog",
+                                   true,  std::nullopt};
+  }
+
   static TruncationConfiguration getInitial(FloatTruncation Truncation,
-                                            TruncateMode Mode) {
-    if (Mode == TruncOpMode) {
+                                            llvm::LLVMContext &Ctx) {
+    llvm::IRBuilder<> B(Ctx);
+    CustomArgsTy Args;
+    Args.push_back(B.getInt64(Truncation.getTo().getExponentWidth()));
+    Args.push_back(B.getInt64(Truncation.getTo().getSignificandWidth()));
+    Args.push_back(B.getInt64(Truncation.getMode()));
+    std::string Mangle = "to_" + Truncation.getTo().getMangling();
+    if (Truncation.getMode() == TruncOpMode) {
       if (Truncation.isToFPRT())
-        return TruncationConfiguration{Truncation, Mode, true, true, false};
+        return TruncationConfiguration{Truncation.getFrom(),
+                                       Truncation.getMode(),
+                                       true,
+                                       true,
+                                       false,
+                                       Args,
+                                       Mangle,
+                                       "fprt",
+                                       true,
+                                       std::nullopt};
       else
-        return TruncationConfiguration{Truncation, Mode, false, false, false};
-    } else if (Mode == TruncMemMode) {
+        return TruncationConfiguration{Truncation.getFrom(),
+                                       Truncation.getMode(),
+                                       false,
+                                       false,
+                                       false,
+                                       Args,
+                                       Mangle,
+                                       "",
+                                       false,
+                                       Truncation.getTo()};
+    } else if (Truncation.getMode() == TruncMemMode) {
       assert(Truncation.isToFPRT());
-      return TruncationConfiguration{Truncation, Mode, false, false, false};
-    } else if (Mode == TruncOpFullModuleMode) {
-      return TruncationConfiguration{Truncation, Mode, true, false, false};
+      return TruncationConfiguration{Truncation.getFrom(),
+                                     Truncation.getMode(),
+                                     false,
+                                     false,
+                                     false,
+                                     Args,
+                                     Mangle,
+                                     "fprt",
+                                     true,
+                                     std::nullopt};
+    } else if (Truncation.getMode() == TruncOpFullModuleMode) {
+      if (Truncation.isToFPRT())
+        return TruncationConfiguration{Truncation.getFrom(),
+                                       Truncation.getMode(),
+                                       true,
+                                       false,
+                                       false,
+                                       Args,
+                                       Mangle,
+                                       "fprt",
+                                       true,
+                                       std::nullopt};
+      else
+        return TruncationConfiguration{Truncation.getFrom(),
+                                       Truncation.getMode(),
+                                       true,
+                                       false,
+                                       false,
+                                       Args,
+                                       Mangle,
+                                       "",
+                                       false,
+                                       Truncation.getTo()};
     } else {
       llvm_unreachable("");
     }

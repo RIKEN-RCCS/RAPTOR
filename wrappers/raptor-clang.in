@@ -3,4 +3,4 @@
 CMAKE_INSTALL_PREFIX="@CMAKE_INSTALL_PREFIX@"
 LLVM_VERSION_MAJOR="@LLVM_VERSION_MAJOR@"
 CLANG_PATH="@RAPTOR_CLANG_PATH@"
-exec "$CLANG_PATH" -fpass-plugin="$CMAKE_INSTALL_PREFIX/lib/LLVMRaptor-$LLVM_VERSION_MAJOR.so" -L"$CMAKE_INSTALL_PREFIX/lib" -lstdc++ -lmpfr -lRaptor-RT-"$LLVM_VERSION_MAJOR" -fuse-ld=lld -Wl,--load-pass-plugin="$CMAKE_INSTALL_PREFIX/lib/LLDRaptor-$LLVM_VERSION_MAJOR.so" "$@"
+exec "$CLANG_PATH" -I"$CMAKE_INSTALL_PREFIX/include/" -fpass-plugin="$CMAKE_INSTALL_PREFIX/lib/LLVMRaptor-$LLVM_VERSION_MAJOR.so" -L"$CMAKE_INSTALL_PREFIX/lib" -lstdc++ -lmpfr -lRaptor-RT-"$LLVM_VERSION_MAJOR" -fuse-ld=lld -Wl,--load-pass-plugin="$CMAKE_INSTALL_PREFIX/lib/LLDRaptor-$LLVM_VERSION_MAJOR.so" "$@"

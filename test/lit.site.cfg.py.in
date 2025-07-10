@@ -108,6 +108,10 @@ config.substitutions.append(('%loadLLDRaptor', newPM))
 link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lmpfr -lRaptor-RT-" + config.llvm_ver
 config.substitutions.append(('%linkRaptorRT', link))
 
+link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lmpfr -lRaptor-RT-" + config.llvm_ver
+
+config.substitutions.append(('%includeRaptorRT', '-I@RAPTOR_SOURCE_DIR@/runtime/include/public'))
+
 config.substitutions.append(('%hasMPFR', has_mpfr))
 
 # Let the main config do the real work.
@@ -122,7 +126,7 @@ import subprocess
 def has_openmp_gpu():
     try:
         result = subprocess.run(
-            ["llvm-offload-device-info"],
+            [os.path.join(config.llvm_tools_dir, "llvm-offload-device-info")],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True

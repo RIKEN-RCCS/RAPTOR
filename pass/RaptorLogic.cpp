@@ -62,7 +62,7 @@
 using namespace llvm;
 
 static Value *floatValTruncate(IRBuilderBase &B, Value *v,
-                               FloatTruncation truncation) {
+                               TruncationConfiguration truncation) {
   if (truncation.isToFPRT())
     return v;
 
@@ -73,7 +73,7 @@ static Value *floatValTruncate(IRBuilderBase &B, Value *v,
 }
 
 static Value *floatValExpand(IRBuilderBase &B, Value *v,
-                             FloatTruncation truncation) {
+                             TruncationConfiguration truncation) {
   if (truncation.isToFPRT())
     return v;
 
@@ -84,26 +84,18 @@ static Value *floatValExpand(IRBuilderBase &B, Value *v,
 }
 
 static Value *floatMemTruncate(IRBuilderBase &B, Value *v,
-                               FloatTruncation truncation) {
-  if (isa<VectorType>(v->getType()))
-    report_fatal_error("vector operations not allowed in mem trunc mode");
-
-  Type *toTy = truncation.getToType(B.getContext());
-  return B.CreateBitCast(v, toTy);
+                               TruncationConfiguration truncation) {
+  return v;
 }
 
 static Value *floatMemExpand(IRBuilderBase &B, Value *v,
-                             FloatTruncation truncation) {
-  if (isa<VectorType>(v->getType()))
-    report_fatal_error("vector operations not allowed in mem trunc mode");
-
-  Type *fromTy = truncation.getFromType(B.getContext());
-  return B.CreateBitCast(v, fromTy);
+                             TruncationConfiguration truncation) {
+  return v;
 }
 
 class TruncateUtils {
 protected:
-  FloatTruncation truncation;
+  TruncationConfiguration TC;
   llvm::Module *M;
   Type *fromType;
   Type *toType;
@@ -111,14 +103,17 @@ protected:
   RaptorLogic &Logic;
   Value *UnknownLoc;
   Value *scratch = nullptr;
+  CustomArgsTy CustomArgs;
+  std::string RTName;
 
 private:
   std::string getOriginalFPRTName(std::string Name) {
-    return std::string(RaptorFPRTOriginalPrefix) + truncation.mangleFrom() +
+    return std::string(RaptorPrefix) + RTName + "_original_" + TC.mangleFrom() +
            "_" + Name;
   }
   std::string getFPRTName(std::string Name) {
-    return std::string(RaptorFPRTPrefix) + truncation.mangleFrom() + "_" + Name;
+    return std::string(RaptorPrefix) + RTName + "_" + TC.mangleFrom() + "_" +
+           Name;
   }
 
   // Creates a function which contains the original floating point operation.
@@ -169,9 +164,7 @@ public:
                               const SmallVectorImpl<Value *> &ArgsIn,
                               llvm::Type *RetTy, Value *LocStr) {
     SmallVector<Value *, 5> Args(ArgsIn.begin(), ArgsIn.end());
-    Args.push_back(B.getInt64(truncation.getTo().getExponentWidth()));
-    Args.push_back(B.getInt64(truncation.getTo().getSignificandWidth()));
-    Args.push_back(B.getInt64(truncation.getMode()));
+    Args.append(CustomArgs);
     Args.push_back(LocStr);
     Args.push_back(scratch);
 
@@ -189,11 +182,11 @@ public:
     return CI;
   }
 
-  TruncateUtils(FloatTruncation truncation, Module *M, RaptorLogic &Logic)
-      : truncation(truncation), M(M), ctx(M->getContext()), Logic(Logic) {
-    fromType = truncation.getFromType(ctx);
-    toType = truncation.getToType(ctx);
-
+  TruncateUtils(TruncationConfiguration TC, Module *M, RaptorLogic &Logic)
+      : TC(TC), M(M), ctx(M->getContext()), Logic(Logic),
+        CustomArgs(TC.CustomArgs), RTName(TC.RTName) {
+    fromType = TC.getFromType(M->getContext());
+    toType = TC.getToType(M->getContext());
     UnknownLoc = getUniquedLocStr(nullptr);
     scratch = ConstantPointerNull::get(PointerType::get(M->getContext(), 0));
   }
@@ -401,7 +394,7 @@ class TruncateGenerator : public llvm::InstVisitor<TruncateGenerator>,
                           public TruncateUtils {
 private:
   ValueToValueMapTy &OriginalToNewFn;
-  FloatTruncation Truncation;
+  TruncationConfiguration TC;
   TruncateMode Mode;
   RaptorLogic &Logic;
   LLVMContext &Ctx;
@@ -410,9 +403,9 @@ public:
   TruncateGenerator(ValueToValueMapTy &originalToNewFn, Function *oldFunc,
                     Function *newFunc, RaptorLogic &Logic,
                     TruncationConfiguration TC)
-      : TruncateUtils(TC.Truncation, newFunc->getParent(), Logic),
-        OriginalToNewFn(originalToNewFn), Truncation(TC.Truncation),
-        Mode(Truncation.getMode()), Logic(Logic), Ctx(newFunc->getContext()) {
+      : TruncateUtils(TC, newFunc->getParent(), Logic),
+        OriginalToNewFn(originalToNewFn), TC(TC), Mode(TC.getMode()),
+        Logic(Logic), Ctx(newFunc->getContext()) {
 
     auto AllocScratch = [&]() {
       // TODO we should check at the end if we never used the scracth we should
@@ -444,7 +437,7 @@ public:
         }
       }
     };
-    if (Truncation.isToFPRT()) {
+    if (TC.isToFPRT()) {
       if (Mode == TruncOpMode) {
         if (TC.NeedTruncChange || TC.NeedNewScratch)
           AllocScratch();
@@ -503,10 +496,10 @@ public:
     case TruncMemMode:
       if (isa<ConstantFP>(v))
         return createFPRTConstCall(B, v);
-      return floatMemTruncate(B, v, Truncation);
+      return floatMemTruncate(B, v, TC);
     case TruncOpMode:
     case TruncOpFullModuleMode:
-      return floatValTruncate(B, v, Truncation);
+      return floatValTruncate(B, v, TC);
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -514,10 +507,10 @@ public:
   Value *expand(IRBuilder<> &B, Value *v) {
     switch (Mode) {
     case TruncMemMode:
-      return floatMemExpand(B, v, Truncation);
+      return floatMemExpand(B, v, TC);
     case TruncOpMode:
     case TruncOpFullModuleMode:
-      return floatValExpand(B, v, Truncation);
+      return floatValExpand(B, v, TC);
     }
     llvm_unreachable("Unknown trunc mode");
   }
@@ -527,7 +520,7 @@ public:
     case UnaryOperator::FNeg: {
       if (I.getOperand(0)->getType() != getFromType())
         return;
-      if (!Truncation.isToFPRT())
+      if (!TC.isToFPRT())
         return;
 
       auto newI = getNewFromOriginal(&I);
@@ -565,7 +558,7 @@ public:
       Args.push_back(truncLHS);
       Args.push_back(truncRHS);
       Instruction *nres;
-      if (Truncation.isToFPRT())
+      if (TC.isToFPRT())
         nres = createFPRTOpCall(B, CI, B.getInt1Ty(), Args);
       else
         nres =
@@ -685,9 +678,9 @@ public:
     auto newLHS = truncate(B, getNewFromOriginal(oldLHS));
     auto newRHS = truncate(B, getNewFromOriginal(oldRHS));
     Instruction *nres = nullptr;
-    if (Truncation.isToFPRT()) {
+    if (TC.isToFPRT()) {
       SmallVector<Value *, 2> Args({newLHS, newRHS});
-      nres = createFPRTOpCall(B, BO, Truncation.getToType(Ctx), Args);
+      nres = createFPRTOpCall(B, BO, getToType(), Args);
     } else {
       nres = cast<Instruction>(B.CreateBinOp(BO.getOpcode(), newLHS, newRHS));
     }
@@ -748,7 +741,7 @@ public:
 
     Instruction *intr = nullptr;
     Value *nres = nullptr;
-    if (Truncation.isToFPRT()) {
+    if (TC.isToFPRT()) {
       nres = intr = createFPRTOpCall(B, CI, retTy, new_ops);
     } else {
       // TODO check that the intrinsic is overloaded
@@ -832,11 +825,13 @@ public:
   }
 
   Value *GetShadow(RequestContext &ctx, Value *v, bool WillPassScratch) {
-    if (auto F = dyn_cast<Function>(v))
-      return Logic.CreateTruncateFunc(
-          ctx, F,
-          TruncationConfiguration{Truncation, Mode, !WillPassScratch, false,
-                                  WillPassScratch});
+    if (auto F = dyn_cast<Function>(v)) {
+      auto NewTC = TC;
+      NewTC.NeedNewScratch = !WillPassScratch;
+      NewTC.NeedTruncChange = false;
+      NewTC.ScratchFromArgs = WillPassScratch;
+      return Logic.CreateTruncateFunc(ctx, F, NewTC);
+    }
     llvm::errs() << " unknown get truncated func: " << *v << "\n";
     llvm_unreachable("unknown get truncated func");
     return v;
@@ -1006,8 +1001,9 @@ bool RaptorLogic::CreateTruncateValue(RequestContext context, Value *v,
   IRBuilderBase &B = *context.ip;
 
   Value *converted = nullptr;
-  TruncateUtils TU(Truncation, B.GetInsertBlock()->getParent()->getParent(),
-                   *this);
+  TruncateUtils TU(
+      TruncationConfiguration::getInitial(Truncation, v->getContext()),
+      B.GetInsertBlock()->getParent()->getParent(), *this);
   if (isTruncate)
     converted = TU.createFPRTNewCall(B, v);
   else

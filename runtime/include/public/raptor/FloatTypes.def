@@ -2,3 +2,5 @@
 RAPTOR_FLOAT_TYPE(double, ieee_64)
 RAPTOR_FLOAT_TYPE(float, ieee_32)
 // RAPTOR_FLOAT_TYPE(half, ieee_16)
+
+#undef RAPTOR_FLOAT_TYPE
