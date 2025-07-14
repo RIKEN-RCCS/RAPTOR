@@ -322,20 +322,7 @@ public:
     B.CreateCall(CountFunc);
   }
 
-  void visitFCmpInst(llvm::FCmpInst &CI) { flop(CI); }
-
   Type *getFloatType() { return FR.getBuiltinType(Ctx); }
-
-  void visitCastInst(llvm::CastInst &CI) {
-    auto src = CI.getOperand(0);
-    if (CI.getSrcTy() == getFloatType() || CI.getDestTy() == getFloatType()) {
-      if (isa<Constant>(src))
-        return;
-      if (Instruction::FPToUI <= CI.getOpcode() &&
-          CI.getOpcode() <= Instruction::FPExt)
-        flop(CI);
-    }
-  }
 
   void visitBinaryOperator(llvm::BinaryOperator &BO) {
     auto oldLHS = BO.getOperand(0);
