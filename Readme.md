@@ -211,3 +211,19 @@ The `f__raptor_truncate_op_func` must be declared:
 ```
 
 See `test/Integration/Truncate/Fortran/simple.f90` for an example.
+
+
+## Citing RAPTOR
+
+If you use RAPTOR, consider citing the following paper:
+
+``` bibtex
+@inproceedings{hoerold_raptor_2025,
+  title = {{{RAPTOR}}: {{Numerical Profiling}} of {{Scientific Applications}}},
+  booktitle = {Proceedings of the {{International Conference}} for {{High Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis}}},
+  author = {Hoerold, Faveo and Ivanov, Ivan R. and Dhruv, Akash and Moses, William S. and Dubey, Anshu and Wahib, Mohamed and Domke, Jens},
+  date = {2025-11},
+  series = {{{SC}} '25},
+  publisher = {IEEE Press},
+}
+```
