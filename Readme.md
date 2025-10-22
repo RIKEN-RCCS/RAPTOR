@@ -118,16 +118,16 @@ or if using `lld` directly:
 
 Suppose your original code looks like this:
 ``` c++
-void bar(float a, float b) {
+float bar(float a, float b) {
   return a + b;
 }
-void foo(float *a, float b) {
+float foo(float *a, float b) {
   a[0] = sqrt(b);
   return bar(a[1], b);
 }
 
   ...
-  foo(a, b)
+  foo(a, b);
   ...
 ```
 
