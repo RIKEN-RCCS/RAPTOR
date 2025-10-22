@@ -109,7 +109,11 @@ bool attributeKnownFunctions(llvm::Function &F) {
   if (F.getName() == "fprintf") {
     for (auto &arg : F.args()) {
       if (arg.getType()->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+        arg.addAttr(Attribute::get(F.getContext(), "captures", "none"));
+#else
         arg.addAttr(Attribute::NoCapture);
+#endif
         changed = true;
       }
     }
@@ -132,7 +136,11 @@ bool attributeKnownFunctions(llvm::Function &F) {
       for (auto &arg : F.args()) {
         if (arg.getType()->isPointerTy()) {
           arg.addAttr(Attribute::ReadNone);
+#if LLVM_VERSION_MAJOR >= 21
+          arg.addAttr(Attribute::get(F.getContext(), "captures", "none"));
+#else
           arg.addAttr(Attribute::NoCapture);
+#endif
         }
       }
   }
@@ -152,7 +160,11 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::NoSync);
     for (int i = 0; i < 2; i++)
       if (F.getFunctionType()->getParamType(i)->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+        F.addParamAttr(i, Attribute::get(F.getContext(), "captures", "none"));
+#else
         F.addParamAttr(i, Attribute::NoCapture);
+#endif
         F.addParamAttr(i, Attribute::WriteOnly);
       }
   }
@@ -176,7 +188,11 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::NoSync);
     F.addParamAttr(0, Attribute::WriteOnly);
     if (F.getFunctionType()->getParamType(2)->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+      F.addParamAttr(2, Attribute::get(F.getContext(), "captures", "none"));
+#else
       F.addParamAttr(2, Attribute::NoCapture);
+#endif
       F.addParamAttr(2, Attribute::WriteOnly);
     }
     F.addParamAttr(6, Attribute::WriteOnly);
@@ -195,7 +211,11 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::NoSync);
     F.addParamAttr(0, Attribute::ReadOnly);
     if (F.getFunctionType()->getParamType(2)->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+      F.addParamAttr(2, Attribute::get(F.getContext(), "captures", "none"));
+#else
       F.addParamAttr(2, Attribute::NoCapture);
+#endif
       F.addParamAttr(2, Attribute::ReadOnly);
     }
     F.addParamAttr(6, Attribute::WriteOnly);
@@ -215,12 +235,20 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::NoSync);
 
     if (F.getFunctionType()->getParamType(0)->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+      F.addParamAttr(0, Attribute::get(F.getContext(), "captures", "none"));
+#else
       F.addParamAttr(0, Attribute::NoCapture);
+#endif
       F.addParamAttr(0, Attribute::ReadOnly);
     }
     if (F.getFunctionType()->getParamType(1)->isPointerTy()) {
       F.addParamAttr(1, Attribute::WriteOnly);
+#if LLVM_VERSION_MAJOR >= 21
+      F.addParamAttr(1, Attribute::get(F.getContext(), "captures", "none"));
+#else
       F.addParamAttr(1, Attribute::NoCapture);
+#endif
     }
   }
   if (F.getName() == "MPI_Wait" || F.getName() == "PMPI_Wait") {
@@ -230,9 +258,14 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::WillReturn);
     F.addFnAttr(Attribute::NoFree);
     F.addFnAttr(Attribute::NoSync);
+#if LLVM_VERSION_MAJOR >= 21
+    F.addParamAttr(0, Attribute::get(F.getContext(), "captures", "none"));
+    F.addParamAttr(1, Attribute::get(F.getContext(), "captures", "none"));
+#else
     F.addParamAttr(0, Attribute::NoCapture);
-    F.addParamAttr(1, Attribute::WriteOnly);
     F.addParamAttr(1, Attribute::NoCapture);
+#endif
+    F.addParamAttr(1, Attribute::WriteOnly);
   }
   if (F.getName() == "MPI_Waitall" || F.getName() == "PMPI_Waitall") {
     changed = true;
@@ -241,9 +274,14 @@ bool attributeKnownFunctions(llvm::Function &F) {
     F.addFnAttr(Attribute::WillReturn);
     F.addFnAttr(Attribute::NoFree);
     F.addFnAttr(Attribute::NoSync);
+#if LLVM_VERSION_MAJOR >= 21
+    F.addParamAttr(1, Attribute::get(F.getContext(), "captures", "none"));
+    F.addParamAttr(2, Attribute::get(F.getContext(), "captures", "none"));
+#else
     F.addParamAttr(1, Attribute::NoCapture);
-    F.addParamAttr(2, Attribute::WriteOnly);
     F.addParamAttr(2, Attribute::NoCapture);
+#endif
+    F.addParamAttr(2, Attribute::WriteOnly);
   }
   // Map of MPI function name to the arg index of its type argument
   std::map<std::string, int> MPI_TYPE_ARGS = {
@@ -825,9 +863,14 @@ public:
           CI->addAttribute(AttributeList::FunctionIndex, Attribute::ReadOnly);
 #endif
           CI->addParamAttr(1, Attribute::ReadOnly);
-          CI->addParamAttr(1, Attribute::NoCapture);
           CI->addParamAttr(3, Attribute::ReadOnly);
+#if LLVM_VERSION_MAJOR >= 21
+          CI->addParamAttr(1, Attribute::get(CI->getContext(), "captures", "none"));
+          CI->addParamAttr(3, Attribute::get(CI->getContext(), "captures", "none"));
+#else
+          CI->addParamAttr(1, Attribute::NoCapture);
           CI->addParamAttr(3, Attribute::NoCapture);
+#endif
         }
         if (Fn->getName() == "frexp" || Fn->getName() == "frexpf" ||
             Fn->getName() == "frexpl") {
@@ -888,7 +931,11 @@ public:
           for (size_t i : {0, 1}) {
             if (i < num_args &&
                 CI->getArgOperand(i)->getType()->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+              CI->addParamAttr(i, Attribute::get(CI->getContext(), "captures", "none"));
+#else
               CI->addParamAttr(i, Attribute::NoCapture);
+#endif
             }
           }
         }
@@ -913,7 +960,11 @@ public:
           for (size_t i : {0, 2}) {
             if (i < num_args &&
                 CI->getArgOperand(i)->getType()->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+              CI->addParamAttr(i, Attribute::get(CI->getContext(), "captures", "none"));
+#else
               CI->addParamAttr(i, Attribute::NoCapture);
+#endif
             }
           }
         }
@@ -939,7 +990,11 @@ public:
           for (size_t i : {0, 1, 2, 3}) {
             if (i < num_args &&
                 CI->getArgOperand(i)->getType()->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+              CI->addParamAttr(i, Attribute::get(CI->getContext(), "captures", "none"));
+#else
               CI->addParamAttr(i, Attribute::NoCapture);
+#endif
             }
           }
         }
@@ -965,7 +1020,11 @@ public:
           for (size_t i : {0}) {
             if (i < num_args &&
                 CI->getArgOperand(i)->getType()->isPointerTy()) {
+#if LLVM_VERSION_MAJOR >= 21
+              CI->addParamAttr(i, Attribute::get(CI->getContext(), "captures", "none"));
+#else
               CI->addParamAttr(i, Attribute::NoCapture);
+#endif
             }
           }
         }
@@ -987,7 +1046,11 @@ public:
           for (size_t i = 0; i < num_args; ++i) {
             if (CI->getArgOperand(i)->getType()->isPointerTy()) {
               CI->addParamAttr(i, Attribute::ReadOnly);
+#if LLVM_VERSION_MAJOR >= 21
+              CI->addParamAttr(i, Attribute::get(CI->getContext(), "captures", "none"));
+#else
               CI->addParamAttr(i, Attribute::NoCapture);
+#endif
             }
           }
         }
