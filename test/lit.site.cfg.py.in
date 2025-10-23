@@ -44,6 +44,9 @@ except KeyError:
 # directories.
 config.excludes = ['Inputs']
 
+# Used when checking for major LLVM versions if tests are expected to fail
+config.substitutions.append(('%LLVM_MAJOR', config.llvm_ver))
+
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%lli', config.llvm_tools_dir + "/lli" + (" --jit-kind=mcjit" if int(config.llvm_ver) >= 13 else "")
 ))

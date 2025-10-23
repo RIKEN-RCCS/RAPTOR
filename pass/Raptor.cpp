@@ -937,7 +937,7 @@ public:
           for (size_t i : {0, 2}) {
             if (i < num_args &&
                 CI->getArgOperand(i)->getType()->isPointerTy()) {
-							addNoCapture(CI, i);
+              addNoCapture(CI, i);
             }
           }
         }

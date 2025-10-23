@@ -1,3 +1,6 @@
+! ! Circumvent tests in versions where LLVM ships with a non-functional flang
+! ! (see https://github.com/llvm/llvm-project/issues/138340 )
+! XFAIL: %LLVM_MAJOR == 21 || %LLVM_MAJOR == 22
 ! RUN: %flang -O1 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
 ! RUN: %flang -O2 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
 ! RUN: %flang -O3 %s -o %t.a.out %loadFlangRaptor %linkRaptorRT -lm -lmpfr && %t.a.out 100000 2 | FileCheck %s
