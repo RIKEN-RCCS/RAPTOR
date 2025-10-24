@@ -132,10 +132,14 @@ __RAPTOR_MPFR_LROUND(intr, llvm_lround_i32_f32, ieee_32, int32_t, float,
                      d, MPFR_RNDA);
 
 // Ternary operation
-__RAPTOR_MPFR_FMULADD(llvm_fmuladd, ieee_64, double, d, f64,
+__RAPTOR_MPFR_FMULADD(intr, llvm_fmuladd, ieee_64, double, d, f64,
                       __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
-__RAPTOR_MPFR_FMULADD(llvm_fma, ieee_64, double, d, f64,
+__RAPTOR_MPFR_FMULADD(intr, llvm_fma, ieee_64, double, d, f64,
                       __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
+
+// llvm.is.fpclass
+__RAPTOR_MPFR_ISCLASS(ieee_64, double, f64)
+__RAPTOR_MPFR_ISCLASS(ieee_32, float, f32)
 
 // Comparisons
 __RAPTOR_MPFR_FCMP(oeq, 1, == 0);

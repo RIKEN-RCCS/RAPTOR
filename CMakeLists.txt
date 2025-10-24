@@ -365,6 +365,10 @@ install(EXPORT RaptorTargets
   DESTINATION "${INSTALL_CMAKE_DIR}"
   COMPONENT   dev)
 
+install(PROGRAMS
+  "${CMAKE_CURRENT_SOURCE_DIR}/scripts/raptor_plot_float_histogram.py"
+  DESTINATION bin)
+
 add_subdirectory(runtime)
 add_subdirectory(test)
 add_subdirectory(wrappers)

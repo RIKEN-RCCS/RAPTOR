@@ -5,6 +5,7 @@ add_library(
   obj/GarbageCollection.cpp
   ir/Mpfr.cpp
   ir/Fprt.cpp
+  ir/Log.cpp
 )
 
 # add_library(
@@ -30,15 +31,23 @@ add_library(
 #   OUTPUT_NAME "Raptor-RT-FP-${LLVM_VERSION_MAJOR}"
 # )
 
-set(RAPTOR_ALL_INCLUDE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/public
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/private
+set(RAPTOR_PRIVATE_INCLUDE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/private/
+)
+set(RAPTOR_PUBLIC_INCLUDE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/public/
 )
 
-target_include_directories(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
-# target_include_directories(Raptor-RT-GC-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
-# target_include_directories(Raptor-RT-FP-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
-# target_include_directories(Raptor-RT-Count-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_ALL_INCLUDE_DIRS})
+target_include_directories(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE ${RAPTOR_PRIVATE_INCLUDE_DIR})
+target_include_directories(Raptor-RT-${LLVM_VERSION_MAJOR} PUBLIC
+  $<BUILD_INTERFACE:${RAPTOR_PUBLIC_INCLUDE_DIR}>
+  $<INSTALL_INTERFACE:include>
+)
+
+install(
+  DIRECTORY ${RAPTOR_PUBLIC_INCLUDE_DIR}
+  DESTINATION include
+)
 
 install(TARGETS Raptor-RT-${LLVM_VERSION_MAJOR}
   LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX} COMPONENT Raptor-RT-${LLVM_VERSION_MAJOR}
