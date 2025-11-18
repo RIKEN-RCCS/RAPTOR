@@ -218,12 +218,22 @@ See `test/Integration/Truncate/Fortran/simple.f90` for an example.
 If you use RAPTOR, consider citing the following paper:
 
 ``` bibtex
-@inproceedings{hoerold_raptor_2025,
-  title = {{{RAPTOR}}: {{Numerical Profiling}} of {{Scientific Applications}}},
-  booktitle = {Proceedings of the {{International Conference}} for {{High Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis}}},
-  author = {Hoerold, Faveo and Ivanov, Ivan R. and Dhruv, Akash and Moses, William S. and Dubey, Anshu and Wahib, Mohamed and Domke, Jens},
-  date = {2025-11},
-  series = {{{SC}} '25},
-  publisher = {IEEE Press},
+@inproceedings{10.1145/3712285.3759810,
+author = {Hoerold, Faveo and Ivanov, Ivan R. and Dhruv, Akash and Moses, William S. and Dubey, Anshu and Wahib, Mohamed and Domke, Jens},
+title = {RAPTOR: Practical Numerical Profiling of Scientific Applications},
+year = {2025},
+isbn = {9798400714665},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3712285.3759810},
+doi = {10.1145/3712285.3759810},
+abstract = {The proliferation of low-precision units in modern high-performance architectures increasingly burdens domain scientists. Historically, the choice in HPC was easy: can we get away with 32&nbsp;bit floating-point operations and lower bandwidth requirements, or is FP64 necessary? Driven by Artificial Intelligence, vendors introduce novel low-precision units for vector and tensor operations, and FP64 capabilities stagnate or are reduced. This forces scientists to re-evaluate their codes, but a trivial search-and-replace approach to go from FP64 to FP16 will not suffice.We introduce RAPTOR: a numerical profiling tool to guide scientists in their search for code regions where precision lowering is feasible. Using LLVM, we transparently replace high-precision computations using low-precision units, or emulate a user-defined precision. RAPTOR is a novel, feature-rich approach—with focus on ease of use—to change, profile, and reason about numerical requirements and instabilities, which we demonstrate with four real-world multi-physics Flash-X applications.},
+booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
+pages = {661–680},
+numpages = {20},
+keywords = {Mixed precision, low precision, numerical profiling, error tracking, simulation accuracy, multiphysics, LLVM, MPFR},
+location = {
+},
+series = {SC '25}
 }
 ```
