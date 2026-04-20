@@ -180,6 +180,28 @@ static inline bool isMemFreeLibMFunction(llvm::StringRef str,
   return false;
 }
 
+static inline std::string clipLibMFuncTrailingfl(std::string s) {
+  unsigned prefix_size = 0;
+  unsigned suffix_size = 0;
+  if ((s.substr(0,2) == "__") && (s.substr(s.size() - 7, 7) == "_finite")) {
+    prefix_size = 2;
+    suffix_size = 7;
+  } else if ((s.substr(0,5) == "__fd_") && (s.substr(s.size() - 2, 2) == "_1")) {
+    prefix_size = 5;
+    suffix_size = 2;
+  } else if (s.substr(0,5) == "__nv_") {
+    prefix_size = 5;
+  }
+  auto func_name = s.substr(prefix_size, s.size() - prefix_size - suffix_size);
+  if (LIBM_FUNCTIONS.find(func_name) == LIBM_FUNCTIONS.end() && 
+      ((func_name.back() == 'f') || (func_name.back() == 'l')) &&
+      LIBM_FUNCTIONS.find(func_name.substr(0, func_name.size() - 1)) != 
+      LIBM_FUNCTIONS.end()) {
+    s.erase(s.size() - suffix_size - 1, 1);
+  }
+  return s;
+}
+
 
 
 #endif // RAPTOR_UTILS

@@ -265,7 +265,7 @@ public:
           C = '_';
     } else if (auto CI = dyn_cast<CallInst>(&I)) {
       if (auto F = CI->getCalledFunction())
-        Name = "func_" + std::string(F->getName());
+        Name = "func_" + clipLibMFuncTrailingfl(std::string(F->getName()));
       else
         llvm_unreachable(
             "Unexpected indirect call inst for conversion to FPRT");
