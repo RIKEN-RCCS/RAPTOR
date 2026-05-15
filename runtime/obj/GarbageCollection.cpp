@@ -57,6 +57,17 @@ struct {
 } __raptor_mpfr_fps;
 
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  std::vector<__raptor_fp *> __raptor_mpfr_##FROM_TY##_id_to_fp;               \
+  std::vector<size_t> __raptor_mpfr_##FROM_TY##_free_id;
+#include "raptor/FloatTypes.def"
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  inline __raptor_fp * get_##FROM_TY##_id_to_fp(size_t i) {                    \
+    return __raptor_mpfr_##FROM_TY##_id_to_fp.at(i);                           \
+  }
+#include "raptor/FloatTypes.def"
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   CPP_TY __raptor_fprt_##FROM_TY##_get(CPP_TY _a, int64_t exponent,            \
                                        int64_t significand, int64_t mode,      \
@@ -75,6 +86,16 @@ struct {
     mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);            \
     a->excl_result = _a;                                                       \
     a->shadow = _a;                                                            \
+    if constexpr (sizeof(CPP_TY) != sizeof(__raptor_fp *)) {                   \
+      if (__raptor_mpfr_##FROM_TY##_free_id.empty()) {                         \
+        a->id.d = __raptor_mpfr_##FROM_TY##_id_to_fp.size();                   \
+        __raptor_mpfr_##FROM_TY##_id_to_fp.push_back(a);                       \
+      } else {                                                                 \
+        a->id.d = __raptor_mpfr_##FROM_TY##_free_id.back();                    \
+        __raptor_mpfr_##FROM_TY##_free_id.pop_back();                          \
+        __raptor_mpfr_##FROM_TY##_id_to_fp.at(a->id.d) = a;                    \
+      }                                                                        \
+    }                                                                          \
     return __raptor_fprt_ptr_to_##FROM_TY(a);                                  \
   }                                                                            \
                                                                                \
@@ -94,6 +115,16 @@ struct {
       void *scratch) {                                                         \
     __raptor_mpfr_fps.all.push_back({});                                       \
     __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
+    if constexpr (sizeof(CPP_TY) != sizeof(__raptor_fp *)) {                   \
+      if (__raptor_mpfr_##FROM_TY##_free_id.empty()) {                         \
+        a->id.d = __raptor_mpfr_##FROM_TY##_id_to_fp.size();                   \
+        __raptor_mpfr_##FROM_TY##_id_to_fp.push_back(a);                       \
+      } else {                                                                 \
+        a->id.d = __raptor_mpfr_##FROM_TY##_free_id.back();                    \
+        __raptor_mpfr_##FROM_TY##_free_id.pop_back();                          \
+        __raptor_mpfr_##FROM_TY##_id_to_fp.at(a->id.d) = a;                    \
+      }                                                                        \
+    }                                                                          \
     mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */        \
     return a;                                                                  \
   }                                                                            \
