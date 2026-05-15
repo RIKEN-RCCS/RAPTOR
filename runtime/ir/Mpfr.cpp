@@ -135,8 +135,9 @@ void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
   __raptor_fp *__raptor_fprt_##FROM_TY##_to_ptr_checked(                       \
       CPP_TY d, int64_t exponent, int64_t significand, int64_t mode,           \
       const char *loc, mpfr_t *scratch) {                                      \
-    d = __raptor_fprt_##FROM_TY##_check_zero(d, exponent, significand, mode,   \
-                                             loc, scratch);                    \
+    if (__raptor_fprt_is_op_mode(mode))                                        \
+      d = __raptor_fprt_##FROM_TY##_check_zero(d, exponent, significand, mode, \
+                                               loc, scratch);                  \
     return __raptor_fprt_##FROM_TY##_to_ptr(d);                                \
   }                                                                            \
                                                                                \
