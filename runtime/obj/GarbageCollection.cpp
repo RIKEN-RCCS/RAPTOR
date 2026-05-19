@@ -56,8 +56,10 @@ struct {
 
 } __raptor_mpfr_fps;
 
+// __raptor_mpfr_##FROM_TY##_id_to_fp vectors need to skip the first element
+// because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  std::vector<__raptor_fp *> __raptor_mpfr_##FROM_TY##_id_to_fp;               \
+  std::vector<__raptor_fp *> __raptor_mpfr_##FROM_TY##_id_to_fp(1);            \
   std::vector<size_t> __raptor_mpfr_##FROM_TY##_free_id;
 #include "raptor/FloatTypes.def"
 
