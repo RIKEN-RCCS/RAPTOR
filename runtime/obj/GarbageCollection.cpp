@@ -63,9 +63,67 @@ struct {
   std::vector<size_t> __raptor_mpfr_##FROM_TY##_free_id;
 #include "raptor/FloatTypes.def"
 
+template <typename CPP_TY>
+inline std::enable_if_t<
+  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint32_t), 
+  uint32_t> raptor_fp_id_fp_to_uint (CPP_TY f) 
+{
+  // Enable if already ensures that the type size match, no need to check again
+  return raptor_bitcast<uint32_t>(f);
+}
+
+template <typename CPP_TY>
+inline std::enable_if_t<
+  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint16_t), 
+  uint16_t> raptor_fp_id_fp_to_uint (CPP_TY h) 
+{
+  // Enable if already ensures that the type size match, no need to check again
+  return raptor_bitcast<uint16_t>(h);
+}
+
+
+template <typename CPP_TY>
+inline std::enable_if_t<
+  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(__raptor_fp *), 
+  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
+{
+  // Enable if already ensures that the type size match, no need to check again
+  return raptor_bitcast<CPP_TY>(p);
+}
+
+template <typename CPP_TY>
+inline std::enable_if_t<
+  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint32_t), 
+  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
+{
+  // Enable if already ensures that the type size match, no need to check again
+  return raptor_bitcast<CPP_TY>(p->id.f);
+}
+
+template <typename CPP_TY>
+inline std::enable_if_t<
+  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint16_t), 
+  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
+{
+  // Enable if already ensures that the type size match, no need to check again
+  return raptor_bitcast<CPP_TY>(p->id.h);
+}
+
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  inline __raptor_fp * get_##FROM_TY##_id_to_fp(size_t i) {                    \
-    return __raptor_mpfr_##FROM_TY##_id_to_fp.at(i);                           \
+  template <typename T>                                                        \
+  inline __raptor_fp * get_raptor_fp_from_##FROM_TY##_(T d) {                  \
+    if constexpr (sizeof(T) == sizeof(__raptor_fp *))                          \
+      return raptor_bitcast<__raptor_fp *>(d); /* type size already checked */ \
+    else                                                                       \
+      return __raptor_mpfr_##FROM_TY##_id_to_fp.at(raptor_fp_id_fp_to_uint(d));\
+  }                                                                            \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  __raptor_fp * get_raptor_fp_from_##FROM_TY(CPP_TY d) {                       \
+    return get_raptor_fp_from_##FROM_TY##_(d);                                 \
+  }                                                                            \
+  __RAPTOR_MPFR_ATTRIBUTES                                                     \
+  CPP_TY get_##FROM_TY##_from_raptor_fp(__raptor_fp *p) {                      \
+    return get_id_from_raptor_fp<CPP_TY>(p);                                   \
   }
 #include "raptor/FloatTypes.def"
 
