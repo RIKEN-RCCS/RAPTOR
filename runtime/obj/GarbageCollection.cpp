@@ -108,6 +108,18 @@ namespace gcfloatidmap {
   // Get the id converted to type T that uses 16-bit id from __raptor_fp * p
   template <typename T, use_id_t<T, uint16_t> = true>
   inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p->id.h); }
+  // Check and abort if id cannot be stored in type T
+  template <typename T, valid_use_id_t<T> = true> 
+  void check_id_overflow(__raptor_fp::ID &id) {
+    using num_bits = std::integral_constant<unsigned, 
+      sizeof(T) * std::numeric_limits<unsigned char>::digits>;
+    if (id.d >= std::numeric_limits<fp_to_uint_t<T>>::max()) {
+      std::cerr << "Exceeding maximum number of " << (num_bits::value);
+      std::cerr << "-bit floating point values truncation in mem-mode.";
+      std::cerr << std::endl;
+      abort();
+    }
+  }
 
   /* Functions to add/remove __raptor_fp * to/from the mapping structure */
   // Add __raptor_fp * to the mapping structure m and assign id
@@ -116,6 +128,7 @@ namespace gcfloatidmap {
     m = get_id_map_info<T>(); // Set the pointers to the mapping structure
     if (m.free_id->empty()) { // Get new id if free pool is empty
       p->id.d = m.id_to_fp->size();
+      check_id_overflow<T>(p->id); // Check new id can be stored in type T
       m.id_to_fp->push_back(p); // Add mapping of new id to p
     } else { // Use available free id if the pool is not empty
       p->id.d = m.free_id->back(); // Get a free id
