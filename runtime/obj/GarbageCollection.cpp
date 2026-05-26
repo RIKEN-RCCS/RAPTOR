@@ -31,6 +31,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <list>
 #include <mpfr.h>
 #include <stdint.h>
@@ -44,11 +45,106 @@
 
 bool excl_trunc = false;
 
+namespace gcfloatidmap {
+  /* Define types for index to __raptor_fp * mappings */
+  using id_to_fp_t = std::vector<__raptor_fp *>; // Find __raptor_fp * with id
+  using free_id_t = std::vector<size_t>; // Pool of free id that can be reused
+  // Contains pointers to the id to __raptor_fp * mapping and pool of free ids
+  struct id_map_info { id_to_fp_t * id_to_fp; free_id_t * free_id; };
+
+  /* Define type constraints to enable compile time checks */
+  // Constraints for type T that do not use id map (address is used as id)
+  template <typename T>
+  using valid_no_id_t = std::enable_if_t<
+    std::is_floating_point_v<T> && // Is native floating point type
+    // Not dealing floating point sizes larger than pointer size for now
+    (sizeof(T) == sizeof(__raptor_fp *)), bool>;
+  // Constraints for type T that uses id map
+  template <typename T>
+  using valid_use_id_t = std::enable_if_t<
+    std::is_floating_point_v<T> && // Is native floating point type
+    // Floating point size is smaller than pointer size
+    (sizeof(T) < sizeof(__raptor_fp *)) && 
+    // Sanity check: should be 32- or 16-bit
+    (sizeof(T) == sizeof(uint32_t) || sizeof(T) == sizeof(uint16_t)), bool>;
+  // Corresponding unsigned int type used for indexing for type T that uses id
+  template <typename T, valid_use_id_t<T> = true>
+  using fp_to_uint_t = std::enable_if_t<
+    // Sanity check: as of C++23, the smallest native fp types size is 16 bits
+    (sizeof(T) >= sizeof(uint16_t)),
+    // size_t is only guaranteed to be at least 16-bit wide per C/C++ standard
+    std::conditional_t<sizeof(T) == sizeof(size_t), size_t,
+    std::conditional_t<sizeof(T) == sizeof(uint32_t), uint32_t,
+    uint16_t>>>;
+  // Constraints for type T that uses id with corresponding index type U
+  template <typename T, typename U>
+  using use_id_t = std::enable_if_t<std::is_same_v<fp_to_uint_t<T>, U>, bool>;
+
+  /* Functions to get index to __raptor_fp * mapping structures */
+  // Get the index to __raptor_fp * mapping structure with no type constraint
+  template <typename T> id_map_info _get_id_map_info();
+  // Get the index to __raptor_fp * mapping structure of type T that uses id
+  template <typename T, valid_use_id_t<T> = true>
+  inline id_map_info get_id_map_info() { return _get_id_map_info<T>(); }
+
+  /* Functions to find __raptor_fp * given index and vice versa */
+  // Convert f of type T that do not use id to __raptor_fp *
+  template <typename T, valid_no_id_t<T> = true> 
+  inline __raptor_fp * get_p_from_f(T f) {
+    return raptor_bitcast<__raptor_fp *>(f);
+  }
+  // Get the __raptor_fp * corresponting to id f of type T that uses id 
+  template <typename T, valid_use_id_t<T> = true> 
+  inline __raptor_fp * get_p_from_f(T f) {
+    return get_id_map_info<T>().id_to_fp->at(
+      raptor_bitcast<fp_to_uint_t<T>>(f)); 
+  }
+  // Convert __raptor_fp * p to type T that do not use id
+  template <typename T, valid_no_id_t<T> = true> 
+  inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p); }
+  // Get the id converted to type T that uses 32-bit id from __raptor_fp * p
+  template <typename T, use_id_t<T, uint32_t> = true>
+  inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p->id.f); }
+  // Get the id converted to type T that uses 16-bit id from __raptor_fp * p
+  template <typename T, use_id_t<T, uint16_t> = true>
+  inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p->id.h); }
+
+  /* Functions to add/remove __raptor_fp * to/from the mapping structure */
+  // Add __raptor_fp * to the mapping structure m and assign id
+  template <typename T, valid_use_id_t<T> = true> 
+  void add_fp(id_map_info & m, __raptor_fp * p) {
+    m = get_id_map_info<T>(); // Set the pointers to the mapping structure
+    if (m.free_id->empty()) { // Get new id if free pool is empty
+      p->id.d = m.id_to_fp->size();
+      m.id_to_fp->push_back(p); // Add mapping of new id to p
+    } else { // Use available free id if the pool is not empty
+      p->id.d = m.free_id->back(); // Get a free id
+      m.free_id->pop_back(); // Remove it from the free pool
+      m.id_to_fp->at(p->id.d) = p; // Add mapping of free id to p
+    }
+  }
+  // Remove __raptor_fp * mapped to id from the index mapping structure m
+  void remove_fp(id_map_info & m, __raptor_fp::ID &id) {
+    if (m.id_to_fp) { // If mapping structures are used
+      m.free_id->push_back(id.d); // Add id to pool of free ids
+      m.id_to_fp->at(id.d) = nullptr; // Unregister fp from id_to_fp mapping
+    }
+  }
+};
+
 struct GCFloatTy {
   __raptor_fp fp;
   bool seen;
+  // Record where the fp is added to remove it when destructing
+  gcfloatidmap::id_map_info id_map = {nullptr, nullptr};
   GCFloatTy() : seen(false) {}
-  ~GCFloatTy() {}
+  ~GCFloatTy() { gcfloatidmap::remove_fp(id_map, fp.id); }
+  // Set id_map that the fp is added to and assign fp.id if T uses id
+  template <typename T, gcfloatidmap::valid_use_id_t<T> = true>
+  void set_raptor_fp_id() { gcfloatidmap::add_fp<T>(id_map, &fp); }
+  // Do nothing if T does not use id
+  template <typename T, gcfloatidmap::valid_no_id_t<T> = true>
+  void set_raptor_fp_id() {}
 };
 struct {
   std::list<GCFloatTy> all;
@@ -56,78 +152,31 @@ struct {
 
 } __raptor_mpfr_fps;
 
+template <typename T>
+gcfloatidmap::id_map_info gcfloatidmap::_get_id_map_info() {
+  // To provide compile time error message if it get misused
+  static_assert(false, "Specialization for type T not implemented.");
+  return id_map_info{}; // return to avoid compile time warning
+}
+
 // __raptor_mpfr_##FROM_TY##_id_to_fp vectors need to skip the first element
 // because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  std::vector<__raptor_fp *> __raptor_mpfr_##FROM_TY##_id_to_fp(1);            \
-  std::vector<size_t> __raptor_mpfr_##FROM_TY##_free_id;
-#include "raptor/FloatTypes.def"
-
-template <typename CPP_TY>
-inline std::enable_if_t<
-  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint32_t), 
-  uint32_t> raptor_fp_id_fp_to_uint (CPP_TY f) 
-{
-  // Enable if already ensures that the type size match, no need to check again
-  return raptor_bitcast<uint32_t>(f);
-}
-
-template <typename CPP_TY>
-inline std::enable_if_t<
-  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint16_t), 
-  uint16_t> raptor_fp_id_fp_to_uint (CPP_TY h) 
-{
-  // Enable if already ensures that the type size match, no need to check again
-  return raptor_bitcast<uint16_t>(h);
-}
-
-
-template <typename CPP_TY>
-inline std::enable_if_t<
-  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(__raptor_fp *), 
-  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
-{
-  // Enable if already ensures that the type size match, no need to check again
-  return raptor_bitcast<CPP_TY>(p);
-}
-
-template <typename CPP_TY>
-inline std::enable_if_t<
-  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint32_t), 
-  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
-{
-  // Enable if already ensures that the type size match, no need to check again
-  return raptor_bitcast<CPP_TY>(p->id.f);
-}
-
-template <typename CPP_TY>
-inline std::enable_if_t<
-  std::is_floating_point_v<CPP_TY> && sizeof(CPP_TY) == sizeof(uint16_t), 
-  CPP_TY> get_id_from_raptor_fp (__raptor_fp *p) 
-{
-  // Enable if already ensures that the type size match, no need to check again
-  return raptor_bitcast<CPP_TY>(p->id.h);
-}
-
-#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  template <typename T>                                                        \
-  inline __raptor_fp * get_raptor_fp_from_##FROM_TY##_(T d) {                  \
-    if constexpr (sizeof(T) == sizeof(__raptor_fp *))                          \
-      return raptor_bitcast<__raptor_fp *>(d); /* type size already checked */ \
-    else                                                                       \
-      return __raptor_mpfr_##FROM_TY##_id_to_fp.at(raptor_fp_id_fp_to_uint(d));\
+  gcfloatidmap::id_to_fp_t __raptor_mpfr_##FROM_TY##_id_to_fp(1);              \
+  gcfloatidmap::free_id_t __raptor_mpfr_##FROM_TY##_free_id;                   \
+  template <>                                                                  \
+  gcfloatidmap::id_map_info gcfloatidmap::_get_id_map_info<CPP_TY>() {         \
+    return id_map_info{ &__raptor_mpfr_##FROM_TY##_id_to_fp,                   \
+      &__raptor_mpfr_##FROM_TY##_free_id };                                    \
   }                                                                            \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   __raptor_fp * get_raptor_fp_from_##FROM_TY(CPP_TY d) {                       \
-    return get_raptor_fp_from_##FROM_TY##_(d);                                 \
+    return gcfloatidmap::get_p_from_f(d);                                      \
   }                                                                            \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   CPP_TY get_##FROM_TY##_from_raptor_fp(__raptor_fp *p) {                      \
-    return get_id_from_raptor_fp<CPP_TY>(p);                                   \
-  }
-#include "raptor/FloatTypes.def"
-
-#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+    return gcfloatidmap::get_f_from_p<CPP_TY>(p);                              \
+  }                                                                            \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   CPP_TY __raptor_fprt_##FROM_TY##_get(CPP_TY _a, int64_t exponent,            \
                                        int64_t significand, int64_t mode,      \
@@ -141,21 +190,12 @@ inline std::enable_if_t<
                                        int64_t significand, int64_t mode,      \
                                        const char *loc, void *scratch) {       \
     __raptor_mpfr_fps.all.push_back({});                                       \
+    __raptor_mpfr_fps.all.back().set_raptor_fp_id<CPP_TY>();                   \
     __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
     mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */        \
     mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);            \
     a->excl_result = _a;                                                       \
     a->shadow = _a;                                                            \
-    if constexpr (sizeof(CPP_TY) != sizeof(__raptor_fp *)) {                   \
-      if (__raptor_mpfr_##FROM_TY##_free_id.empty()) {                         \
-        a->id.d = __raptor_mpfr_##FROM_TY##_id_to_fp.size();                   \
-        __raptor_mpfr_##FROM_TY##_id_to_fp.push_back(a);                       \
-      } else {                                                                 \
-        a->id.d = __raptor_mpfr_##FROM_TY##_free_id.back();                    \
-        __raptor_mpfr_##FROM_TY##_free_id.pop_back();                          \
-        __raptor_mpfr_##FROM_TY##_id_to_fp.at(a->id.d) = a;                    \
-      }                                                                        \
-    }                                                                          \
     return __raptor_fprt_ptr_to_##FROM_TY(a);                                  \
   }                                                                            \
                                                                                \
@@ -174,17 +214,8 @@ inline std::enable_if_t<
       int64_t exponent, int64_t significand, int64_t mode, const char *loc,    \
       void *scratch) {                                                         \
     __raptor_mpfr_fps.all.push_back({});                                       \
+    __raptor_mpfr_fps.all.back().set_raptor_fp_id<CPP_TY>();                   \
     __raptor_fp *a = &__raptor_mpfr_fps.all.back().fp;                         \
-    if constexpr (sizeof(CPP_TY) != sizeof(__raptor_fp *)) {                   \
-      if (__raptor_mpfr_##FROM_TY##_free_id.empty()) {                         \
-        a->id.d = __raptor_mpfr_##FROM_TY##_id_to_fp.size();                   \
-        __raptor_mpfr_##FROM_TY##_id_to_fp.push_back(a);                       \
-      } else {                                                                 \
-        a->id.d = __raptor_mpfr_##FROM_TY##_free_id.back();                    \
-        __raptor_mpfr_##FROM_TY##_free_id.pop_back();                          \
-        __raptor_mpfr_##FROM_TY##_id_to_fp.at(a->id.d) = a;                    \
-      }                                                                        \
-    }                                                                          \
     mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */        \
     return a;                                                                  \
   }                                                                            \
