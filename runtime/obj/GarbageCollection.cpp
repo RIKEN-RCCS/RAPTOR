@@ -117,9 +117,10 @@ namespace gcfloatidmap {
     using num_bits = std::integral_constant<unsigned, 
       sizeof(T) * std::numeric_limits<unsigned char>::digits>;
     if (id.d >= std::numeric_limits<fp_to_uint_t<T>>::max()) {
-      std::cerr << "Exceeding maximum number of " << (num_bits::value);
-      std::cerr << "-bit floating point values truncation in mem-mode.";
-      std::cerr << std::endl;
+      std::cerr << "Exceeding maximum number (";
+      std::cerr << std::numeric_limits<fp_to_uint_t<T>>::max() << ") of ";
+      std::cerr << "truncated " << num_bits::value << "-bit floating point ";
+      std::cerr << "values in mem-mode." << std::endl;
       abort();
     }
   }
