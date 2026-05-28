@@ -84,7 +84,11 @@ namespace gcfloatidmap {
 
   /* Functions to get index to __raptor_fp * mapping structures */
   // Get the index to __raptor_fp * mapping structure with no type constraint
-  template <typename T> id_map_info _get_id_map_info();
+  template <typename T> id_map_info _get_id_map_info() {
+    // To provide compile time error message if it get misused
+    static_assert(false, "Specialization for type T not implemented.");
+    return {nullptr, nullptr}; // return to avoid compile time warning
+  }
   // Get the index to __raptor_fp * mapping structure of type T that uses id
   template <typename T, valid_use_id_t<T> = true>
   inline id_map_info get_id_map_info() { return _get_id_map_info<T>(); }
@@ -167,26 +171,21 @@ struct GCFloatTy {
 };
 struct {
   std::list<GCFloatTy> all;
+  // id_to_fp_##FROM_TY vectors are created with a dummy first pointer
+  // because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
+  #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                   \
+    gcfloatidmap::id_to_fp_t id_to_fp_##FROM_TY{nullptr};                      \
+    gcfloatidmap::free_id_t free_id_##FROM_TY; 
+  #include "raptor/FloatTypes.def"
   void clear() { all.clear(); }
 
 } __raptor_mpfr_fps;
 
-template <typename T>
-gcfloatidmap::id_map_info gcfloatidmap::_get_id_map_info() {
-  // To provide compile time error message if it get misused
-  static_assert(false, "Specialization for type T not implemented.");
-  return id_map_info{}; // return to avoid compile time warning
-}
-
-// __raptor_mpfr_##FROM_TY##_id_to_fp vectors need to skip the first element
-// because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  gcfloatidmap::id_to_fp_t __raptor_mpfr_##FROM_TY##_id_to_fp(1);              \
-  gcfloatidmap::free_id_t __raptor_mpfr_##FROM_TY##_free_id;                   \
   template <>                                                                  \
   gcfloatidmap::id_map_info gcfloatidmap::_get_id_map_info<CPP_TY>() {         \
-    return id_map_info{ &__raptor_mpfr_##FROM_TY##_id_to_fp,                   \
-      &__raptor_mpfr_##FROM_TY##_free_id };                                    \
+    return { &__raptor_mpfr_fps.id_to_fp_##FROM_TY,                            \
+      &__raptor_mpfr_fps.free_id_##FROM_TY };                                  \
   }                                                                            \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   __raptor_fp * get_raptor_fp_from_##FROM_TY(CPP_TY d) {                       \
@@ -282,6 +281,7 @@ void raptor_fprt_gc_doit() {
     }
   }
   raptor_fprt_gc_clear_seen();
+  // TODO: resize id mapping structures if many are erased?
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
