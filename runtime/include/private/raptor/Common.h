@@ -4,8 +4,6 @@
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
-#include <type_traits>
-#include <vector>
 #include <mpfr.h>
 
 #define MAX_MPFR_OPERANDS 3

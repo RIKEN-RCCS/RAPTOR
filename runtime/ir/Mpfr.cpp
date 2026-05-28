@@ -23,6 +23,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <map>
+#include <type_traits>
 #include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>

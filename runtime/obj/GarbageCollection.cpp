@@ -33,6 +33,8 @@
 #include <iostream>
 #include <limits>
 #include <list>
+#include <type_traits>
+#include <vector>
 #include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>
