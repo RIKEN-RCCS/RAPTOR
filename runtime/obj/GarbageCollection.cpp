@@ -102,6 +102,9 @@ namespace gcfloatidmap {
   // Convert __raptor_fp * p to type T that do not use id
   template <typename T, valid_no_id_t<T> = true> 
   inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p); }
+  // Get the id converted to type T that uses size_t id from __raptor_fp * p
+  template <typename T, use_id_t<T, size_t> = true>
+  inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p->id.d); }
   // Get the id converted to type T that uses 32-bit id from __raptor_fp * p
   template <typename T, use_id_t<T, uint32_t> = true>
   inline T get_f_from_p (__raptor_fp *p) { return raptor_bitcast<T>(p->id.f); }
