@@ -248,11 +248,11 @@ struct GCFloatTy {
   void set_raptor_fp_id() {}
 };
 struct {
-  std::list<GCFloatTy> all;
   #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY) , CPP_TY
   gcfloatidmap::id_maps_t<0
     #include "raptor/FloatTypes.def"
   > id_maps;
+  std::list<GCFloatTy> all;
   void clear() { all.clear(); id_maps.clear(); }
 
 } __raptor_mpfr_fps;
