@@ -48,12 +48,6 @@
 bool excl_trunc = false;
 
 namespace gcfloatidmap {
-  /* Define types for index to __raptor_fp * mappings */
-  using id_to_fp_t = std::vector<__raptor_fp *>; // Find __raptor_fp * with id
-  using free_id_t = std::vector<size_t>; // Pool of free id that can be reused
-  // Contains pointers to the id to __raptor_fp * mapping and pool of free ids
-  struct id_map_info { id_to_fp_t * id_to_fp; free_id_t * free_id; };
-
   /* Define type constraints to enable compile time checks */
   // Constraints for type T that do not use id map (address is used as id)
   template <typename T>
@@ -82,16 +76,100 @@ namespace gcfloatidmap {
   template <typename T, typename U>
   using use_id_t = std::enable_if_t<std::is_same_v<fp_to_uint_t<T>, U>, bool>;
 
+  /* Define types that help to calculate compile-time constants */
+  // Whether type T uses id, default with value false
+  template<typename T, typename U = bool> 
+  struct is_use_id_t : std::false_type {};
+  // Has value true if type T uses id
+  template<typename T>
+  struct is_use_id_t<T, valid_use_id_t<T>> : std::true_type {};
+  // Get the index of type U that uses id among types that uses id in T...
+  template<typename U, unsigned I, bool B, typename ...T>
+  struct get_index {};
+  // U is not found, check if it is next type V, increment I only if V uses id
+  template<typename U, unsigned I, typename V, typename ...T>
+  struct get_index<U, I, false, V, T...> : get_index<U, I + std::conditional_t<
+    is_use_id_t<V>::value, std::integral_constant<unsigned, 1>,
+    std::integral_constant<unsigned, 0>>::value, std::is_same_v<U,V>, T...> {};
+  // U is found, stop searching, get_index has member value with index I - 1
+  template<typename U, unsigned I, typename ...T>
+  struct get_index<U, I, true, T...> : std::enable_if_t<is_use_id_t<U>::value, 
+    std::integral_constant<unsigned, I - 1>> {};
+  // Get the index of a type that uses id among types that uses id in a list
+  template<typename U, typename V, typename ...T>
+  using get_id = get_index<U, std::conditional_t<is_use_id_t<V>::value, 
+    std::integral_constant<unsigned, 1>,
+    std::integral_constant<unsigned, 0>>::value, std::is_same_v<U, V>, T...>;
+
+  /* Define types for index to __raptor_fp * mappings */
+  using id_to_fp_t = std::vector<__raptor_fp *>; // Find __raptor_fp * with id
+  using free_id_t = std::vector<size_t>; // Pool of free id that can be reused
+  // Contains pointers to the id to __raptor_fp * mapping and pool of free ids
+  struct id_map_info { id_to_fp_t * id_to_fp; free_id_t * free_id; };
+  // Contains the index to __raptor_fp * mapping structures
+  template<typename T, valid_use_id_t<T> = true> 
+  struct id_map_t : id_map_info { 
+    // id_to_fp are created with a dummy first element
+    // because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
+    id_to_fp_t id_to_fp{nullptr}; free_id_t free_id; 
+    id_map_t() {
+      id_map_info::id_to_fp = &id_to_fp;
+      id_map_info::free_id = &free_id;
+    }
+  };
+  // Create id_map and add to id_map_infos for each type that uses id in T...
+  template<unsigned I, bool B, typename ...T>
+  struct add_id_maps { 
+    std::vector<id_map_info *> id_map_infos;
+    using num_id_maps = std::integral_constant<size_t, I>;
+    add_id_maps() { id_map_infos.resize(I, nullptr); }
+    ~add_id_maps() { id_map_infos.clear(); } 
+  };
+  // Construct new id_map for type U that uses id
+  template<unsigned I, typename U>
+  struct add_id_maps<I, true, U> : add_id_maps<I+1, false> {
+    using add_id_maps<I+1, false>::id_map_infos;
+    add_id_maps<I, true, U>() { id_map_infos[I] = new id_map_t<U>(); }
+    ~add_id_maps<I, true, U>() { delete id_map_infos[I]; }
+  };
+  // Construct new id_map for type U that uses id and continue with next type V
+  template<unsigned I, typename U, typename V, typename ...T>
+  struct add_id_maps<I, true, U, V, T...> : 
+    add_id_maps<I + 1, is_use_id_t<V>::value, V, T...> {
+    using add_id_maps<I + 1, is_use_id_t<V>::value, V, T...>::id_map_infos;
+    add_id_maps<I, true, U, V, T...>() { id_map_infos[I] = new id_map_t<U>(); }
+    ~add_id_maps<I, true, U, V, T...>() { delete id_map_infos[I]; }
+  };
+  // Do nothing for type U that does not use id and continue with next type V
+  template<unsigned I, typename U, typename V, typename ...T>
+  struct add_id_maps<I, false, U, V, T...> : 
+    add_id_maps<I, is_use_id_t<V>::value, V, T...> {};
+  // id_maps for types that uses id among U and T... with starting index I
+  template<unsigned I, typename U, typename ...T>
+  struct id_maps_t {};
+  // id_maps for types that uses id among U and T...
+  template<typename U, typename ...T>
+  struct id_maps_t<0, U, T...> : add_id_maps<0, is_use_id_t<U>::value, U, T...>
+  {
+    using add_id_maps<0, is_use_id_t<U>::value, U, T...>::id_map_infos;
+    using typename add_id_maps<0, is_use_id_t<U>::value, U, T...>::num_id_maps;
+    template<typename V, valid_use_id_t<V> = true>
+    const id_map_info& get_info() {
+      static_assert(get_id<V, U, T...>::value < num_id_maps::value);
+      return *id_map_infos[get_id<V, U, T...>::value];
+    }
+    void clear() {
+      for (auto info : id_map_infos) {
+        info->id_to_fp->clear(); info->id_to_fp->resize(1, nullptr);
+        info->free_id->clear();
+      }
+    }
+  };
+
   /* Functions to get index to __raptor_fp * mapping structures */
-  // Get the index to __raptor_fp * mapping structure with no type constraint
-  template <typename T> id_map_info _get_id_map_info() {
-    // To provide compile time error message if it get misused
-    static_assert(false, "Specialization for type T not implemented.");
-    return {nullptr, nullptr}; // return to avoid compile time warning
-  }
   // Get the index to __raptor_fp * mapping structure of type T that uses id
   template <typename T, valid_use_id_t<T> = true>
-  inline id_map_info get_id_map_info() { return _get_id_map_info<T>(); }
+  inline id_map_info get_id_map_info();
 
   /* Functions to find __raptor_fp * given index and vice versa */
   // Convert f of type T that do not use id to __raptor_fp *
@@ -171,22 +249,21 @@ struct GCFloatTy {
 };
 struct {
   std::list<GCFloatTy> all;
-  // id_to_fp_##FROM_TY vectors are created with a dummy first pointer
-  // because id == 0 is special case for __raptor_fprt_##FROM_TY##_check_zero
-  #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                   \
-    gcfloatidmap::id_to_fp_t id_to_fp_##FROM_TY{nullptr};                      \
-    gcfloatidmap::free_id_t free_id_##FROM_TY; 
-  #include "raptor/FloatTypes.def"
-  void clear() { all.clear(); }
+  #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY) , CPP_TY
+  gcfloatidmap::id_maps_t<0
+    #include "raptor/FloatTypes.def"
+  > id_maps;
+  void clear() { all.clear(); id_maps.clear(); }
 
 } __raptor_mpfr_fps;
 
+template <typename T, gcfloatidmap::valid_use_id_t<T>>
+inline gcfloatidmap::id_map_info gcfloatidmap::get_id_map_info() {
+  return __raptor_mpfr_fps.id_maps.get_info<T>();
+}
+
+
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  template <>                                                                  \
-  gcfloatidmap::id_map_info gcfloatidmap::_get_id_map_info<CPP_TY>() {         \
-    return { &__raptor_mpfr_fps.id_to_fp_##FROM_TY,                            \
-      &__raptor_mpfr_fps.free_id_##FROM_TY };                                  \
-  }                                                                            \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   __raptor_fp * get_raptor_fp_from_##FROM_TY(CPP_TY d) {                       \
     return gcfloatidmap::get_p_from_f(d);                                      \
