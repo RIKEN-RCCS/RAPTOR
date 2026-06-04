@@ -146,11 +146,8 @@ namespace gcfloatidmap {
     add_id_maps<I, is_use_id_t<V>::value, V, T...> {};
   // id_maps for types that uses id among U and T... with starting index I
   template<unsigned I, typename U, typename ...T>
-  struct id_maps_t {};
-  // id_maps for types that uses id among U and T...
-  template<typename U, typename ...T>
-  struct id_maps_t<0, U, T...> : add_id_maps<0, is_use_id_t<U>::value, U, T...>
-  {
+  struct id_maps_t : std::enable_if_t<I == 0, 
+    add_id_maps<I, is_use_id_t<U>::value, U, T...>> {
     using add_id_maps<0, is_use_id_t<U>::value, U, T...>::id_map_infos;
     using typename add_id_maps<0, is_use_id_t<U>::value, U, T...>::num_id_maps;
     template<typename V, valid_use_id_t<V> = true>
