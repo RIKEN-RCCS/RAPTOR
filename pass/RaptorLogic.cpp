@@ -937,6 +937,15 @@ public:
         if (FTT.isCallbackFunc()) {
           newCall->setArgOperand(FTT.getCallbackArgNo(), val);
         } else {
+          if (Mode == TruncMemMode){
+            for (unsigned i = 0; i < CI.arg_size(); ++i) {
+              auto arg = CI.getArgOperand(i);
+              if (arg->getType() == getFromType() && isa<ConstantFP>(arg)) {
+                newCall->setArgOperand(i, 
+                  truncate(BuilderZ, getNewFromOriginal(arg)));
+              }
+            }
+          }
           newCall->setCalledOperand(val);
         }
       }
