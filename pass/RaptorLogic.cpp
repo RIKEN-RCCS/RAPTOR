@@ -12,6 +12,7 @@
 #include "RaptorLogic.h"
 #include "Utils.h"
 #include "llvm-c/Core.h"
+#include "llvm/IR/AbstractCallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -934,19 +935,23 @@ public:
       assert(FTT.Func && !FTT.Func->empty());
       if (!NeedDirectCall(FTT)) {
         auto val = GetShadow(ctx, getNewFromOriginal(FTT.Func), false);
+        llvm::Use * u;
         if (FTT.isCallbackFunc()) {
           newCall->setArgOperand(FTT.getCallbackArgNo(), val);
+          u = CI.arg_begin() + FTT.getCallbackArgNo();
         } else {
-          if (Mode == TruncMemMode){
-            for (unsigned i = 0; i < CI.arg_size(); ++i) {
-              auto arg = CI.getArgOperand(i);
-              if (arg->getType() == getFromType() && isa<ConstantFP>(arg)) {
-                newCall->setArgOperand(i, 
-                  truncate(BuilderZ, getNewFromOriginal(arg)));
-              }
+          newCall->setCalledOperand(val);
+          u = &CI.getCalledOperandUse();
+        }
+        llvm::AbstractCallSite ACS(u);
+        if (Mode == TruncMemMode){
+          for (unsigned i = 0; i < ACS.getNumArgOperands(); ++i) {
+            auto arg = ACS.getCallArgOperand(i);
+            if (arg && arg->getType() == getFromType() && isa<ConstantFP>(arg)) {
+              newCall->setArgOperand(ACS.getCallArgOperandNo(i), 
+                truncate(BuilderZ, getNewFromOriginal(arg)));
             }
           }
-          newCall->setCalledOperand(val);
         }
       }
     }
