@@ -118,10 +118,10 @@ or if using `lld` directly:
 
 Suppose your original code looks like this:
 ``` c++
-float bar(float a, float b) {
+double bar(double a, double b) {
   return a + b;
 }
-float foo(float *a, float b) {
+double foo(double *a, double b) {
   a[0] = sqrt(b);
   return bar(a[1], b);
 }
@@ -171,14 +171,12 @@ The usage is analogous to C++.
 ##### Original code
 
 ``` f90
-  double precision function simple_sum(a, b) result(c) bind(c)
+  double precision function simple_sum(a, b) result(c)
     implicit none
 
     double precision, intent(in) :: a, b
 
     c = a + b
-
-    return
   end function simple_sum
 ```
 
@@ -212,6 +210,83 @@ The `f__raptor_truncate_op_func` must be declared:
 
 See `test/Integration/Truncate/Fortran/simple.f90` for an example.
 
+### Mem-mode
+
+Memorization-mode tracks an individual data structure for each floating-point variable or array entry. This makes it a more powerful tool to track floating-point accuracy over time, but also introduces limitations: Only 64-bit floating-point values can currently be truncated using mem-mode. This is because the type must be wide enough to store a pointer to the internal data structure.
+
+#### C++
+
+To make use of mem-mode, one can replace the call to `foo` with the following:
+```c++
+  ...
+  for (double& v : a) { v = __raptor_truncate_mem_value(v, 64, 1, 5, 8); }
+  __raptor_truncate_mem_value(b, 64, 1, 5, 8);
+
+  auto f = __raptor_truncate_mem_func(
+    /* function */    foo,
+    /* from_type */   64,
+    /* to_type: 0 for builtin IEEE type, 1 for MPFR */ 1,
+    /* to_exponent */ 5,
+    /* to_mantissa */ 8);
+  );
+  c = f(a, b);
+
+  for (double& v : a) { v = __raptor_expand_mem_value(v, 64, 1, 5, 8); }
+  b = __raptor_expand_mem_value(b, 64, 1, 5, 8);
+  c = __raptor_expand_mem_value(c, 64, 1, 5, 8);
+```
+
+The functions `__raptor_truncate_mem_value` and `__raptor_expand_mem_value` are used before and after the truncated function call to create and convert to and from the internal data structure.
+
+#### Fortran
+
+The usage is analagous to C++:
+
+```f90
+a = f__raptor_truncate_mem_value(a, 64, 1, 5, 8);
+b = f__raptor_truncate_mem_value(b, 64, 1, 5, 8);
+
+cfty = c_funloc(simple_sum)
+cfty = f__raptor_truncate_mem_func(cfty, 64, 1, 5, 8)
+call c_f_procpointer(cfty, ffty)
+c = ffty(a, b)
+
+a = f__raptor_expand_mem_value(a, 64, 1, 5, 8);
+b = f__raptor_expand_mem_value(b, 64, 1, 5, 8);
+c = f__raptor_expand_mem_value(c, 64, 1, 5, 8);
+```
+
+Similar to op-mode, `f__raptor_truncate_mem_func`, `f__raptor_truncate_mem_value`, and `f__raptor_expand_mem_value` must be declared:
+
+```f90
+  interface
+     function f__raptor_truncate_mem_func(tfunc, from_ieee, &
+          to_type, to_exponent, to_significand) result(fty) bind(c)
+       use iso_c_binding
+       implicit none
+
+       integer(c_int), intent(in), value :: from_ieee, to_type, to_exponent, to_significand
+       type(c_funptr), intent(in), value :: tfunc
+       type(c_funptr) :: fty
+     end function f__raptor_truncate_mem_func
+     double precision function f__raptor_truncate_mem_value(value, from_ieee, &
+          to_type, to_exponent, to_significand) result(ptr) bind(c)
+       use iso_c_binding
+       implicit none
+
+       real(c_double), intent(in), value :: value
+       integer(c_int), intent(in), value :: from_ieee, to_type, to_exponent, to_significand
+     end function f__raptor_truncate_mem_value
+     double precision function f__raptor_expand_mem_value(ptr, from_ieee, &
+          to_type, to_exponent, to_significand) result(value) bind(c)
+       use iso_c_binding
+       implicit none
+
+       real(c_double), intent(in), value :: ptr
+       integer(c_int), intent(in), value :: from_ieee, to_type, to_exponent, to_significand
+     end function f__raptor_expand_mem_value
+  end interface
+```
 
 ## Citing RAPTOR
 
