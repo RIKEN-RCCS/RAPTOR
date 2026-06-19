@@ -15,14 +15,6 @@
 
 #ifdef __RAPTOR_RANDOM_ROUNDING_MODE
 #define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE __raptor_fprt_get_rand_rounding_mode()
-#else
-#define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
-#endif
-#define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
-
-extern std::atomic<long long> shadow_err_counter;
-extern std::atomic<bool> global_is_truncating;
-
 inline thread_local std::mt19937 __raptor_fprt_rnd_gen{std::random_device{}()};
 static inline mpfr_rnd_t __raptor_fprt_get_rand_rounding_mode() {
   // Assuming 0=RNDN, 1=RNDZ, 2=RNDU, 3=RNDD, 4=RNDA
@@ -31,6 +23,13 @@ static inline mpfr_rnd_t __raptor_fprt_get_rand_rounding_mode() {
     std::uniform_int_distribution<>(MPFR_RNDU, MPFR_RNDD)
       (__raptor_fprt_rnd_gen));
 }
+#else
+#define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
+#endif
+#define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
+
+extern std::atomic<long long> shadow_err_counter;
+extern std::atomic<bool> global_is_truncating;
 
 typedef struct __raptor_op {
   const char *op;             // Operation name
