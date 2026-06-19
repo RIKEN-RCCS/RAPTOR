@@ -28,7 +28,7 @@ static inline mpfr_rnd_t __raptor_fprt_get_rand_rounding_mode() {
   // Assuming 0=RNDN, 1=RNDZ, 2=RNDU, 3=RNDD, 4=RNDA
   // may need to change if mpfr.h changes
   return mpfr_rnd_t(
-    std::uniform_int_distribution<>(MPFR_RNDN, MPFR_RNDA)
+    std::uniform_int_distribution<>(MPFR_RNDU, MPFR_RNDD)
       (__raptor_fprt_rnd_gen));
 }
 
