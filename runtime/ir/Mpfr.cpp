@@ -191,6 +191,12 @@ __RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_trunc_flop_count();
 
 __RAPTOR_MPFR_ATTRIBUTES
+void __raptor_fprt_op_dump_status(unsigned);
+
+__RAPTOR_MPFR_ATTRIBUTES
+void f_raptor_fprt_op_dump_status(unsigned);
+
+__RAPTOR_MPFR_ATTRIBUTES
 long long __raptor_get_double_flop_count();
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -267,6 +273,8 @@ void raptor_fprt_op_dump_status(int num);
 __RAPTOR_MPFR_ATTRIBUTES
 void raptor_fprt_op_clear();
 
+#define RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
+
 #ifdef RAPTOR_FPRT_ENABLE_SHADOW_RESIDUALS
 // #define SHADOW_ERR_REL 6.25e-1   //
 // #define SHADOW_ERR_ABS 6.25e-1   // If reference is 0.
@@ -274,6 +282,8 @@ void raptor_fprt_op_clear();
 #define SHADOW_ERR_ABS 2.5e-4 // If reference is 0.
 // #define SHADOW_ERR_REL 6.0e-8   //
 // #define SHADOW_ERR_ABS 6.0e-8   // If reference is 0.
+
+extern bool excl_trunc;
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
@@ -427,11 +437,15 @@ void raptor_fprt_op_clear();
       double err = __raptor_fprt_##FROM_TYPE##_abs_err(trunc, mc->shadow);     \
       if (!opdata[loc].count)                                                  \
         opdata[loc].op = #LLVM_OP_NAME;                                        \
+      printf(#LLVM_OP_NAME": trunc = %e err = %e err/trunc = %e", trunc, err, err/trunc); \
       if (trunc != 0 && err / trunc > SHADOW_ERR_REL) {                        \
         ++opdata[loc].count_thresh;                                            \
+        printf(" (flagged)");                                           \
       } else if (trunc == 0 && err > SHADOW_ERR_ABS) {                         \
         ++opdata[loc].count_thresh;                                            \
+        printf(" (flagged)");                                           \
       }                                                                        \
+      printf("\n");                                                     \
       opdata[loc].l1_err += err;                                               \
       ++opdata[loc].count;                                                     \
       return __raptor_fprt_ptr_to_##FROM_TYPE(mc);                             \

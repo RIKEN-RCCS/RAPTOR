@@ -102,7 +102,7 @@ bool __op_dump_cmp(std::pair<const char *, __raptor_op> &a,
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
-void raptor_fprt_op_dump_status(unsigned num) {
+void __raptor_fprt_op_dump_status(unsigned num) {
   // int size, rank;
   // MPI_Comm_size(MPI_COMM_WORLD, &size);
   // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -218,6 +218,11 @@ void raptor_fprt_op_dump_status(unsigned num) {
               << std::endl;
   }
   // }
+}
+
+__RAPTOR_MPFR_ATTRIBUTES
+void f_raptor_fprt_op_dump_status(unsigned num) {
+  return __raptor_fprt_op_dump_status(num);
 }
 
 long long __raptor_get_memory_access_trunc_store() {
