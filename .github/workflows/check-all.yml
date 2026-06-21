@@ -15,19 +15,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        llvm: ["20", "21"]
+        llvm: ["20", "21"] #, "22"]
         build: ["Release"] #, "Debug"] #, "RelWithDebInfo"]
-        os: [ubuntu-22.04]
+        os: ["ubuntu-22.04", "ubuntu-24.04", "ubuntu-26.04"]
+        exclude:
+          # LLVM 20 not available for ubuntu-26.04 in apt.llvm.org
+          - os: "ubuntu-26.04"
+            llvm: "20"
 
     timeout-minutes: 30
 
     steps:
     - name: add llvm
       run: |
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-          sudo apt-add-repository "deb http://apt.llvm.org/`lsb_release -c | cut -f2`/ llvm-toolchain-`lsb_release -c | cut -f2`-${{ matrix.llvm }} main" || true
+          source /etc/os-release
+          sudo mkdir -p /etc/apt/keyrings
+          wget https://apt.llvm.org/llvm-snapshot.gpg.key
+          gpg --no-default-keyring --keyring ./temp-keyring.gpg --import llvm-snapshot.gpg.key
+          sudo gpg --no-default-keyring --keyring ./temp-keyring.gpg --export --output /etc/apt/keyrings/llvm-snapshot.gpg
+          rm ./temp-keyring.gpg
+          sudo apt-add-repository "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-${{ matrix.llvm }} main" || true
+          sudo sed -i 's/^deb /deb [signed-by=\/etc\/apt\/keyrings\/llvm-snapshot.gpg] /' "/etc/apt/sources.list.d/archive_uri-http_apt_llvm_org_${UBUNTU_CODENAME}_-${UBUNTU_CODENAME}.list"
+          sudo apt-get update
           sudo apt-get install -y cmake gcc g++ llvm-${{ matrix.llvm }}-dev libclang-${{ matrix.llvm }}-dev clang-${{ matrix.llvm }} lld-${{ matrix.llvm }} mlir-${{ matrix.llvm }}-tools libmlir-${{ matrix.llvm }} libmlir-${{ matrix.llvm }}-dev libflang-${{ matrix.llvm }}-dev flang-${{ matrix.llvm }} libzstd-dev libmpfr-dev libomp-${{ matrix.llvm }}-dev
-          sudo python3 -m pip install --upgrade pip lit
+          sudo python3 -m pip install lit
     - uses: actions/checkout@v4
     - name: mkdir
       run: rm -rf build && mkdir build
