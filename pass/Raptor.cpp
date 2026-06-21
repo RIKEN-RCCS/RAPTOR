@@ -1276,7 +1276,11 @@ public:
 
 } // namespace
 
+#if LLVM_VERSION_MAJOR >= 22
+#include "llvm/Extensions/PassPlugin.h"
+#else
 #include "llvm/Passes/PassPlugin.h"
+#endif
 
 class RaptorNewPM final : public RaptorBase,
                           public AnalysisInfoMixin<RaptorNewPM> {
