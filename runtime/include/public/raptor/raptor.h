@@ -23,6 +23,9 @@ void __raptor_fprt_delete_all();
 long long __raptor_get_trunc_flop_count();
 long long f_raptor_get_trunc_flop_count();
 
+void __raptor_fprt_op_dump_status(unsigned);
+void f_raptor_fprt_op_dump_status(unsigned);
+
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   struct __raptor_logged_flops_##CPP_TY {                                      \
     CPP_TY *vals;                                                              \
