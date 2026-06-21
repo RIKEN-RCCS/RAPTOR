@@ -26,7 +26,10 @@ jobs:
       run: |
           source /etc/os-release
           sudo mkdir -p /etc/apt/keyrings
-          sudo wget -O /etc/apt/keyrings/llvm-snapshot.gpg https://apt.llvm.org/llvm-snapshot.gpg.key
+          wget https://apt.llvm.org/llvm-snapshot.gpg.key
+          gpg --no-default-keyring --keyring ./temp-keyring.gpg --import llvm-snapshot.gpg.key
+          sudo gpg --no-default-keyring --keyring ./temp-keyring.gpg --export --output /etc/apt/keyrings/llvm-snapshot.gpg
+          rm temp-keyring.gpg
           sudo apt-add-repository "deb http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-${{ matrix.llvm }} main" || true
           sudo sed -i 's/^deb /deb [signed-by=\/etc\/apt\/keyrings\/llvm-snapshot.gpg] /' "/etc/apt/sources.list.d/archive_uri-http_apt_llvm_org_${UBUNTU_CODENAME}_-${UBUNTU_CODENAME}.list"
           sudo apt-get install -y cmake gcc g++ llvm-${{ matrix.llvm }}-dev libclang-${{ matrix.llvm }}-dev clang-${{ matrix.llvm }} lld-${{ matrix.llvm }} mlir-${{ matrix.llvm }}-tools libmlir-${{ matrix.llvm }} libmlir-${{ matrix.llvm }}-dev libflang-${{ matrix.llvm }}-dev flang-${{ matrix.llvm }} libzstd-dev libmpfr-dev libomp-${{ matrix.llvm }}-dev
