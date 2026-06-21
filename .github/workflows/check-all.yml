@@ -15,9 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        llvm: ["20", "21"] #, "22"]
+        llvm: ["20", "21", "22"]
         build: ["Release"] #, "Debug"] #, "RelWithDebInfo"]
-        os: ["ubuntu-24.04", "ubuntu-26.04"]
+        os: ["ubuntu-22.04", "ubuntu-24.04", "ubuntu-26.04"]
 
     timeout-minutes: 30
 
