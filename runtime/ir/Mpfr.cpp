@@ -23,6 +23,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <map>
+#include <type_traits>
 #include <mpfr.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -120,15 +121,18 @@ void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
   CPP_TY __raptor_fprt_##FROM_TY##_check_zero(                                 \
       CPP_TY _a, int64_t exponent, int64_t significand, int64_t mode,          \
       const char *loc, mpfr_t *scratch) {                                      \
-    if constexpr (sizeof(void *) == sizeof(CPP_TY)) {                          \
-      if (checked_raptor_bitcast<uint64_t>(_a) == 0)                           \
-        return __raptor_fprt_##FROM_TY##_const(0, exponent, significand, mode, \
-                                               loc, scratch);                  \
-      else                                                                     \
-        return _a;                                                             \
-    } else {                                                                   \
-      abort();                                                                 \
-    }                                                                          \
+    using fp_to_uint_t = std::enable_if_t<std::is_floating_point_v<CPP_TY> &&  \
+      (sizeof(CPP_TY) == sizeof(uint64_t) ||                                   \
+       sizeof(CPP_TY) == sizeof(uint32_t) ||                                   \
+       sizeof(CPP_TY) == sizeof(uint16_t)),                                    \
+      std::conditional_t<sizeof(CPP_TY) == sizeof(uint64_t), uint64_t,         \
+      std::conditional_t<sizeof(CPP_TY) == sizeof(uint32_t), uint32_t,         \
+      uint16_t>>>;                                                             \
+    if (checked_raptor_bitcast<fp_to_uint_t>(_a) == 0)                         \
+      return __raptor_fprt_##FROM_TY##_const(0, exponent, significand, mode,   \
+                                             loc, scratch);                    \
+    else                                                                       \
+      return _a;                                                               \
   }                                                                            \
                                                                                \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
