@@ -82,6 +82,89 @@
   } while (0)
 #endif
 
+#ifdef __RAPTOR_STOCHASTIC_ROUNDING_MODE
+  #define __RATPTOR_USE_STOCHASTIC_ROUNDING true
+
+  // Structure with internal high precision mpfr_t used to set target mpfr_t
+  // value with stochastic rounding
+  struct __raptor_stochastic_rnd_double {
+    // Precision used for the internal high precision mpfr_t 
+    static constexpr mpfr_prec_t high_prec = 53;
+    // Rounding mode used for the internal high precision mpfr_t
+    static constexpr mpfr_rnd_t high_prec_rnd = 
+      __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE;
+
+    // Internal mpfr_t of high precision used to calculate rounding direction
+    mpfr_t op_high_prec;
+    // Random value generator used to decide rounding direction
+    std::mt19937 rnd_gen{std::random_device{}()};
+
+    // Constructor that also initializes op_high_prec with the high precision
+    __raptor_stochastic_rnd_double() { mpfr_init2(op_high_prec, high_prec); }
+
+    // Given x and it's rounded up/down values, determine if x should round up
+    bool is_round_up(double x, double x_up, double x_down) {
+      return std::uniform_real_distribution<>(0.0, x_up - x_down)(rnd_gen) 
+        < (x - x_down);
+    }
+
+    // Set op_rnd from internal op_high_prec with stochastic rounding
+    virtual void round(mpfr_t op_rnd) {
+      double x = mpfr_get_d(op_high_prec, high_prec_rnd);
+      mpfr_set(op_rnd, op_high_prec, MPFR_RNDU);
+      double x_up = mpfr_get_d(op_rnd, high_prec_rnd);
+      mpfr_set(op_rnd, op_high_prec, MPFR_RNDD);
+      double x_down = mpfr_get_d(op_rnd, high_prec_rnd);
+      if (is_round_up(x, x_up, x_down)) {
+        mpfr_set(op_rnd, op_high_prec, MPFR_RNDU);
+      }
+    }
+  };
+
+  using __raptor_stochastic_rnd_t = __raptor_stochastic_rnd_double;
+
+  // Thread local variable for calculating stochastic rounding
+  inline thread_local __raptor_stochastic_rnd_t __raptor_stochastic_rnd;
+
+  // Force macro expansion and concatenate to get mpfr function names
+  #define __RAPTOR_CONCAT_MPFR(prefix, macro) mpfr_##prefix##macro
+
+  // Set MPFR_VAR from VAL (of type using to mpfr_set_##MPFR_SET) with stochastic
+  // rounding
+  #define __RAPTOR_STOCHASTIC_SET(MPFR_SET, MPFR_VAR, VAL)                     \
+    __RAPTOR_CONCAT_MPFR(set_, MPFR_SET)(__raptor_stochastic_rnd.op_high_prec, \
+      VAL, __raptor_stochastic_rnd.high_prec_rnd);                             \
+    __raptor_stochastic_rnd.round(MPFR_VAR);
+
+  // Get GET_VAR of type GET_TY (that uses mpfr_get_##MPFR_GET) from MPFR_VAR 
+  // with stochastic rounding
+  #define __RAPTOR_STOCHASTIC_GET(GET_TY, GET_VAR, MPFR_GET, MPFR_VAR)         \
+    GET_TY GET_VAR = __RAPTOR_CONCAT_MPFR(get_, MPFR_GET)(MPFR_VAR, MPFR_RNDD);\
+    GET_TY tmp = __RAPTOR_CONCAT_MPFR(get_, MPFR_GET)(MPFR_VAR, MPFR_RNDU);    \
+    double x = mpfr_get_d(MPFR_VAR, __raptor_stochastic_rnd.high_prec_rnd);    \
+    double x_up = tmp;                                                         \
+    double x_down = GET_VAR;                                                   \
+    if (__raptor_stochastic_rnd.is_round_up(x, x_up, x_down)) {                \
+      GET_VAR = tmp;                                                           \
+    }
+
+  // Call mpfr_##MPFR_FUNC_NAME and store result in MPFR_DST_VAR with stochastic
+  // rounding
+  #define __RAPTOR_STOCHASTIC_FUNC(MPFR_FUNC_NAME, MPFR_DST_VAR, ...)          \
+    __RAPTOR_CONCAT_MPFR(, MPFR_FUNC_NAME)(__raptor_stochastic_rnd.op_high_prec\
+      ,__VA_ARGS__, __raptor_stochastic_rnd.high_prec_rnd);                    \
+    __raptor_stochastic_rnd.round(MPFR_DST_VAR);
+#else
+  #define __RATPTOR_USE_STOCHASTIC_ROUNDING false
+  // Do nothing, should not be used with if constexper(false)
+  #define __RAPTOR_STOCHASTIC_SET(MPFR_SET, MPFR_VAR, VAL)
+  // Just declare GET_VAR, should not be used with if constexper(false)
+  #define __RAPTOR_STOCHASTIC_GET(GET_TY, GET_VAR, MPFR_GET, MPFR_VAR)         \
+    GET_TY GET_VAR;
+  // Do nothing, should not be used with if constexper(false)
+  #define __RAPTOR_STOCHASTIC_FUNC(MPFR_FUNC_NAME, MPFR_DST_VAR, ...)
+#endif
+
 __RAPTOR_MPFR_ATTRIBUTES
 void __raptor_fprt_trunc_change(int64_t is_push, int64_t to_e, int64_t to_m,
                                 int64_t mode, const char *loc, void *scratch) {
@@ -545,6 +628,11 @@ void raptor_fprt_op_clear();
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_SET_ARG1, scratch[0], a);                 \
+        __RAPTOR_STOCHASTIC_GET(RET, c, si, scratch[0]);                       \
+        return c;                                                              \
+      }                                                                        \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       RET c = mpfr_get_si(scratch[0], ROUNDING_MODE);                          \
       return c;                                                                \
@@ -562,6 +650,12 @@ void raptor_fprt_op_clear();
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_SET_ARG1, scratch[0], a);                 \
+        __RAPTOR_STOCHASTIC_FUNC(MPFR_FUNC_NAME, scratch[2], scratch[0]);      \
+        __RAPTOR_STOCHASTIC_GET(RET, c, MPFR_GET, scratch[2]);                 \
+        return c;                                                              \
+      }                                                                        \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], ROUNDING_MODE);            \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
@@ -592,6 +686,12 @@ void raptor_fprt_op_clear();
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_SET_ARG1, scratch[0], a);                 \
+        __RAPTOR_STOCHASTIC_FUNC(MPFR_FUNC_NAME, scratch[2], scratch[0], b);   \
+        __RAPTOR_STOCHASTIC_GET(RET, c, MPFR_GET, scratch[2]);                 \
+        return c;                                                              \
+      }                                                                        \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], b, ROUNDING_MODE);         \
       RET c = mpfr_get_##MPFR_GET(scratch[2], ROUNDING_MODE);                  \
@@ -620,6 +720,14 @@ void raptor_fprt_op_clear();
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_SET_ARG1, scratch[0], a);                 \
+        __RAPTOR_STOCHASTIC_SET(MPFR_SET_ARG2, scratch[1], b);                 \
+        __RAPTOR_STOCHASTIC_FUNC(MPFR_FUNC_NAME, scratch[2], scratch[0],       \
+                                 scratch[1]);                                  \
+        __RAPTOR_STOCHASTIC_GET(RET, c, MPFR_GET, scratch[2]);                 \
+        return c;                                                              \
+      }                                                                        \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_set_##MPFR_SET_ARG2(scratch[1], b, ROUNDING_MODE);                  \
       mpfr_##MPFR_FUNC_NAME(scratch[2], scratch[0], scratch[1],                \
@@ -653,6 +761,15 @@ void raptor_fprt_op_clear();
       int64_t mode, const char *loc, mpfr_t *scratch) {                        \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_TYPE, scratch[0], a);                     \
+        __RAPTOR_STOCHASTIC_SET(MPFR_TYPE, scratch[1], b);                     \
+        __RAPTOR_STOCHASTIC_SET(MPFR_TYPE, scratch[2], c);                     \
+        __RAPTOR_STOCHASTIC_FUNC(mul, scratch[0], scratch[0], scratch[1]);     \
+        __RAPTOR_STOCHASTIC_FUNC(add, scratch[0], scratch[0], scratch[2]);     \
+        __RAPTOR_STOCHASTIC_GET(TYPE, res, MPFR_TYPE, scratch[0]);             \
+        return res;                                                            \
+      }                                                                        \
       mpfr_set_##MPFR_TYPE(scratch[0], a, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[1], b, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[2], c, ROUNDING_MODE);                      \
@@ -694,6 +811,12 @@ void raptor_fprt_op_clear();
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
+      if constexpr (__RATPTOR_USE_STOCHASTIC_ROUNDING) {                       \
+        __RAPTOR_STOCHASTIC_SET(MPFR_GET, scratch[0], a);                      \
+        __RAPTOR_STOCHASTIC_SET(MPFR_GET, scratch[1], b);                      \
+        int ret = mpfr_cmp(scratch[0], scratch[1]);                            \
+        return ret CMP;                                                        \
+      }                                                                        \
       mpfr_set_##MPFR_GET(scratch[0], a, ROUNDING_MODE);                       \
       mpfr_set_##MPFR_GET(scratch[1], b, ROUNDING_MODE);                       \
       int ret = mpfr_cmp(scratch[0], scratch[1]);                              \
