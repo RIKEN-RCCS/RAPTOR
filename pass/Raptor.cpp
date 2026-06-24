@@ -1277,7 +1277,7 @@ public:
 } // namespace
 
 #if LLVM_VERSION_MAJOR >= 22
-#include "llvm/Extensions/PassPlugin.h"
+#include "llvm/Plugins/PassPlugin.h"
 #else
 #include "llvm/Passes/PassPlugin.h"
 #endif
@@ -1596,8 +1596,7 @@ void augmentPassBuilder(llvm::PassBuilder &PB) {
     FunctionPassManager MainFPM;
     MainFPM.addPass(createFunctionToLoopPassAdaptor(
         LICMPass(SetLicmMssaOptCap, SetLicmMssaNoAccForPromotionCap,
-                 /*AllowSpeculation=*/true),
-        /*USeMemorySSA=*/true, /*UseBlockFrequencyInfo=*/false));
+                 /*AllowSpeculation=*/true), /*UseMemorySSA=*/true));
 
     if (RunNewGVN)
       MainFPM.addPass(NewGVNPass());
