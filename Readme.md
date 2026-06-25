@@ -220,7 +220,7 @@ To make use of mem-mode, one can replace the call to `foo` with the following:
 ```c++
   ...
   for (double& v : a) { v = __raptor_truncate_mem_value(v, 64, 1, 5, 8); }
-  __raptor_truncate_mem_value(b, 64, 1, 5, 8);
+  b = __raptor_truncate_mem_value(b, 64, 1, 5, 8);
 
   auto f = __raptor_truncate_mem_func(
     /* function */    foo,
@@ -228,7 +228,6 @@ To make use of mem-mode, one can replace the call to `foo` with the following:
     /* to_type: 0 for builtin IEEE type, 1 for MPFR */ 1,
     /* to_exponent */ 5,
     /* to_mantissa */ 8);
-  );
   c = f(a, b);
 
   for (double& v : a) { v = __raptor_expand_mem_value(v, 64, 1, 5, 8); }
@@ -238,11 +237,27 @@ To make use of mem-mode, one can replace the call to `foo` with the following:
 
 The functions `__raptor_truncate_mem_value` and `__raptor_expand_mem_value` are used before and after the truncated function call to create and convert to and from the internal data structure.
 
+Similar to op-mode, `__raptor_truncate_mem_func`, `__raptor_truncate_mem_value`, and `__raptor_expand_mem_value` must be declared:
+
+```c++
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
+template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
+template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
+```
+
 #### Fortran
 
-The usage is analagous to C++:
+The usage is analogous to C++:
 
 ```f90
+use iso_c_binding
+
+...
+
+double precision :: a, b, c;
+procedure(simple_sum), pointer :: ffty
+type(c_funptr) :: cfty
+
 a = f__raptor_truncate_mem_value(a, 64, 1, 5, 8);
 b = f__raptor_truncate_mem_value(b, 64, 1, 5, 8);
 
