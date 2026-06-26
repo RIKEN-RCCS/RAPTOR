@@ -163,6 +163,7 @@ You need to declare the `__raptor_truncate_op_func`, which can be done as such:
 template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
 template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
 ```
+Alternatively, you can `#include "raptor/raptor.h"`.
 
 #### Fortran
 
@@ -240,10 +241,11 @@ The functions `__raptor_truncate_mem_value` and `__raptor_expand_mem_value` are 
 Similar to op-mode, `__raptor_truncate_mem_func`, `__raptor_truncate_mem_value`, and `__raptor_expand_mem_value` must be declared:
 
 ```c++
-template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
-template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int);
 template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
+template <typename... Tys> double __raptor_truncate_mem_value(Tys...);
+template <typename... Tys> double __raptor_expand_mem_value(Tys...);
 ```
+Alternatively, you can `#include "raptor/raptor.h"`.
 
 #### Fortran
 
