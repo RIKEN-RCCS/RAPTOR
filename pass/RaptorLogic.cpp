@@ -116,6 +116,12 @@ private:
     return std::string(RaptorPrefix) + RTName + "_" + TC.mangleFrom() + "_" +
            Name;
   }
+  std::string getVecFPRTName(std::string Name, bool isScalable, 
+                             unsigned fixedLen) {
+    return std::string(RaptorPrefix) + RTName + "_vec" + 
+           (isScalable? "nx" : "") + Twine(fixedLen).str() + "x_" + 
+           TC.mangleFrom() + "_" + Name;
+  }
 
   // Creates a function which contains the original floating point operation.
   // The user can use this to compare results against.
@@ -143,6 +149,238 @@ private:
       // Clear invalidated debug metadata now that we defined the function
       F->clearMetadata();
     }
+  }
+
+  // Get the element count of vector operand/argument of vector op/func to for
+  // conversion to FPRT
+  ElementCount getVecFPRTFuncEC(Instruction &I, SmallVectorImpl<Value *> &Args,
+                              llvm::VectorType *RetTy) {
+    ElementCount EC = RetTy->getElementCount();
+    bool hasVecFromType = false;
+    bool allVecSizeMatch = true;
+    if (!Args.empty() && isVecOfFromType(Args[0]->getType())) {
+      hasVecFromType = true;
+      allVecSizeMatch = 
+        (EC == cast<VectorType>(Args[0]->getType())->getElementCount());
+    }
+    if (dyn_cast<UnaryOperator>(&I)) {
+      if (!hasVecFromType)
+        llvm_unreachable("Unexpected unary op for vec conversion to FPRT");
+      assert(RetTy == Args[0]->getType());
+    } else if (dyn_cast<BinaryOperator>(&I)) {
+      if (!hasVecFromType)
+        llvm_unreachable("Unexpected binary op for vec conversion to FPRT");
+      assert(Args[0]->getType() == Args[1]->getType());
+    } else if (dyn_cast<FCmpInst>(&I)) {
+      if (!hasVecFromType)
+        llvm_unreachable("Unexpected fcmp inst for vec conversion to FPRT");
+      assert(Args[0]->getType() == Args[1]->getType());
+    } else if (dyn_cast<CallInst>(&I)) { // Include IntrinsicInst
+      for (auto it = Args.begin(); it != Args.end(); ++it) {
+        if ((*it)->getType()->isVectorTy()) {
+          allVecSizeMatch = allVecSizeMatch && 
+            (EC == cast<VectorType>((*it)->getType())->getElementCount());
+          hasVecFromType = hasVecFromType || 
+            isVecOfFromType((*it)->getType());
+        }
+      }
+    }
+    if (!hasVecFromType)
+      llvm_unreachable(
+        "Unexpected inst without vec fromTy param for vec conversion to FPRT");
+    if (!allVecSizeMatch)
+      llvm_unreachable(
+        "Unexpected inst with different vec sizes for vec conversion to FPRT");
+    assert(hasVecFromType && allVecSizeMatch);
+    if (dyn_cast<VPIntrinsic>(&I))
+      llvm_unreachable(
+        "Unexpected vector predicate intrinsic for vec conversion to FPRT");
+    if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(&I)) {
+      std::string Name = Intrinsic::getBaseName(II->getIntrinsicID()).str();
+      if (Name.substr(0,11) == "llvm.vector")
+        llvm_unreachable(
+          "Unexpected vec reduce or manip intr for vec conversion to FPRT");
+      if (Name.substr(0,11) == "llvm.matrix")
+        llvm_unreachable(
+          "Unexpected matrix intrinsic for vec conversion to FPRT");
+    }
+    return EC;
+  }
+
+  // Get scalar intrinsic func name
+  std::string getScalarIntrinsicFuncName(IntrinsicInst &II) {
+    llvm::Intrinsic::ID ID = II.getIntrinsicID();
+    assert(ID != Intrinsic::not_intrinsic);
+    // Get the overload types in vecTypes
+    SmallVector<Type *, 4> vecTypes;
+    SmallVector<Intrinsic::IITDescriptor, 8> Table;
+    getIntrinsicInfoTableEntries(ID, Table);
+    ArrayRef<Intrinsic::IITDescriptor> TableRef = Table;
+    Intrinsic::matchIntrinsicSignature(
+      II.getCalledFunction()->getFunctionType(), TableRef, vecTypes);
+    SmallVector<Type *, 4> scalarTypes;
+    for (auto ty : vecTypes) {
+      if (auto vecType = dyn_cast<VectorType>(ty)) {
+        scalarTypes.push_back(vecType->getScalarType());
+      } else {
+        scalarTypes.push_back(ty);
+      }
+    }
+    std::string Name = Intrinsic::getName(ID, scalarTypes, II.getModule());
+    Name = "intr_" + Name;
+    for (auto &C : Name)
+      if (C == '.')
+        C = '_';
+    return Name;
+  }
+
+  Value *InsertScalarFPRTCall(llvm::IRBuilderBase &B, std::string Name, 
+                              Value * startingIndex, Value * vecRet,
+                              Function * F, SmallVectorImpl<Value *> &Args,
+                              llvm::VectorType *RetTy, Value *LocStr) {
+    llvm::Type * scalarRetTy = RetTy->getScalarType();
+    auto fixedVecLen = RetTy->getElementCount().getKnownMinValue();
+    // Each insertElement creates a new value
+    SmallVector<Value *, 4> vecRets;
+    vecRets.push_back(vecRet);
+    for (auto i = 0; i < fixedVecLen; ++i) {
+      // vecId = startingIndex + i;
+      Value * vecId = (startingIndex == nullptr)? B.getInt64(i) :
+                      (i == 0) ? startingIndex :
+                      B.CreateAdd(startingIndex, B.getInt64(i));
+      // Construct input arguments to the scalar FPRT call
+      SmallVector<Value *, 4> scalarArgs;
+      for (auto j = 0; j < Args.size(); ++j) {
+        if (Args[j]->getType()->isVectorTy()) { 
+          // scalarArg = Args[k][vecId]; 
+          Value * scalarArg = B.CreateExtractElement(F->getArg(j), vecId);
+          // scalarArgs[k] = scalarArg;
+          scalarArgs.push_back(scalarArg);
+        } else {
+          // scalarArgs[k] = Args[k];
+          scalarArgs.push_back(F->getArg(j));
+        }
+      }
+      // scalarRet = scalarFPRTCall(scalarArgs);
+      CallInst *scalarRet = createFPRTGeneric(B, Name, scalarArgs, scalarRetTy,
+                                              LocStr);
+      // Forward extra args from vec to scalar call
+      for (auto k = Args.size(); k < scalarRet->arg_size(); ++k) {
+        scalarRet->setArgOperand(k, F->getArg(k));
+      }
+      // vecRet[vecId] = scalarRet;
+      vecRets.push_back(B.CreateInsertElement(vecRets[i], scalarRet, vecId));
+    }
+    return vecRets.back();
+  }
+
+  // Create a function which contains a loop over truncated scalar version of
+  // the original vectorized operations
+  Function *CreateVecFPRTFunc(llvm::IRBuilderBase &B, std::string vecName, 
+                              std::string scalarName,
+                              SmallVectorImpl<Value *> &Args,
+                              llvm::VectorType *RetTy, Value *LocStr) {
+    auto isScalable = RetTy->getElementCount().isScalable();
+    auto fixedVecLen = RetTy->getElementCount().getKnownMinValue();
+    auto MangledName = getVecFPRTName(vecName, isScalable, fixedVecLen);
+    auto F = M->getFunction(MangledName);
+    
+    if (!F) {
+      SmallVector<Type *, 4> ArgTypes;
+      for (auto Arg : Args)
+        ArgTypes.push_back(Arg->getType());
+      for (auto CustomArg : CustomArgs)
+        ArgTypes.push_back(CustomArg->getType());
+      ArgTypes.push_back(LocStr->getType());
+      ArgTypes.push_back(scratch->getType());
+      FunctionType *FnTy =
+          FunctionType::get(RetTy, ArgTypes, /*is_vararg*/ false);
+      F = Function::Create(FnTy, Function::WeakAnyLinkage, MangledName, M);
+      if (isScalable) {
+        EmitWarning("UntestedTruncation", *F, 
+                    "Raptor FPRT func with scalable vector operand has not ",
+                    "been tested.", *F);
+      }
+    }
+    if (F->isDeclaration()) {
+      BasicBlock *Entry = BasicBlock::Create(F->getContext(), "entry", F);
+      IRBuilder<> vecFuncB(Entry);
+      if (!isScalable) {
+        // vecRet[fixedVecLen];
+        Value *vecRet = PoisonValue::get(RetTy);
+        // Insert fixedVecLen instances of scalar FPRT call
+        vecRet = InsertScalarFPRTCall(vecFuncB, scalarName, nullptr, vecRet, F,
+                                      Args, RetTy, LocStr);
+        vecFuncB.CreateRet(vecRet);
+      } else {
+        BasicBlock *Body = BasicBlock::Create(F->getContext(), "loop.body", F);
+        BasicBlock *Exit = BasicBlock::Create(F->getContext(), "exit", F);
+        // vecLen = vscale * fixedVecLen
+        Value *vscale = vecFuncB.CreateIntrinsic(Intrinsic::vscale, 
+                                                 {vecFuncB.getInt64Ty()}, {});
+        Value *vecLen = vecFuncB.CreateMul(vscale, 
+                                           vecFuncB.getInt64(fixedVecLen));
+        vecFuncB.CreateBr(Body);
+        // for (
+        vecFuncB.SetInsertPoint(Body);
+        //      i = 0;;) {
+        PHINode * i = vecFuncB.CreatePHI(vecFuncB.getInt64Ty(), 2);
+        i->addIncoming(vecFuncB.getInt64(0), Entry);
+        //   vecRet[vecLen];
+        PHINode *vecPHI = vecFuncB.CreatePHI(RetTy, 2);
+        vecPHI->addIncoming(PoisonValue::get(RetTy), Entry);
+        //   Insert fixedVecLen instances of scalar FPRT call
+        Value * vecRet = InsertScalarFPRTCall(vecFuncB, scalarName, i, vecPHI,
+                                              F, Args, RetTy, LocStr);
+        vecPHI->addIncoming(vecRet, Body);
+        //   i += fixedVecLen;
+        Value * incI = vecFuncB.CreateAdd(i, vecFuncB.getInt64(fixedVecLen));
+        i->addIncoming(incI, Body);
+        //   if (i == vecLen) break;
+        Value * stopCond = vecFuncB.CreateCmp(CmpInst::Predicate::ICMP_EQ, i, 
+                                              vecLen);
+        vecFuncB.CreateCondBr(stopCond, Exit, Body);
+        // }
+        vecFuncB.SetInsertPoint(Exit);
+        // return vecRet;
+        vecFuncB.CreateRet(vecRet);
+      }
+      F->setLinkage(GlobalValue::WeakODRLinkage);
+      // Clear invalidated debug metadata now that we defined the function
+      F->clearMetadata();
+    }
+    return F;
+  }
+
+  // Create call to truncated vectorized operations (through loop of scalar)
+  CallInst *createVecFPRTFuncCall(llvm::IRBuilderBase &B, ElementCount &EC, 
+                                  std::string vecName, std::string scalarName,
+                                  SmallVectorImpl<Value *> &Args, 
+                                  llvm::VectorType *RetTy, Value *LocStr) {
+    auto MangledName = getVecFPRTName(vecName, EC.isScalable(), 
+                                      EC.getKnownMinValue());
+    auto F = M->getFunction(MangledName);
+    if (!F) {
+      F = CreateVecFPRTFunc(B, vecName, scalarName, Args, RetTy, LocStr);
+    }
+    SmallVector<Value *, 4> vecArgs;
+    for (auto Arg : Args) {
+      vecArgs.push_back(Arg);
+    }
+    vecArgs.append(CustomArgs);
+    vecArgs.push_back(LocStr);
+    vecArgs.push_back(scratch);
+    // Explicitly assign a dbg location if it didn't exist, as the FPRT
+    // functions are inlineable and the backend fails if the callsite does not
+    // have dbg metadata
+    // TODO consider using InstrumentationIRBuilder
+    Function *ContainingF = B.GetInsertBlock()->getParent();
+    if (!B.getCurrentDebugLocation() && ContainingF->getSubprogram())
+      B.SetCurrentDebugLocation(DILocation::get(ContainingF->getContext(), 0, 0,
+                                                ContainingF->getSubprogram()));
+    auto *CI = cast<CallInst>(B.CreateCall(F, vecArgs));
+
+    return CI;
   }
 
   Function *getFPRTFunc(std::string Name, SmallVectorImpl<Value *> &Args,
@@ -196,26 +434,68 @@ public:
 
   Type *getToType() { return toType; }
 
+  bool isVecOfFromType(llvm::Type * Ty) {
+    return Ty->isVectorTy() && (Ty->getScalarType() == getFromType());
+  }
+
+  bool hasVecOfFromType(SmallVectorImpl<Value *> &ArgsIn) {
+    bool found = false;
+    for (auto Args : ArgsIn) {
+      found = found || isVecOfFromType(Args->getType());
+    }
+    return found;
+  }
+
+  VectorType *getVecToType(ElementCount EC) {
+    return VectorType::get(toType, EC);
+  }
+
+  bool isVecOfConst(Value * V) {
+    return V->getType()->isVectorTy() && dyn_cast<Constant>(V);
+  }
+
   CallInst *createFPRTConstCall(llvm::IRBuilderBase &B, Value *V) {
-    assert(V->getType() == getFromType());
+    assert(V->getType()->getScalarType() == getFromType());
     SmallVector<Value *, 1> Args;
     Args.push_back(V);
+    if (isVecOfFromType(V->getType())) {
+      assert(isVecOfConst(V));
+      ElementCount EC = cast<VectorType>(V->getType())->getElementCount();
+      return createVecFPRTFuncCall(B, EC, "const", "const", Args, 
+                                   getVecToType(EC), UnknownLoc);
+    }
     return createFPRTGeneric(B, "const", Args, getToType(), UnknownLoc);
   }
   CallInst *createFPRTNewCall(llvm::IRBuilderBase &B, Value *V) {
-    assert(V->getType() == getFromType());
+    assert(V->getType()->getScalarType() == getFromType());
     SmallVector<Value *, 1> Args;
     Args.push_back(V);
+    if (isVecOfFromType(V->getType())) {
+      ElementCount EC = cast<VectorType>(V->getType())->getElementCount();
+      return createVecFPRTFuncCall(B, EC, "new", "new", Args, getVecToType(EC),
+                                   UnknownLoc);
+    }
     return createFPRTGeneric(B, "new", Args, getToType(), UnknownLoc);
   }
   CallInst *createFPRTGetCall(llvm::IRBuilderBase &B, Value *V) {
     SmallVector<Value *, 1> Args;
     Args.push_back(V);
+    if (isVecOfFromType(V->getType())) {
+      ElementCount EC = cast<VectorType>(V->getType())->getElementCount();
+      return createVecFPRTFuncCall(B, EC, "get", "get", Args, getVecToType(EC),
+                                   UnknownLoc);
+    }
     return createFPRTGeneric(B, "get", Args, getToType(), UnknownLoc);
   }
   CallInst *createFPRTDeleteCall(llvm::IRBuilderBase &B, Value *V) {
     SmallVector<Value *, 1> Args;
     Args.push_back(V);
+    if (isVecOfFromType(V->getType())) {
+      ElementCount EC = cast<VectorType>(V->getType())->getElementCount();
+      return createVecFPRTFuncCall(B, EC, "delete", "delete", Args, 
+                                   VectorType::get(B.getVoidTy(), EC), 
+                                   UnknownLoc);
+    }
     return createFPRTGeneric(B, "delete", Args, B.getVoidTy(), UnknownLoc);
   }
   // This will result in a unique string for each location, which means the
@@ -278,6 +558,22 @@ public:
       llvm_unreachable("Unexpected instruction for conversion to FPRT");
     }
     createOriginalFPRTFunc(I, Name, ArgsIn, RetTy);
+    if (hasVecOfFromType(ArgsIn)) {
+      if (RetTy->isVectorTy()) {
+        ElementCount EC = getVecFPRTFuncEC(I, ArgsIn, cast<VectorType>(RetTy));
+        std::string scalarName = Name;
+        if (auto II = dyn_cast<IntrinsicInst>(&I)) {
+          if (Intrinsic::isOverloaded(II->getIntrinsicID())) {
+            scalarName = getScalarIntrinsicFuncName(*II);
+          }
+        }
+        return createVecFPRTFuncCall(B, EC, Name, scalarName, ArgsIn, 
+                                     cast<VectorType>(RetTy), 
+                                     getUniquedLocStr(&I));
+      } else {
+        llvm_unreachable("Unexpected reduction inst for conversion to FPRT");
+      }
+    }
     return createFPRTGeneric(B, Name, ArgsIn, RetTy, getUniquedLocStr(&I));
   }
 };
@@ -495,7 +791,7 @@ public:
   Value *truncate(IRBuilder<> &B, Value *v) {
     switch (Mode) {
     case TruncMemMode:
-      if (isa<ConstantFP>(v))
+      if (isa<ConstantFP>(v) || isVecOfConst(v))
         return createFPRTConstCall(B, v);
       return floatMemTruncate(B, v, TC);
     case TruncOpMode:
@@ -519,7 +815,7 @@ public:
   void visitUnaryOperator(UnaryOperator &I) {
     switch (I.getOpcode()) {
     case UnaryOperator::FNeg: {
-      if (I.getOperand(0)->getType() != getFromType())
+      if (I.getOperand(0)->getType()->getScalarType() != getFromType())
         return;
       if (!TC.isToFPRT())
         return;
@@ -547,7 +843,7 @@ public:
     case TruncMemMode: {
       auto LHS = getNewFromOriginal(CI.getOperand(0));
       auto RHS = getNewFromOriginal(CI.getOperand(1));
-      if (LHS->getType() != getFromType())
+      if (LHS->getType()->getScalarType() != getFromType())
         return;
 
       auto newI = getNewFromOriginal(&CI);
@@ -559,9 +855,11 @@ public:
       Args.push_back(truncLHS);
       Args.push_back(truncRHS);
       Instruction *nres;
-      if (TC.isToFPRT())
-        nres = createFPRTOpCall(B, CI, B.getInt1Ty(), Args);
-      else
+      if (TC.isToFPRT()) {
+        assert(newI->getType()->isVectorTy() || 
+               (newI->getType() == B.getInt1Ty()));
+        nres = createFPRTOpCall(B, CI, newI->getType(), Args);
+      } else
         nres =
             cast<FCmpInst>(B.CreateFCmp(CI.getPredicate(), truncLHS, truncRHS));
       nres->takeName(newI);
@@ -593,14 +891,14 @@ public:
     case TruncMemMode: {
       auto newI = getNewFromOriginal(&CI);
       auto newSrc = newI->getOperand(0);
-      if (CI.getSrcTy() == getFromType()) {
+      if (CI.getSrcTy()->getScalarType() == getFromType()) {
         IRBuilder<> B(newI);
-        if (isa<Constant>(newSrc))
+        if (isa<Constant>(newSrc) || isVecOfConst(newSrc))
           return;
         newI->setOperand(0, createFPRTGetCall(B, newSrc));
         EmitWarning("FPNoFollow", CI, "Will not follow FP through this cast.",
                     CI);
-      } else if (CI.getDestTy() == getFromType()) {
+      } else if (CI.getDestTy()->getScalarType() == getFromType()) {
         IRBuilder<> B(newI->getNextNode());
         EmitWarning("FPNoFollow", CI, "Will not follow FP through this cast.",
                     CI);
@@ -621,7 +919,7 @@ public:
   void visitSelectInst(llvm::SelectInst &SI) {
     switch (Mode) {
     case TruncMemMode: {
-      if (SI.getType() != getFromType())
+      if (SI.getType()->getScalarType() != getFromType())
         return;
       auto newI = getNewFromOriginal(&SI);
       IRBuilder<> B(newI);
@@ -641,17 +939,74 @@ public:
     }
     llvm_unreachable("");
   }
-  void visitExtractElementInst(llvm::ExtractElementInst &EEI) { return; }
-  void visitInsertElementInst(llvm::InsertElementInst &EEI) { return; }
-  void visitShuffleVectorInst(llvm::ShuffleVectorInst &EEI) { return; }
+  void visitExtractElementInst(llvm::ExtractElementInst &EEI) { 
+    switch (Mode) {
+    case TruncMemMode: {
+      if (EEI.getType()->getScalarType() != getFromType())
+        return;
+      auto newI = getNewFromOriginal(&EEI);
+      IRBuilder<> B(newI);
+      // VectorType that elements are being extracted from
+      if (isVecOfConst(newI->getOperand(0)))
+        newI->setOperand(0, createFPRTConstCall(B, newI->getOperand(0)));
+      return;
+    }
+    case TruncOpMode:
+    case TruncOpFullModuleMode:
+      return;
+    }
+    llvm_unreachable("");
+  }
+  void visitInsertElementInst(llvm::InsertElementInst &EEI) { 
+    switch (Mode) {
+    case TruncMemMode: {
+      if (EEI.getType()->getScalarType() != getFromType())
+        return;
+      auto newI = getNewFromOriginal(&EEI);
+      IRBuilder<> B(newI);
+      // VectorType that elements are being inserted to
+      if (isVecOfConst(newI->getOperand(0)))
+        newI->setOperand(0, createFPRTConstCall(B, newI->getOperand(0)));
+      // Inserted scalar value
+      if (isa<ConstantFP>(newI->getOperand(1)))
+        newI->setOperand(1, createFPRTConstCall(B, newI->getOperand(1)));
+      return;
+    }
+    case TruncOpMode:
+    case TruncOpFullModuleMode:
+      return;
+    }
+    llvm_unreachable("");
+  }
+  void visitShuffleVectorInst(llvm::ShuffleVectorInst &EEI) { 
+    switch (Mode) {
+    case TruncMemMode: {
+      if (EEI.getType()->getScalarType() != getFromType())
+        return;
+      auto newI = getNewFromOriginal(&EEI);
+      IRBuilder<> B(newI);
+      // First VectorType that is being shuffled
+      if (isVecOfConst(newI->getOperand(0)))
+        newI->setOperand(0, createFPRTConstCall(B, newI->getOperand(0)));
+      // Second VectorType that is being shuffled
+      if (isVecOfConst(newI->getOperand(1)))
+        newI->setOperand(1, createFPRTConstCall(B, newI->getOperand(1)));
+      return;
+    }
+    case TruncOpMode:
+    case TruncOpFullModuleMode:
+      return;
+    }
+    llvm_unreachable("");
+  }
   void visitExtractValueInst(llvm::ExtractValueInst &EEI) { return; }
   void visitInsertValueInst(llvm::InsertValueInst &EEI) { return; }
   void visitBinaryOperator(llvm::BinaryOperator &BO) {
     auto oldLHS = BO.getOperand(0);
     auto oldRHS = BO.getOperand(1);
 
-    if (oldLHS->getType() != getFromType() &&
-        oldRHS->getType() != getFromType())
+    if (oldLHS->getType()->getScalarType() != getFromType() &&
+        oldRHS->getType()->getScalarType() != getFromType())
       return;
 
     switch (BO.getOpcode()) {
@@ -681,7 +1036,11 @@ public:
     Instruction *nres = nullptr;
     if (TC.isToFPRT()) {
       SmallVector<Value *, 2> Args({newLHS, newRHS});
-      nres = createFPRTOpCall(B, BO, getToType(), Args);
+      Type *toType = isVecOfFromType(newI->getType()) ?
+                     getVecToType(cast<VectorType>(newI->getType())
+                                  ->getElementCount()) :
+                     getToType();
+      nres = createFPRTOpCall(B, BO, toType, Args);
     } else {
       nres = cast<Instruction>(B.CreateBinOp(BO.getOpcode(), newLHS, newRHS));
     }
@@ -724,7 +1083,7 @@ public:
     bool hasFromType = false;
     SmallVector<Value *, 2> new_ops(CI.arg_size());
     for (unsigned i = 0; i < CI.arg_size(); ++i) {
-      if (orig_ops[i]->getType() == getFromType()) {
+      if (orig_ops[i]->getType()->getScalarType() == getFromType()) {
         new_ops[i] = truncate(B, getNewFromOriginal(orig_ops[i]));
         hasFromType = true;
       } else {
@@ -732,9 +1091,11 @@ public:
       }
     }
     Type *retTy = CI.getType();
-    if (CI.getType() == getFromType()) {
+    if (CI.getType()->getScalarType() == getFromType()) {
       hasFromType = true;
-      retTy = getToType();
+      retTy = isVecOfFromType(CI.getType())? 
+              getVecToType(cast<VectorType>(CI.getType())->getElementCount()) :
+              getToType();
     }
 
     if (!hasFromType)
@@ -766,11 +1127,12 @@ public:
     case TruncMemMode: {
       if (I.getNumOperands() == 0)
         return;
-      if (I.getReturnValue()->getType() != getFromType())
+      if (I.getReturnValue()->getType()->getScalarType() != getFromType())
         return;
       auto newI = cast<llvm::ReturnInst>(getNewFromOriginal(&I));
       IRBuilder<> B(newI);
-      if (isa<ConstantFP>(newI->getOperand(0)))
+      if (isa<ConstantFP>(newI->getOperand(0)) || 
+          isVecOfConst(newI->getOperand(0)))
         newI->setOperand(0, createFPRTConstCall(B, newI->getReturnValue()));
       return;
     }
@@ -797,9 +1159,9 @@ public:
                         llvm::SyncScope::ID syncScope, llvm::Value *mask) {
     switch (Mode) {
     case TruncMemMode: {
-      if (orig_val->getType() != getFromType())
+      if (orig_val->getType()->getScalarType() != getFromType())
         return;
-      if (!isa<ConstantFP>(orig_val))
+      if (!isa<ConstantFP>(orig_val) && !isVecOfConst(orig_val))
         return;
       auto newI = getNewFromOriginal(&I);
       IRBuilder<> B(newI);
@@ -947,7 +1309,9 @@ public:
         if (Mode == TruncMemMode){
           for (unsigned i = 0; i < ACS.getNumArgOperands(); ++i) {
             auto arg = ACS.getCallArgOperand(i);
-            if (arg && arg->getType() == getFromType() && isa<ConstantFP>(arg)) {
+            if (arg && arg->getType()->getScalarType() == getFromType() &&
+               (isa<ConstantFP>(arg) || isVecOfConst(arg))
+            ) {
               newCall->setArgOperand(ACS.getCallArgOperandNo(i), 
                 truncate(BuilderZ, getNewFromOriginal(arg)));
             }
@@ -979,7 +1343,7 @@ public:
   void visitPHINode(llvm::PHINode &PN) {
     switch (Mode) {
     case TruncMemMode: {
-      if (PN.getType() != getFromType())
+      if (PN.getType()->getScalarType() != getFromType())
         return;
       auto NewPN = cast<llvm::PHINode>(getNewFromOriginal(&PN));
       IRBuilder<> B(&*NewPN->getParent()
@@ -987,7 +1351,8 @@ public:
                           ->getEntryBlock()
                           .getFirstNonPHIIt());
       for (unsigned It = 0; It < NewPN->getNumIncomingValues(); It++) {
-        if (isa<ConstantFP>(NewPN->getIncomingValue(It))) {
+        if (isa<ConstantFP>(NewPN->getIncomingValue(It)) || 
+            isVecOfConst(NewPN->getIncomingValue(It))) {
           NewPN->setOperand(
               It, createFPRTConstCall(B, NewPN->getIncomingValue(It)));
         }
