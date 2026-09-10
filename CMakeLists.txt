@@ -369,6 +369,45 @@ install(PROGRAMS
   "${CMAKE_CURRENT_SOURCE_DIR}/scripts/raptor_plot_float_histogram.py"
   DESTINATION bin)
 
+if (DEFINED __RAPTOR_VERIFICARLOMCA_LIB_PATH)
+  foreach (LIB_PATH IN LISTS __RAPTOR_VERIFICARLOMCA_LIB_PATH)
+    if (NOT (LIB_PATH MATCHES "libinterflop_mca.so" OR LIB_PATH MATCHES "libinterflop_mca_int.so"))
+      message(SEND_ERROR "__RAPTOR_VERIFICARLOMCA_LIB_PATH ${LIB_PATH} does not include the expected library name")
+    elseif (NOT EXISTS "${LIB_PATH}")
+      message(SEND_ERROR "__RAPTOR_VERIFICARLOMCA_LIB_PATH ${LIB_PATH} does not exists")
+    else()
+      if (LIB_PATH MATCHES "libinterflop_mca.so")
+        if (DEFINED __RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH)
+          message(SEND_ERROR "Redefining __RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH ${LIB_PATH}, __RAPTOR_VERIFICARLOMCA_LIB_PATH ${__RAPTOR_VERIFICARLOMCA_LIB_PATH}")
+        endif()
+        set(__RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH ${LIB_PATH})
+      elseif (LIB_PATH MATCHES "libinterflop_mca_int.so")
+        if (DEFINED __RAPTOR_VERIFICARLOMCA_INT_LIB_PATH)
+          message(SEND_ERROR "Redefining __RAPTOR_VERIFICARLOMCA_INT_LIB_PATH ${LIB_PATH}, __RAPTOR_VERIFICARLOMCA_LIB_PATH ${__RAPTOR_VERIFICARLOMCA_LIB_PATH}")
+        endif()
+        set(__RAPTOR_VERIFICARLOMCA_INT_LIB_PATH ${LIB_PATH})
+      endif()
+    endif()
+  endforeach()
+  if (DEFINED __RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH) 
+    get_filename_component(__RAPTOR_VERIFICARLOMCA_QUAD_LIB_DIR "${__RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH}" DIRECTORY)
+    add_library(verificarlo SHARED IMPORTED)
+    set_target_properties(verificarlo PROPERTIES
+      IMPORTED_LOCATION "${__RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH}"
+      INTERFACE_INCLUDE_DIRECTORIES "${__RAPTOR_VERIFICARLOMCA_QUAD_LIB_DIR}/../include"
+    )
+    target_compile_definitions(verificarlo INTERFACE __RAPTOR_VERIFICARLOMCA_QUAD_MODE)
+  endif()
+  if (DEFINED __RAPTOR_VERIFICARLOMCA_INT_LIB_PATH)
+    get_filename_component(__RAPTOR_VERIFICARLOMCA_INT_LIB_DIR "${__RAPTOR_VERIFICARLOMCA_INT_LIB_PATH}" DIRECTORY)
+    add_library(verificarlo_int SHARED IMPORTED)
+    set_target_properties(verificarlo_int PROPERTIES
+      IMPORTED_LOCATION "${__RAPTOR_VERIFICARLOMCA_INT_LIB_PATH}"
+      INTERFACE_INCLUDE_DIRECTORIES "${__RAPTOR_VERIFICARLOMCA_QUAD_LIB_DIR}/../include"
+    )
+    target_compile_definitions(verificarlo_int INTERFACE __RAPTOR_VERIFICARLOMCA_INT_MODE)
+  endif()
+endif()
 add_subdirectory(runtime)
 add_subdirectory(test)
 add_subdirectory(wrappers)

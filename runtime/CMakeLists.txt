@@ -3,6 +3,7 @@ add_library(
   Raptor-RT-${LLVM_VERSION_MAJOR}
   obj/Counting.cpp
   obj/GarbageCollection.cpp
+  obj/MonteCarloArithmetic.cpp
   ir/Mpfr.cpp
   ir/Fprt.cpp
   ir/Log.cpp
@@ -43,6 +44,14 @@ target_include_directories(Raptor-RT-${LLVM_VERSION_MAJOR} PUBLIC
   $<BUILD_INTERFACE:${RAPTOR_PUBLIC_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>
 )
+
+if (DEFINED __RAPTOR_VERIFICARLOMCA_QUAD_LIB_PATH)
+  target_link_libraries(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE verificarlo)
+endif()
+
+if (DEFINED __RAPTOR_VERIFICARLOMCA_INT_LIB_PATH)
+  target_link_libraries(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE verificarlo_int)
+endif()
 
 install(
   DIRECTORY ${RAPTOR_PUBLIC_INCLUDE_DIR}

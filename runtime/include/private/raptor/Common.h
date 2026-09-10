@@ -45,6 +45,9 @@ static inline bool __raptor_fprt_is_op_mode(int64_t mode) {
 static inline bool __raptor_fprt_is_full_module_op_mode(int64_t mode) {
   return mode & 0b0100;
 }
+static inline bool __raptor_fprt_is_mca_mode(int64_t mode) {
+  return mode & 0b011110000;
+}
 
 __RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_gc_dump_status();
@@ -129,6 +132,15 @@ template <typename To, typename From> To checked_raptor_bitcast(From from) {
                                               int64_t to_m, int64_t mode,      \
                                               const char *loc, void *scratch);
 
+#include "raptor/FloatTypes.def"
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
+  unsigned int __raptor_mca_get_virtural_prec_##FROM_TY(mpfr_t a,              \
+                                                        const char *loc);      \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
+  void __raptor_mca_inexact_##FROM_TY(mpfr_t a, unsigned int virtual_prec,     \
+                                      mpfr_rnd_t rnd_mode, bool isOutbound);
 #include "raptor/FloatTypes.def"
 
 #endif // _RAPTOR_COMMON_H_

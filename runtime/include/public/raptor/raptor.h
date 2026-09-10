@@ -42,6 +42,8 @@ template <typename fty>
 fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
 template <typename fty>
 fty *__raptor_truncate_op_func(fty *, int, int, int, int);
+template <typename fty>
+fty *__raptor_mca_op_func(fty *, int, int, int, int, int);
 template <typename... Tys> double __raptor_truncate_mem_value(Tys...);
 template <typename... Tys> double __raptor_expand_mem_value(Tys...);
 #endif

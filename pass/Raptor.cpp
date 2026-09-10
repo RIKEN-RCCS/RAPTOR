@@ -514,6 +514,11 @@ public:
   std::pair<FloatTruncation, unsigned>
   parseTruncation(CallInst *CI, TruncateMode Mode, unsigned ArgOffset) {
     unsigned ArgNum = CI->arg_size();
+    // Adjust ArgNum and ArgOffset for MCA which has an extra arg in the front
+    if (MCAType::isMCA(Mode)) {
+      ArgNum = ArgNum - 1;
+      ArgOffset = ArgOffset + 1;
+    }
     auto Cfrom = cast<ConstantInt>(CI->getArgOperand(ArgOffset));
     if (!Cfrom)
       EmitFailure("NotConstant", CI->getDebugLoc(), CI,
@@ -540,6 +545,12 @@ public:
                     "Mem mode truncation to IEEE not supported, switching to "
                     "equivalent MPFR.");
       }
+      if (MCAType::isMCA(Mode)) {
+        Constructor = FloatRepresentation::getMPFR;
+        EmitWarning("UnsupportedTruncation", *CI,
+                    "MCA mode truncation to IEEE not supported, switching to "
+                    "equivalent MPFR.");
+      }
       FloatRepresentation FRTo =
           Constructor((unsigned)Cto->getValue().getZExtValue());
       return {FloatTruncation(FRFrom, FRTo, Mode), 3};
@@ -564,7 +575,8 @@ public:
               4};
     }
 
-    EmitFailure("NotConstant", CI->getDebugLoc(), CI, "Unknown float type");
+    auto float_type = Cty->getValue().getZExtValue();
+    EmitFailure("NotConstant", CI->getDebugLoc(), CI, "Unknown float type", float_type);
     llvm_unreachable("Unknown float type");
   }
 
@@ -611,6 +623,10 @@ public:
     if (!F)
       return false;
     unsigned ArgNum = CI->arg_size();
+    // Adjust ArgNum for MCA which has an extra arg in the front
+    if (MCAType::isMCA(Mode)) {
+      ArgNum = ArgNum - 1;
+    }
     if (ArgNum != 4 && ArgNum != 5) {
       EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
                   "Had incorrect number of args to __raptor_truncate_func", *CI,
@@ -630,6 +646,43 @@ public:
     CI->replaceAllUsesWith(res);
     CI->eraseFromParent();
     return true;
+  }
+
+  bool HandleMCAFunc(CallInst *CI, TruncateMode Mode) {
+    IRBuilder<> Builder(CI);
+    Function *F = parseFunctionParameter(CI);
+    if (!F)
+      return false;
+    unsigned ArgNum = CI->arg_size();
+    if (ArgNum != 5 && ArgNum != 6) {
+      EmitFailure("TooManyArgs", CI->getDebugLoc(), CI,
+                  "Had incorrect number of args to __raptor_mca_func", *CI,
+                  " - expected 5 or 6");
+      return false;
+    }
+    auto Cmca = cast<ConstantInt>(CI->getArgOperand(1));
+    auto mcaTypeID = Cmca->getValue().getZExtValue();
+    if (mcaTypeID + 1 >= MCAType::NumMCAType) {
+      EmitFailure("WrongArgVal", CI->getDebugLoc(), CI,
+                  "Invalid input for MCA backend type.");
+      return false;
+    }
+    MCAType::MCAType mcaType = MCAType::get(mcaTypeID + 1);
+    auto mcaName = MCAType::getName(mcaTypeID + 1); 
+    if (mcaType == MCAType::NoMCAType) {
+      EmitFailure("Unsupported", CI->getDebugLoc(), CI,
+                  "Unsupported MCA backend type ", mcaTypeID, "(", mcaName,
+                  "), please build raptor with selected backend type.");
+      return false;
+    }
+    if (!isValidTruncMCAMode(TruncOpMode, mcaType)) {
+      EmitFailure("Unsupported", CI->getDebugLoc(), CI,
+                  "Unsupported truncate mode for the chosen MCA backend.");
+      return false;
+    }
+    // Add MCAType to TruncateMode to propagate it to the runtime library
+    TruncateMode truncMCAMode = MCAType::addToTruncateMode(Mode, mcaType);
+    return HandleTruncateFunc(CI, truncMCAMode);
   }
 
   bool HandleTruncateValue(CallInst *CI, bool isTruncate) {
@@ -834,6 +887,7 @@ public:
     SmallVector<CallInst *, 4> toTruncateFuncOp;
     SmallVector<CallInst *, 4> toTruncateValue;
     SmallVector<CallInst *, 4> toExpandValue;
+    SmallVector<CallInst *, 4> toMCAFuncOp;
   retry:;
     for (BasicBlock &BB : F) {
       for (Instruction &I : BB) {
@@ -1062,6 +1116,7 @@ public:
         bool truncateFuncMem = false;
         bool truncateValue = false;
         bool expandValue = false;
+        bool mcaFuncOp = false;
         if (false) {
         } else if (Fn->getName().contains("__raptor_log_flops")) {
           enableRaptor = true;
@@ -1078,6 +1133,9 @@ public:
         } else if (Fn->getName().contains("__raptor_expand_mem_value")) {
           enableRaptor = true;
           expandValue = true;
+        } else if (Fn->getName().contains("__raptor_mca_op_func")) {
+          enableRaptor = true;
+          mcaFuncOp = true;
         }
 
         if (enableRaptor) {
@@ -1129,6 +1187,8 @@ public:
             toTruncateValue.push_back(CI);
           else if (expandValue)
             toExpandValue.push_back(CI);
+          else if (mcaFuncOp)
+            toMCAFuncOp.push_back(CI);
 
           // TODO do we leave this?
           if (auto dc = dyn_cast<Function>(fn)) {
@@ -1153,6 +1213,8 @@ public:
       HandleTruncateValue(call, true);
     for (auto call : toExpandValue)
       HandleTruncateValue(call, false);
+    for (auto call : toMCAFuncOp)
+      HandleMCAFunc(call, TruncOpMode);
 
     return Changed;
   }

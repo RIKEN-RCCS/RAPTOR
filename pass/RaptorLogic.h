@@ -83,10 +83,21 @@ getTypeForWidth(llvm::LLVMContext &ctx, unsigned width, bool builtinFloat) {
   }
 }
 
+namespace MCAType {
+  enum MCAType {
+    NoMCAType,
+    VerificarloMCA,
+    NumMCAType
+  };
+  static constexpr int shift = 4;
+};
+
 enum TruncateMode {
   TruncMemMode = 0b0001,
   TruncOpMode = 0b0010,
   TruncOpFullModuleMode = 0b0110,
+  TruncOpMCAVerificarloMode = TruncOpMode + 
+                              (MCAType::VerificarloMCA << MCAType::shift),
 };
 [[maybe_unused]] static const char *truncateModeStr(TruncateMode mode) {
   switch (mode) {
@@ -96,9 +107,61 @@ enum TruncateMode {
     return "op";
   case TruncOpFullModuleMode:
     return "op_full_module";
+  case TruncOpMCAVerificarloMode:
+    return "op_mca_verificarlo";
   }
   llvm_unreachable("Invalid truncation mode");
 }
+
+namespace MCAType {
+  // Check if a TruncateMode has an MCATYpe added
+  constexpr bool isMCA(TruncateMode Mode) {
+    return (Mode >> shift) > 0;
+  }
+  // Split out the MCAType from the TruncateMode
+  constexpr 
+  std::pair<TruncateMode, MCAType> splitTruncMCAMode(TruncateMode Mode) {
+    switch (Mode) {
+      case TruncOpMCAVerificarloMode:
+        return {TruncOpMode, VerificarloMCA}; break;
+      default:
+        return {Mode, NoMCAType}; break;
+    }
+  }
+  // Get MCAType from int input
+  constexpr MCAType get(int mcaType) {
+    switch(mcaType) {
+#ifdef __RAPTOR_HAS_VERIFICARLOMCA
+      case VerificarloMCA: return VerificarloMCA; break;
+#endif
+      default: return NoMCAType; break;
+    }
+  }
+  // Get name of MCAType from int input
+  constexpr std::string_view getName(int mcaType) {
+    switch(mcaType) {
+      case NoMCAType: return ""; break;
+      case VerificarloMCA: return "verificarlo"; break;
+      default: return "invalid"; break;
+    }
+  }
+  // Add mcaType to TruncateMode
+  constexpr TruncateMode addToTruncateMode(TruncateMode Mode, 
+                                           MCAType mcaType) {
+    assert(!isMCA(Mode));
+    return TruncateMode(Mode + (mcaType << shift));
+  }
+  // Check that the TruncateMode and mcaType combo is supported
+  constexpr bool isValidTruncMCAMode(TruncateMode Mode, MCAType mcaType) {
+    assert(!isMCA(Mode));
+    switch (Mode + (mcaType << shift)) {
+      case TruncOpMCAVerificarloMode:
+        return true; break;
+      default:
+        return false; break;
+    }
+  }
+};
 
 struct FloatRepresentation {
 public:
@@ -423,6 +486,23 @@ public:
                                        "",
                                        false,
                                        Truncation.getTo()};
+    } else if (MCAType::isMCA(Truncation.getMode())) {
+      // toFPRT is required to insert code throug the runtime library
+      assert(Truncation.isToFPRT());
+      auto [truncateMode, mcaType] = 
+        MCAType::splitTruncMCAMode(Truncation.getMode());
+      // Currently only works with op-mode
+      assert(truncateMode == TruncOpMode);
+      return TruncationConfiguration{Truncation.getFrom(), // FromRepr
+                                     Truncation.getMode(), // Mode
+                                     true,                 // NeedNewScratch
+                                     true,                 // NeedTruncChange
+                                     false,                // ScratchFromArgs
+                                     Args,                 // CustomArgs
+                                     Mangle,               // CustomMangle
+                                     "fprt",               // RTName
+                                     true,                 // IsToFPRT
+                                     std::nullopt};        // ToRepr
     } else {
       llvm_unreachable("");
     }
