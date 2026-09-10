@@ -49,17 +49,29 @@ double intcast(int a) {
     return d / 3.14;
 }
 
+float constt_f(float a, float b) {
+    return 2;
+}
+void const_store_f(float *a) {
+    *a = 2.0;
+}
+
 typedef double (*fty)(double *, double *, double *, int);
 
 typedef double (*fty2)(double, double);
 
 template <typename fty> fty *__raptor_truncate_mem_func(fty *, int, int, int, int);
 template <typename fty> fty *__raptor_truncate_op_func(fty *, int, int, int, int);
-extern double __raptor_truncate_mem_value(...);
-extern double __raptor_expand_mem_value(...);
+extern double __raptor_truncate_mem_value(double, ...);
+extern double __raptor_expand_mem_value(double, ...);
+extern float __raptor_truncate_mem_value(float, ...);
+extern float __raptor_expand_mem_value(float, ...);
 
 #define FROM 64
 #define TO 1, 8, 23
+
+#define FROM_F 32
+#define TO_F 1, 8, 5
 
 #define TEST(F) do {
 
@@ -130,6 +142,24 @@ int main() {
     }
     {
         __raptor_truncate_mem_func(intcast, FROM, TO)(64);
+    }
+    {
+        float a = 2;
+        float b = 3;
+        float truth = constt_f(a, b);
+        a = __raptor_truncate_mem_value(a, FROM_F, TO_F);
+        b = __raptor_truncate_mem_value(b, FROM_F, TO_F);
+        float trunc = __raptor_truncate_mem_func(constt_f, FROM_F, TO_F)(a, b);
+        trunc = __raptor_expand_mem_value(trunc, FROM_F, TO_F);
+        APPROX_EQ(trunc, truth, 1e-5);
+    }
+    {
+        float truth = 0;
+        const_store_f(&truth);
+        float a = 0;
+        __raptor_truncate_mem_func(const_store_f, FROM_F, TO_F)(&a);
+        a = __raptor_expand_mem_value(a, FROM_F, TO_F);
+        APPROX_EQ(a, truth, 1e-5);
     }
     #endif
 

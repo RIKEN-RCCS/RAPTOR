@@ -34,6 +34,11 @@ typedef struct __raptor_fp {
   double excl_result;
   double shadow;
   // #endif
+  union ID {
+    size_t d;
+    uint32_t f;
+    uint16_t h;
+  } id;
 } __raptor_fp;
 
 static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
@@ -74,6 +79,13 @@ template <typename To, typename From> To checked_raptor_bitcast(From from) {
 }
 
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
+  __raptor_fp * get_raptor_fp_from_##FROM_TY(CPP_TY d);                        \
+  __RAPTOR_MPFR_DECL_ATTRIBUTES                                                \
+  CPP_TY get_##FROM_TY##_from_raptor_fp(__raptor_fp *p);
+#include "raptor/FloatTypes.def"
+
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   static inline CPP_TY __raptor_fprt_idx_to_##FROM_TY(uint64_t p) {            \
     return checked_raptor_bitcast<CPP_TY>(p);                                  \
   }                                                                            \
@@ -81,10 +93,10 @@ template <typename To, typename From> To checked_raptor_bitcast(From from) {
     return checked_raptor_bitcast<uint64_t>(d);                                \
   }                                                                            \
   static inline CPP_TY __raptor_fprt_ptr_to_##FROM_TY(__raptor_fp *p) {        \
-    return checked_raptor_bitcast<CPP_TY>(p);                                  \
+    return get_##FROM_TY##_from_raptor_fp(p);                                  \
   }                                                                            \
   static inline __raptor_fp *__raptor_fprt_##FROM_TY##_to_ptr(CPP_TY d) {      \
-    return checked_raptor_bitcast<__raptor_fp *>(d);                           \
+    return get_raptor_fp_from_##FROM_TY(d);                                    \
   }
 #include "raptor/FloatTypes.def"
 
