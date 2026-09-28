@@ -521,15 +521,17 @@
       mca_rng rng;
       void print_stats(mca_stats * in) {
         std::cout << "mu = " << in->mu << ", sigma = " << in->sigma;
-        std::cout << ", s = " << in->s << std::endl;
+        std::cout << ", s = " << in->s << ", t = " << t << std::endl;
       }
-      int calc_stats(const char *loc) {
+      int calc_stats(const char *loc, const char * op) {
         int err = mca_compute_stats(results.data(), ntrials, &stats);
-        if (!quiet) { 
-          std::cout << "MCAlite stats at " << loc << ": "; 
-          print_stats(&stats); 
+        if (err == 0) {
+          if (!quiet) { 
+            std::cout << "MCAlite stats at " << loc << ": op = " << op << ", ";
+            print_stats(&stats); 
+          }
+          acc_stats[loc].accumulate_stats(stats.mu, stats.sigma);
         }
-        acc_stats[loc].accumulate_stats(stats.mu, stats.sigma);
         return err;
       }
       void parse_env() {
@@ -624,14 +626,14 @@
         default: err = -1; break;                                              \
       }                                                                        \
       if (err == 0 && mcalite_context.ntrials > 1) {                           \
-        err = mcalite_context.calc_stats(loc);                                 \
+        err = mcalite_context.calc_stats(loc, #OP);                            \
       }                                                                        \
       if (err != 0) {                                                          \
         std::cerr << "Error in mode " << mcalite_context.mode;                 \
         std::cerr << " with op " << #OP << " at " << loc << std::endl;         \
         abort();                                                               \
       }                                                                        \
-      if (mcalite_context.mean_as_result && mcalite_context.ntrials > 1) {                                    \
+      if (mcalite_context.mean_as_result && mcalite_context.ntrials > 1) {     \
         return mcalite_context.stats.mu;                                       \
       }                                                                        \
       return mcalite_context.results[0];                                       \
