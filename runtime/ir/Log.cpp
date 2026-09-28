@@ -127,6 +127,13 @@ struct FloatLoggerTy {
         a);                                                                    \
   }
 
+#define __RAPTOR_MPFR_SINGOP_NO_ROUNDING(OP_TYPE, LLVM_OP_NAME,                \
+                                         MPFR_FUNC_NAME, FROM_TYPE, RET,       \
+                                         MPFR_GET, ARG1, MPFR_SET_ARG1,        \
+                                         ROUNDING_MODE)                        \
+    __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,     \
+                         RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ROUNDING_MODE)
+
 #define __RAPTOR_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
                               FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,   \
                               ARG2, ROUNDING_MODE)                             \

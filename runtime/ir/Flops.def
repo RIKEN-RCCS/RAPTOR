@@ -23,21 +23,6 @@
   __RAPTOR_MPFR_BIN(func, __##LLVM_OP_NAME##_finite, MPFR_FUNC_NAME, ieee_64,    \
                     double, d, double, d, double, d, ROUNDING_MODE)
 
-#define __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_NO_ROUNDING(                            \
-    LLVM_OP_NAME, MPFR_FUNC_NAME, ROUNDING_MODE)                                 \
-  __RAPTOR_MPFR_BIN_NO_ROUNDING(intr, LLVM_OP_NAME, MPFR_FUNC_NAME, ieee_64,     \
-                                double, d, double, d, double, d,                 \
-                                ROUNDING_MODE)                                   \
-  __RAPTOR_MPFR_BIN_NO_ROUNDING(intr, llvm_##LLVM_OP_NAME##_f64, MPFR_FUNC_NAME, \
-                                ieee_64, double, d, double, d, double, d,        \
-                                ROUNDING_MODE)                                   \
-  __RAPTOR_MPFR_BIN_NO_ROUNDING(func, LLVM_OP_NAME, MPFR_FUNC_NAME, ieee_64,     \
-                                double, d, double, d, double, d,                 \
-                                ROUNDING_MODE)                                   \
-  __RAPTOR_MPFR_BIN_NO_ROUNDING(func, __##LLVM_OP_NAME##_finite, MPFR_FUNC_NAME, \
-                                ieee_64, double, d, double, d, double, d,        \
-                                ROUNDING_MODE)
-
 #define __RAPTOR_MPFR_DOUBLE_BINOP_DEFAULT_ROUNDING(LLVM_OP_NAME,              \
                                                     MPFR_FUNC_NAME)            \
   __RAPTOR_MPFR_DOUBLE_BINOP(LLVM_OP_NAME, MPFR_FUNC_NAME,                     \
@@ -51,11 +36,6 @@
 #define __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(LLVM_OP_NAME,        \
                                                           MPFR_FUNC_NAME)      \
   __RAPTOR_MPFR_DOUBLE_BINFUNCINTR(LLVM_OP_NAME, MPFR_FUNC_NAME,               \
-                                   __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
-
-#define __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(         \
-                                            LLVM_OP_NAME, MPFR_FUNC_NAME)      \
-  __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_NO_ROUNDING(LLVM_OP_NAME, MPFR_FUNC_NAME,   \
                                    __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE)
 
 #define __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(LLVM_NAME, MPFR_NAME)                \
@@ -117,8 +97,7 @@ __RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(fadd, add);
 __RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(fdiv, div);
 __RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(fmul, mul);
 __RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(fsub, sub);
-
-// __RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(frem, remainder); // TODO listed where?
+__RAPTOR_MPFR_BINOP_DOUBLE_FLOAT_DEFAULT_ROUNDING(frem, remainder);
 
 
 
@@ -159,28 +138,9 @@ __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(fmodf, fmod);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(fmodl, fmod);
 
 // TODO: nextafter
-// // TODO MPFR behavior not standards-compliant
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nextafter, nexttoward);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nextafterf, nexttoward);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nextafterl, nexttoward);
-
 // TODO: nextdown
-// // TODO MPFR behavior not standards-compliant
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextdown, nextbelow);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextdownf, nextbelow);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextdownl, nextbelow);
-
 // TODO: nexttoward
-// // TODO MPFR behavior not standards-compliant
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nexttoward, nexttoward);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nexttowardf, nexttoward);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING_NO_ROUNDING(nexttowardl, nexttoward);
-
 // TODO: nextup
-// TODO MPFR behavior not standards-compliant
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextup, nextabove);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextupf, nextabove);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(nextupl, nextabove);
 
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(remainder, remainder);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(remainderf, remainder);
@@ -190,10 +150,6 @@ __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(remainderl, remainder);
 // TODO: scalbn
 
 // TODO: totalorder
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(totalorder, total_order_p);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(totalorderf, total_order_p);
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(totalorderl, total_order_p);
-
 // TODO: totalordermag
 // TODO: ufromfp
 // TODO: ufromfpx
@@ -207,7 +163,6 @@ __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(atan2pif, atan2pi);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(atan2pil, atan2pi);
 
 // TODO: compoundn
-// __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(compoundn, compound_si);
 
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(hypot, hypot);
 __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(hypotf, hypot);
@@ -232,10 +187,10 @@ __RAPTOR_MPFR_DOUBLE_BINFUNCINTR_DEFAULT_ROUNDING(minnum, min); // TODO listed w
 // See: https://libc.llvm.org/headers/math/index.html
 // See: https://www.mpfr.org/mpfr-current/mpfr.html
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(ceil, abs);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(canonicalize, );  // No MPFR implementation
+// TODO: canonicalize
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(fabs, abs);
 // TODO: floor
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(floor, floor);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(floor, floor);
 // TODO: rexp
 // TODO: fromfp
 // TODO: fromfpx
@@ -248,7 +203,6 @@ __RAPTOR_MPFR_BIN_INT(func, ldexp, mul_2ui, ieee_64, double, d, double,
 // TODO: llogb
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(llrint, rint);
 // TODO: llround
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(llround, round_nearest_away);
 // TODO: logb
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(lrint, rint);
 // TODO This returns an int and is a rounding operation.
@@ -272,21 +226,21 @@ __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(rintf, rint);
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(rintl, rint);
 
 // TODO: round
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(round, round);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundf, round);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundl, round);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(round, round);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundf, round);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundl, round);
 
 // TODO: roundeven
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundeven, roundeven);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundevenf, roundeven);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundevenl, roundeven);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundeven, roundeven);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundevenf, roundeven);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(roundevenl, roundeven);
 
 // TODO: setpayload
 // TODO: setpayloadsig
 // TODO: trunc
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(trunc, trunc);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(truncf, trunc);
-// __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(truncl, trunc);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(trunc, trunc);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(truncf, trunc);
+__RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT_NO_ROUNDING(truncl, trunc);
 
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(acos, acos);
 __RAPTOR_MPFR_SINGOP_DOUBLE_FLOAT(acosf, acos);
