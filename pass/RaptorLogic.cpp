@@ -958,6 +958,10 @@ public:
       if (handleIntrinsic(CI, ID))
         return;
 
+    // Do not instrument raptor_mca_set/unset_tmp_t functions
+    if (funcName.starts_with("raptor_mca_") && funcName.ends_with("set_tmp_t"))
+        return;
+
     using namespace llvm;
 
     CallBase *const newCall = cast<CallBase>(getNewFromOriginal(&CI));

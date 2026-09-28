@@ -77,6 +77,11 @@ void raptor_fprt_excl_trunc_start();
 __RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_excl_trunc_end();
 
+__RAPTOR_MPFR_DECL_ATTRIBUTES
+void raptor_mca_set_tmp_t(int t);
+__RAPTOR_MPFR_DECL_ATTRIBUTES
+void raptor_mca_unset_tmp_t();
+
 template <typename To, typename From> To raptor_bitcast(From from) {
   static_assert(sizeof(From) == sizeof(To));
   size_t size = sizeof(From);

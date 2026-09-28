@@ -510,6 +510,7 @@
     struct mcalite_context_t {
       uint64_t rng_seed = 42;
       int t = 24; // virtual precision
+      int env_t = 24; // virtual precision from the environment variable
       size_t ntrials = 5; // Number of repetition per operation
       mcalite_mode mode = mcalite_mode::PB;
       bool quiet = false;
@@ -542,6 +543,7 @@
         if (env_val != nullptr) {
           std::string env_str(env_val);
           t = std::stoi(env_str);
+          env_t = t;
         }
         env_val = getenv("MCA_NTRIALS");
         if (env_val != nullptr) {
@@ -655,11 +657,29 @@
 
   #define __RAPTOR_MCALITE_get_virtual_prec                                    \
     do { return mcalite_context.t; } while(0)
-
+  #define __RAPTOR_MCALITE_set_virtual_prec(T)                                 \
+    do { mcalite_context.t = T; } while(0)
+  #define __RAPTOR_MCALITE_restore_virtual_prec                                \
+    do { mcalite_context.t = mcalite_context.env_t; } while (0)
 #else
   #define __RAPTOR_USE_MCALITE false
   #define __RAPTOR_MCALITE_get_virtual_prec
+  #define __RAPTOR_MCALITE_set_virtual_prec(T)
+  #define __RAPTOR_MCALITE_restore_virtual_prec
 #endif // __RAPTOR_USE_MCALITE
+
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_mca_set_tmp_t(int t) {
+  if constexpr(__RAPTOR_USE_MCALITE) {
+    __RAPTOR_MCALITE_set_virtual_prec(t);
+  }
+}
+__RAPTOR_MPFR_ATTRIBUTES
+void raptor_mca_unset_tmp_t() {
+  if constexpr(__RAPTOR_USE_MCALITE) {
+    __RAPTOR_MCALITE_restore_virtual_prec;
+  }
+}
 
 #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
