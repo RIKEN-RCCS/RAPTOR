@@ -695,7 +695,10 @@ public:
         case BinaryOperator::FMul:
         case BinaryOperator::FDiv:
           break;
-        default: return; break;
+        default: 
+          EmitWarning("UnsupportedMCA", BO, "Binary operator not supported by "
+                      "MCAlite", BO);
+          return; break;
       }
     }
     auto newI = getNewFromOriginal(&BO);
@@ -737,9 +740,6 @@ public:
   bool handleIntrinsic(llvm::CallBase &CI, Intrinsic::ID ID) {
     if (isDbgInfoIntrinsic(ID))
       return true;
-    
-    // MCAlite do not support intrinsics
-    if (Mode == TruncOpMCAMCAliteMode) { return true; }
 
     auto newI = cast<llvm::CallBase>(getNewFromOriginal(&CI));
     IRBuilder<> B(newI);
@@ -766,6 +766,12 @@ public:
 
     if (!hasFromType)
       return false;
+    // MCAlite do not support intrinsics
+    if (Mode == TruncOpMCAMCAliteMode) { 
+      EmitWarning("UnsupportedMCA", CI, "Intrinsic not supported by MCAlite",
+                  CI);
+      return true; 
+    }
 
     Instruction *intr = nullptr;
     Value *nres = nullptr;
