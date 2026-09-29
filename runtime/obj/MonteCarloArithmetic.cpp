@@ -509,6 +509,7 @@
     };
     struct mcalite_context_t {
       uint64_t rng_seed = 42;
+      uint64_t rng_stream_id = 0;
       int t = 24; // virtual precision
       int env_t = 24; // virtual precision from the environment variable
       size_t ntrials = 5; // Number of repetition per operation
@@ -527,7 +528,8 @@
         int err = mca_compute_stats(results.data(), ntrials, &stats);
         if (err == 0) {
           if (!quiet) { 
-            std::cout << "MCAlite stats at " << loc << ": op = " << op << ", ";
+            std::cout << "MCAlite stats of stream " << rng_stream_id;
+            std::cout << " at " << loc << ": op = " << op << ", ";
             print_stats(&stats); 
           }
           acc_stats[loc].accumulate_stats(stats.mu, stats.sigma);
@@ -584,21 +586,23 @@
         return str;
       }
       void print() {
-        std::cout << "rng_seed = " << rng_seed << ", t = " << t << ", ";
-        std::cout << "ntrials = " << ntrials << ", mode = " << mode_str();
+        std::cout << "rng_seed = " << rng_seed;
+        std::cout << ", rng_stream = " << rng_stream_id << ", t = " << t;
+        std::cout << ", ntrials = " << ntrials << ", mode = " << mode_str();
       }
       mcalite_context_t() {
         parse_env();
         results.resize(ntrials);
-        auto stream_id = rng_stream++;
-        mca_rng_seed(&rng, rng_seed, stream_id);
+        rng_stream_id = rng_stream++;
+        mca_rng_seed(&rng, rng_seed, rng_stream_id);
         if (!quiet) {
-          print(); std::cout << ", rng_stream " << stream_id << std::endl;
+          print(); std::cout << std::endl;
         }
       }
       ~mcalite_context_t() {
         for (auto acc_stat : acc_stats) {
-          std::cout << "MCAlite accumulated stats at " << acc_stat.first;
+          std::cout << "MCAlite accumulated stats of stream " << rng_stream_id;
+          std::cout << " at " << acc_stat.first;
           std::cout << ": " << acc_stat.second.str() << std::endl;
         }
       }
