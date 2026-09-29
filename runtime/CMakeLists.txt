@@ -53,6 +53,10 @@ if (DEFINED __RAPTOR_VERIFICARLOMCA_INT_LIB_PATH)
   target_link_libraries(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE verificarlo_int)
 endif()
 
+if (DEFINED __RAPTOR_MCALITE_SOURCE_DIR)
+  target_link_libraries(Raptor-RT-${LLVM_VERSION_MAJOR} PRIVATE mcalite)
+endif()
+
 install(
   DIRECTORY ${RAPTOR_PUBLIC_INCLUDE_DIR}
   DESTINATION include

@@ -26,6 +26,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (DEFINED __RAPTOR_VERIFICARLOMCA_LIB_PATH)
     add_compile_definitions(__RAPTOR_HAS_VERIFICARLOMCA)
 endif()
+if (DEFINED __RAPTOR_MCALITE_SOURCE_DIR)
+    add_compile_definitions(__RAPTOR_HAS_MCALITE)
+endif()
 
 # on windows `PLUGIN_TOOL` doesn't link against LLVM.dll
 if ((WIN32 OR CYGWIN) AND LLVM_LINK_LLVM_DYLIB)

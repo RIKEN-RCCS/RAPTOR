@@ -118,6 +118,17 @@ if verificarlomca_lib_path != "":
 
 
 link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lmpfr -lRaptor-RT-" + config.llvm_ver + verificarlomca_link_options
+
+mcalite_lib_path = "@__RAPTOR_MCALITE_LIB_PATH@"
+if mcalite_lib_path != "":
+  mcalite_lib_dir = "/".join(mcalite_lib_path.split("/")[:-1])
+  mcalite_lib_name = mcalite_lib_path.split("/")[-1].split(".")[0][3:]
+  link = link + " -L" + mcalite_lib_dir + " -l" + mcalite_lib_name + " -Wl,-rpath=" + mcalite_lib_dir
+
+mcalite_src_dir = "@__RAPTOR_MCALITE_SOURCE_DIR@"
+if mcalite_src_dir != "":
+  link = link + " -lm"
+
 config.substitutions.append(('%linkRaptorRT', link))
 
 link = "-L@RAPTOR_BINARY_DIR@/runtime/ -lstdc++ -lmpfr -lRaptor-RT-" + config.llvm_ver

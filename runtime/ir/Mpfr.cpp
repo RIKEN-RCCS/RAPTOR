@@ -83,17 +83,75 @@
 #endif
 
 #if defined(__RAPTOR_VERIFICARLOMCA_QUAD_MODE) ||                              \
-    defined(__RAPTOR_VERIFICARLOMCA_INT_MODE)
+    defined(__RAPTOR_VERIFICARLOMCA_INT_MODE) || defined(__RAPTOR_MCALITE_MODE)
   #define __RAPTOR_USE_MCA true
 
   #define __RAPTOR_MCA_CONCAT(prefix, FROM_TY) __raptor_mca_##prefix##FROM_TY
+  #define __RAPTOR_MCA_STRINGIFY(x) #x
   #define __RAPTOR_MCA_INEXACT(FROM_TY, a, loc, rnd_mode, isOutbound)          \
     __RAPTOR_MCA_CONCAT(inexact_, FROM_TY)(a,                                  \
       __RAPTOR_MCA_CONCAT(get_virtural_prec_, FROM_TY)(a, loc), rnd_mode,      \
       isOutbound);
+  
+  #ifdef __RAPTOR_MCALITE_MODE
+    #define __RAPTOR_MCA_BYPASS_MPFR true
+    #include <string_view>
+    #define __RAPTOR_MCA_OP_FUNC_DECL(RET_TYPE, OP_NAME, FROM_TYPE, ...)       \
+      __RAPTOR_MPFR_ATTRIBUTES                                                 \
+      RET_TYPE __RAPTOR_MCA_CONCAT(OP_NAME##_, FROM_TYPE)(__VA_ARGS__);
+    #define __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, OP_TYPE_REF, LLVM_OP_NAME,        \
+                                    LLVM_OP_NAME_REF, FUNC_NAME, FROM_TYPE,...)\
+      if constexpr((__RAPTOR_MCA_STRINGIFY(OP_TYPE) == OP_TYPE_REF &&          \
+                    __RAPTOR_MCA_STRINGIFY(LLVM_OP_NAME) == LLVM_OP_NAME_REF)  \
+      ) { return __RAPTOR_MCA_CONCAT(FUNC_NAME##_, FROM_TYPE)(__VA_ARGS__); }
+    #define __RAPTOR_MCA_BYPASS_MPFR_UNARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,   \
+                                           LLVM_TYPE, ...)                     \
+      do {                                                                     \
+        using namespace std::literals::string_view_literals;                   \
+        __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, "unaryop"sv, LLVM_OP_NAME, "fneg"sv,  \
+                                neg, FROM_TYPE, __VA_ARGS__);                  \
+      } while (0)
+    #define __RAPTOR_MCA_BYPASS_MPFR_BINARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,  \
+                                            LLVM_TYPE, ...)                    \
+      do {                                                                     \
+        using namespace std::literals::string_view_literals;                   \
+        __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, "binop"sv, LLVM_OP_NAME, "fadd"sv,    \
+                                add, FROM_TYPE, __VA_ARGS__);                  \
+        __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, "binop"sv, LLVM_OP_NAME, "fsub"sv,    \
+                                sub, FROM_TYPE, __VA_ARGS__);                  \
+        __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, "binop"sv, LLVM_OP_NAME, "fmul"sv,    \
+                                mul, FROM_TYPE, __VA_ARGS__);                  \
+        __RAPTOR_MCA_OP_FUNC_IF(OP_TYPE, "binop"sv, LLVM_OP_NAME, "fdiv"sv,    \
+                                div, FROM_TYPE, __VA_ARGS__);                  \
+      } while (0)
+    #define __RAPTOR_MCA_BYPASS_MPFR_ERR(prefix, OP_TYPE, LLVM_OP_NAME)        \
+      fprintf(stderr, "%s %s %s\n", #prefix, #OP_TYPE, #LLVM_OP_NAME); abort();
+
+    #define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                 \
+      __RAPTOR_MCA_OP_FUNC_DECL(CPP_TY, neg, FROM_TY, CPP_TY x,                \
+                                const char * loc)                              \
+      __RAPTOR_MCA_OP_FUNC_DECL(CPP_TY, add, FROM_TY, CPP_TY x, CPP_TY y,      \
+                                const char * loc)                              \
+      __RAPTOR_MCA_OP_FUNC_DECL(CPP_TY, sub, FROM_TY, CPP_TY x, CPP_TY y,      \
+                                const char * loc)                              \
+      __RAPTOR_MCA_OP_FUNC_DECL(CPP_TY, mul, FROM_TY, CPP_TY x, CPP_TY y,      \
+                                const char * loc)                              \
+      __RAPTOR_MCA_OP_FUNC_DECL(CPP_TY, div, FROM_TY, CPP_TY x, CPP_TY y,      \
+                                const char * loc)
+    #include "raptor/FloatTypes.def"
+  #endif
 #else
   #define __RAPTOR_USE_MCA false
   #define __RAPTOR_MCA_INEXACT(FROM_TY, a, loc, rnd_mode, isOutbound)
+#endif
+
+#ifndef __RAPTOR_MCA_BYPASS_MPFR
+  #define __RAPTOR_MCA_BYPASS_MPFR false
+  #define __RAPTOR_MCA_BYPASS_MPFR_UNARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,     \
+                                         LLVM_TYPE, ...)
+  #define __RAPTOR_MCA_BYPASS_MPFR_BINARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,    \
+                                          LLVM_TYPE, ...)
+  #define __RAPTOR_MCA_BYPASS_MPFR_ERR(prefix, OP_TYPE, LLVM_OP_NAME)
 #endif
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -559,6 +617,12 @@ void raptor_fprt_op_clear();
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       RET c = mpfr_get_si(scratch[0], ROUNDING_MODE);                          \
       return c;                                                                \
@@ -575,6 +639,14 @@ void raptor_fprt_op_clear();
       ARG1 a, int64_t exponent, int64_t significand, int64_t mode,             \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_UNARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,, a, \
+                                         loc);                                 \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       if constexpr (__RAPTOR_USE_MCA) {                                        \
@@ -617,6 +689,12 @@ void raptor_fprt_op_clear();
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       if constexpr (__RAPTOR_USE_MCA) {                                        \
@@ -657,6 +735,14 @@ void raptor_fprt_op_clear();
       ARG1 a, ARG2 b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_BINARY(FROM_TYPE, OP_TYPE, LLVM_OP_NAME,, a,\
+                                          b, loc);                             \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_SET_ARG1(scratch[0], a, ROUNDING_MODE);                  \
       mpfr_set_##MPFR_SET_ARG2(scratch[1], b, ROUNDING_MODE);                  \
@@ -704,6 +790,12 @@ void raptor_fprt_op_clear();
       TYPE a, TYPE b, TYPE c, int64_t exponent, int64_t significand,           \
       int64_t mode, const char *loc, mpfr_t *scratch) {                        \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_TYPE(scratch[0], a, ROUNDING_MODE);                      \
       mpfr_set_##MPFR_TYPE(scratch[1], b, ROUNDING_MODE);                      \
@@ -761,6 +853,12 @@ void raptor_fprt_op_clear();
       TYPE a, TYPE b, int64_t exponent, int64_t significand, int64_t mode,     \
       const char *loc, mpfr_t *scratch) {                                      \
     if (__raptor_fprt_is_op_mode(mode)) {                                      \
+      if constexpr(__RAPTOR_MCA_BYPASS_MPFR) {                                 \
+        if (__raptor_fprt_mca_type_is(mode, MCAType::MCAlite)) {               \
+          __RAPTOR_MCA_BYPASS_MPFR_ERR("Unsupported MCAlite op", OP_TYPE,      \
+                                       LLVM_OP_NAME);                          \
+        }                                                                      \
+      }                                                                        \
       __raptor_fprt_trunc_count(exponent, significand, mode, loc, scratch);    \
       mpfr_set_##MPFR_GET(scratch[0], a, ROUNDING_MODE);                       \
       mpfr_set_##MPFR_GET(scratch[1], b, ROUNDING_MODE);                       \

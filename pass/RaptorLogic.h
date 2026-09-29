@@ -87,6 +87,7 @@ namespace MCAType {
   enum MCAType {
     NoMCAType,
     VerificarloMCA,
+    MCAlite,
     NumMCAType
   };
   static constexpr int shift = 4;
@@ -98,6 +99,7 @@ enum TruncateMode {
   TruncOpFullModuleMode = 0b0110,
   TruncOpMCAVerificarloMode = TruncOpMode + 
                               (MCAType::VerificarloMCA << MCAType::shift),
+  TruncOpMCAMCAliteMode = TruncOpMode + (MCAType::MCAlite << MCAType::shift),
 };
 [[maybe_unused]] static const char *truncateModeStr(TruncateMode mode) {
   switch (mode) {
@@ -109,6 +111,8 @@ enum TruncateMode {
     return "op_full_module";
   case TruncOpMCAVerificarloMode:
     return "op_mca_verificarlo";
+  case TruncOpMCAMCAliteMode:
+    return "op_mca_mcalite";
   }
   llvm_unreachable("Invalid truncation mode");
 }
@@ -124,6 +128,8 @@ namespace MCAType {
     switch (Mode) {
       case TruncOpMCAVerificarloMode:
         return {TruncOpMode, VerificarloMCA}; break;
+      case TruncOpMCAMCAliteMode:
+        return {TruncOpMode, MCAlite}; break;
       default:
         return {Mode, NoMCAType}; break;
     }
@@ -134,6 +140,9 @@ namespace MCAType {
 #ifdef __RAPTOR_HAS_VERIFICARLOMCA
       case VerificarloMCA: return VerificarloMCA; break;
 #endif
+#ifdef __RAPTOR_HAS_MCALITE
+      case MCAlite: return MCAlite; break;
+#endif
       default: return NoMCAType; break;
     }
   }
@@ -142,6 +151,7 @@ namespace MCAType {
     switch(mcaType) {
       case NoMCAType: return ""; break;
       case VerificarloMCA: return "verificarlo"; break;
+      case MCAlite: return "mcalite"; break;
       default: return "invalid"; break;
     }
   }
@@ -156,6 +166,7 @@ namespace MCAType {
     assert(!isMCA(Mode));
     switch (Mode + (mcaType << shift)) {
       case TruncOpMCAVerificarloMode:
+      case TruncOpMCAMCAliteMode:
         return true; break;
       default:
         return false; break;

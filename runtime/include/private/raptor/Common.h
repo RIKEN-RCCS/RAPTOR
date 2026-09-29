@@ -36,6 +36,17 @@ typedef struct __raptor_fp {
   // #endif
 } __raptor_fp;
 
+// Should match definition in pass/RaptorLogic.h
+namespace MCAType {
+  enum MCAType {
+    NoMCAType,
+    VerificarloMCA,
+    MCAlite,
+    NumMCAType
+  };
+  static constexpr int shift = 4;
+};
+
 static inline bool __raptor_fprt_is_mem_mode(int64_t mode) {
   return mode & 0b0001;
 }
@@ -47,6 +58,11 @@ static inline bool __raptor_fprt_is_full_module_op_mode(int64_t mode) {
 }
 static inline bool __raptor_fprt_is_mca_mode(int64_t mode) {
   return mode & 0b011110000;
+}
+static inline bool __raptor_fprt_mca_type_is(int64_t mode, 
+                                             MCAType::MCAType mcaType)
+{
+  return (mode & 0b011110000) == (mcaType << MCAType::shift);
 }
 
 __RAPTOR_MPFR_DECL_ATTRIBUTES
@@ -60,6 +76,11 @@ __RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_excl_trunc_start();
 __RAPTOR_MPFR_DECL_ATTRIBUTES
 void raptor_fprt_excl_trunc_end();
+
+__RAPTOR_MPFR_DECL_ATTRIBUTES
+void raptor_mca_set_tmp_t(int t);
+__RAPTOR_MPFR_DECL_ATTRIBUTES
+void raptor_mca_unset_tmp_t();
 
 template <typename To, typename From> To raptor_bitcast(From from) {
   static_assert(sizeof(From) == sizeof(To));
