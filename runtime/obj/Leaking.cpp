@@ -5,7 +5,7 @@ double __raptor_fprt_ieee_64_get(double _a, int64_t exponent,
                                  int64_t significand, int64_t mode,
                                  const char *loc, mpfr_t *scratch) {
   __raptor_fp *a = __raptor_fprt_ieee_64_to_ptr(_a);
-  return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
+  return mpfr_get_d(a->result, __RAPTOR_MPFR_DEFAULT_ROUND_MODE);
 }
 
 __RAPTOR_MPFR_ATTRIBUTES
@@ -16,7 +16,7 @@ double __raptor_fprt_ieee_64_new(double _a, int64_t exponent,
   if (!a)
     exit(__RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS);
   mpfr_init2(a->result, significand + 1); /* see MPFR_FP_EMULATION */
-  mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE);
+  mpfr_set_d(a->result, _a, __RAPTOR_MPFR_DEFAULT_ROUND_MODE);
   a->excl_result = _a;
   a->shadow = _a;
   return __raptor_fprt_ptr_to_double(a);
