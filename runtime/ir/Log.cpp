@@ -69,140 +69,138 @@ struct FloatLoggerTy {
 } FloatLogger;
 } // namespace
 
-#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                     \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  CPP_TY __raptor_fprtlog_##FROM_TY##_abs_err(CPP_TY a, CPP_TY b) {            \
-    return std::abs(a - b);                                                    \
-  }                                                                            \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void __raptor_fprtlog_##FROM_TY##_trunc_change(                              \
-      int64_t is_push, int64_t to_e, int64_t to_m, int64_t mode,               \
-      const char *loc, void *scratch) {                                        \
-    __raptor_fprt_trunc_change(is_push, to_e, to_m, mode, loc, scratch);       \
-  }                                                                            \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void *__raptor_fprtlog_##FROM_TY##_get_scratch(                              \
-      int64_t to_e, int64_t to_m, int64_t mode, const char *loc,               \
-      void *scratch) {                                                         \
-    return nullptr;                                                            \
-  }                                                                            \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void __raptor_fprtlog_##FROM_TY##_free_scratch(                              \
-      int64_t to_e, int64_t to_m, int64_t mode, const char *loc,               \
-      void *scratch) {}                                                        \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void __raptor_log_flops_##FROM_TY(CPP_TY a) { FloatLogger.log(a); }          \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void __raptor_clear_flop_log_##CPP_TY() { FloatLogger.clear<CPP_TY>(); }     \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  void __raptor_set_flop_log_##CPP_TY(const char *path) {                      \
-    FloatLogger.setLogPath<CPP_TY>(path);                                      \
+#define RAPTOR_FLOAT_TYPE(CPP_TY, FROM_TY)                                    \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  CPP_TY __raptor_fprtlog_##FROM_TY##_abs_err(CPP_TY a, CPP_TY b) {           \
+    return std::abs(a - b);                                                   \
+  }                                                                           \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void __raptor_fprtlog_##FROM_TY##_trunc_change(                             \
+      int64_t is_push, int64_t to_e, int64_t to_m, int64_t mode,              \
+      const char *loc, void *scratch) {                                       \
+    __raptor_fprt_trunc_change(is_push, to_e, to_m, mode, loc, scratch);      \
+  }                                                                           \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void *__raptor_fprtlog_##FROM_TY##_get_scratch(                             \
+      int64_t to_e, int64_t to_m, int64_t mode, const char *loc,              \
+      void *scratch) {                                                        \
+    return nullptr;                                                           \
+  }                                                                           \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void __raptor_fprtlog_##FROM_TY##_free_scratch(                             \
+      int64_t to_e, int64_t to_m, int64_t mode, const char *loc,              \
+      void *scratch) {}                                                       \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void __raptor_log_flops_##FROM_TY(CPP_TY a) { FloatLogger.log(a); }         \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void __raptor_clear_flop_log_##CPP_TY() { FloatLogger.clear<CPP_TY>(); }    \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  void __raptor_set_flop_log_##CPP_TY(const char *path) {                     \
+    FloatLogger.setLogPath<CPP_TY>(path);                                     \
   }
 #include "raptor/FloatTypes.def"
 
-#define __RAPTOR_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,      \
-                             MPFR_SET_ARG1, ROUNDING_MODE)                     \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(      \
-      ARG1 a);                                                                 \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(               \
-      ARG1 a, LogFuncTy_##FROM_TYPE f, const char *loc, void *scratch) {       \
-    f(a);                                                                      \
+#define __RAPTOR_MPFR_LROUND(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, RET, ARG1,     \
+                             MPFR_SET_ARG1, ROUND_MODE)                       \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+      ARG1 a);                                                                \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(              \
+      ARG1 a, LogFuncTy_##FROM_TYPE f, const char *loc, void *scratch) {      \
+    f(a);                                                                     \
     return __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME( \
-        a);                                                                    \
+        a);                                                                   \
   }
 
-#define __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
-                             RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
-                             ROUNDING_MODE)                                    \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(      \
-      ARG1 a);                                                                 \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(               \
-      ARG1 a, LogFuncTy_##FROM_TYPE f, const char *loc, void *scratch) {       \
-    f(a);                                                                      \
+#define __RAPTOR_MPFR_SING(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,  \
+                           RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ROUND_MODE)    \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+      ARG1 a);                                                                \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(              \
+      ARG1 a, LogFuncTy_##FROM_TYPE f, const char *loc, void *scratch) {      \
+    f(a);                                                                     \
     return __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME( \
-        a);                                                                    \
+        a);                                                                   \
   }
 
-#define __RAPTOR_MPFR_SINGOP_NO_ROUNDING(OP_TYPE, LLVM_OP_NAME,                \
-                                         MPFR_FUNC_NAME, FROM_TYPE, RET,       \
-                                         MPFR_GET, ARG1, MPFR_SET_ARG1,        \
-                                         ROUNDING_MODE)                        \
-    __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,     \
-                         RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ROUNDING_MODE)
+#define __RAPTOR_MPFR_SING_NORND(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,       \
+                                       FROM_TYPE, RET, MPFR_GET, ARG1,        \
+                                       MPFR_SET_ARG1, ROUND_MODE)             \
+    __RAPTOR_MPFR_SING(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, RET, \
+                       MPFR_GET, ARG1, MPFR_SET_ARG1, ROUND_MODE)
 
-#define __RAPTOR_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,           \
-                              FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,   \
-                              ARG2, ROUNDING_MODE)                             \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(      \
-      ARG1 a, ARG2 b);                                                         \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(               \
-      ARG1 a, ARG2 b, LogFuncTy_##FROM_TYPE f, const char *loc,                \
-      void *scratch) {                                                         \
-    f(a);                                                                      \
+#define __RAPTOR_MPFR_BIN_INT(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,          \
+                              FROM_TYPE, RET, MPFR_GET, ARG1, MPFR_SET_ARG1,  \
+                              ARG2, ROUND_MODE)                               \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+      ARG1 a, ARG2 b);                                                        \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(              \
+      ARG1 a, ARG2 b, LogFuncTy_##FROM_TYPE f, const char *loc,               \
+      void *scratch) {                                                        \
+    f(a);                                                                     \
     return __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME( \
-        a, b);                                                                 \
+        a, b);                                                                \
   }
 
-#define __RAPTOR_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,    \
-                          RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ARG2,            \
-                          MPFR_SET_ARG2, ROUNDING_MODE)                        \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(      \
-      ARG1 a, ARG2 b);                                                         \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(               \
-      ARG1 a, ARG2 b, LogFuncTy_##FROM_TYPE f, const char *loc,                \
-      void *scratch) {                                                         \
-    f(a);                                                                      \
-    f(b);                                                                      \
+#define __RAPTOR_MPFR_BIN(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,   \
+                          RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ARG2,           \
+                          MPFR_SET_ARG2, ROUND_MODE)                          \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  RET __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(     \
+      ARG1 a, ARG2 b);                                                        \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  RET __raptor_fprtlog_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(              \
+      ARG1 a, ARG2 b, LogFuncTy_##FROM_TYPE f, const char *loc,               \
+      void *scratch) {                                                        \
+    f(a);                                                                     \
+    f(b);                                                                     \
     return __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME( \
-        a, b);                                                                 \
+        a, b);                                                                \
   }
 
-#define __RAPTOR_MPFR_FMULADD(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, TYPE,                        \
-                              MPFR_TYPE, LLVM_TYPE, ROUNDING_MODE)                           \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                                          \
-  TYPE                                                                                       \
-  __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME##_##LLVM_TYPE(          \
-      TYPE a, TYPE b, TYPE c);                                                               \
-  __RAPTOR_MPFR_ATTRIBUTES                                                                   \
-  TYPE __raptor_fprtlog_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(                     \
-      TYPE a, TYPE b, TYPE c, LogFuncTy_##FROM_TYPE f, int64_t mode,                         \
-      const char *loc, void *scratch) {                                                      \
-    f(a);                                                                                    \
-    f(b);                                                                                    \
-    f(c);                                                                                    \
+#define __RAPTOR_MPFR_FMULADD(OP_TYPE, LLVM_OP_NAME, FROM_TYPE, TYPE,         \
+                              MPFR_TYPE, LLVM_TYPE, ROUND_MODE)               \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  TYPE                                                                        \
+  __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME##_##LLVM_TYPE( \
+      TYPE a, TYPE b, TYPE c);                                                \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  TYPE __raptor_fprtlog_##FROM_TYPE##_intr_##LLVM_OP_NAME##_##LLVM_TYPE(      \
+      TYPE a, TYPE b, TYPE c, LogFuncTy_##FROM_TYPE f, int64_t mode,          \
+      const char *loc, void *scratch) {                                       \
+    f(a);                                                                     \
+    f(b);                                                                     \
+    f(c);                                                                     \
     return __raptor_fprtlog_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME##_##LLVM_TYPE( \
-        a, b, c);                                                                            \
+        a, b, c);                                                             \
   }
 
-#define __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
-                                ROUNDING_MODE)                                 \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
-  bool __raptor_fprtlog_original_##FROM_TYPE##_fcmp_##NAME(TYPE a, TYPE b);    \
-  __RAPTOR_MPFR_ATTRIBUTES                                                     \
-  bool __raptor_fprtlog_##FROM_TYPE##_fcmp_##NAME(                             \
-      TYPE a, TYPE b, LogFuncTy_##FROM_TYPE f, const char *loc,                \
-      void *scratch) {                                                         \
-    return __raptor_fprtlog_original_##FROM_TYPE##_fcmp_##NAME(a, b);          \
+#define __RAPTOR_MPFR_FCMP(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET,     \
+                           ROUND_MODE)                                        \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                           \
+  bool __raptor_fprtlog_original_##FROM_TYPE##_fcmp_##NAME(TYPE a, TYPE b);   \
+  __RAPTOR_MPFR_ATTRIBUTES                                                    \
+  bool __raptor_fprtlog_##FROM_TYPE##_fcmp_##NAME(                            \
+      TYPE a, TYPE b, LogFuncTy_##FROM_TYPE f, const char *loc,               \
+      void *scratch) {                                                        \
+    return __raptor_fprtlog_original_##FROM_TYPE##_fcmp_##NAME(a, b);         \
   }
 
-#define __RAPTOR_MPFR_ISCLASS(FROM_TYPE, TYPE, LLVM_TYPE)                            \
-  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES bool                                             \
-  __raptor_fprtlog_original_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(          \
-      TYPE a, int32_t tests);                                                        \
-  __RAPTOR_MPFR_ATTRIBUTES bool                                                      \
-  __raptor_fprtlog_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(                   \
-      TYPE a, int32_t tests, LogFuncTy_##FROM_TYPE f, const char *loc,               \
-      void *scratch) {                                                               \
+#define __RAPTOR_MPFR_ISCLASS(FROM_TYPE, TYPE, LLVM_TYPE)                     \
+  __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES bool                                      \
+  __raptor_fprtlog_original_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(   \
+      TYPE a, int32_t tests);                                                 \
+  __RAPTOR_MPFR_ATTRIBUTES bool                                               \
+  __raptor_fprtlog_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE(            \
+      TYPE a, int32_t tests, LogFuncTy_##FROM_TYPE f, const char *loc,        \
+      void *scratch) {                                                        \
     return __raptor_fprtlog_original_##FROM_TYPE##_intr_llvm_is_fpclass_##LLVM_TYPE( \
-        a, tests);                                                                   \
+        a, tests);                                                            \
   }
 
 #include "Flops.def"

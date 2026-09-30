@@ -12,7 +12,7 @@
 #define __RAPTOR_MPFR_DECL_ATTRIBUTES extern "C"
 #define __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES extern "C" __attribute__((weak))
 
-#define __RAPTOR_MPFR_DEFAULT_ROUNDING_MODE GMP_RNDN
+#define __RAPTOR_MPFR_DEFAULT_ROUND_MODE GMP_RNDN
 #define __RAPTOR_MPFR_MALLOC_FAILURE_EXIT_STATUS 114
 
 extern std::atomic<long long> shadow_err_counter;

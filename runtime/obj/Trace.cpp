@@ -365,9 +365,8 @@ void __raptor_fprt_delete_all() {
   FPs.clear();
 }
 
-#define __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, \
-                             RET, MPFR_GET, ARG1, MPFR_SET_ARG1,               \
-                             ROUNDING_MODE)                                    \
+#define __RAPTOR_MPFR_SING(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,   \
+                           RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ROUNDING_MODE)  \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
   RET __raptor_fprt_original_##FROM_TYPE##_##OP_TYPE##_##LLVM_OP_NAME(ARG1 a); \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
@@ -386,12 +385,11 @@ void __raptor_fprt_delete_all() {
     return ret;                                                                \
   }
 
-#define __RAPTOR_MPFR_SINGOP_NO_ROUNDING(OP_TYPE, LLVM_OP_NAME,                \
-                                         MPFR_FUNC_NAME, FROM_TYPE, RET,       \
-                                         MPFR_GET, ARG1, MPFR_SET_ARG1,        \
-                                         ROUNDING_MODE)                        \
-    __RAPTOR_MPFR_SINGOP(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE,     \
-                         RET, MPFR_GET, ARG1, MPFR_SET_ARG1, ROUNDING_MODE)
+#define __RAPTOR_MPFR_SING_NO_ROUNDING(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME,  \
+                                       FROM_TYPE, RET, MPFR_GET, ARG1,         \
+                                       MPFR_SET_ARG1, ROUNDING_MODE)           \
+    __RAPTOR_MPFR_SING(OP_TYPE, LLVM_OP_NAME, MPFR_FUNC_NAME, FROM_TYPE, RET,  \
+                       MPFR_GET, ARG1, MPFR_SET_ARG1, ROUNDING_MODE)
 
 // TODO this is a bit sketchy if the user cast their float to int before calling
 // this. We need to detect these patterns
@@ -464,8 +462,8 @@ void __raptor_fprt_delete_all() {
     return ret;                                                                 \
   }
 
-#define __RAPTOR_MPFR_FCMP_IMPL(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET, \
-                                ROUNDING_MODE)                                 \
+#define __RAPTOR_MPFR_FCMP(NAME, ORDERED, CMP, FROM_TYPE, TYPE, MPFR_GET,      \
+                           ROUNDING_MODE)                                      \
   __RAPTOR_MPFR_ORIGINAL_ATTRIBUTES                                            \
   bool __raptor_fprt_original_##FROM_TYPE##_fcmp_##NAME(TYPE a, TYPE b);       \
   __RAPTOR_MPFR_ATTRIBUTES                                                     \
